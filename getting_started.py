@@ -39,7 +39,7 @@ repo = rp.GitRepository()  # Initialize a new repository
 repo.init()
 
 repo.add_all()  # Add all files and commit
-repo.commit('Test commit with class')
+repo.commit('Update README.md')
 repo.push('main')  # Push changes to the remote repository to the main branch
 
 repo.status()  # Check status

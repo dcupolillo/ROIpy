@@ -9,8 +9,6 @@ from ROIpy.GUI.frames import LoadFiles, ScanParameters, SaveFiles
 from ROIpy.GUI.canvas import Canvas, StructureFrame
 from ROIpy.GUI.guiStyles import darkMode
 
-from ROIpy.metadata_creator import metadata
-
 
 class MainWindow(QMainWindow):
 
@@ -125,10 +123,8 @@ def main():
     app = QApplication([])
 
     roipy_window = MainWindow()
-    metadata_window = metadata.DataEntry()
 
     roipy_window.show()
-    metadata_window.show()
     sys.exit(app.exec_())
 
 
