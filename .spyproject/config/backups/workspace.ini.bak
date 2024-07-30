@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['getting_started.py', 'core\\structures.py', 'core\\bundles.py', 'core\\components.py', 'GUI\\guiStyles.py', 'GUI\\gui.py', 'GUI\\canvas.py', 'GUI\\frames.py', 'core\\makeroi\\make_roi.py', 'core\\makeroi\\roi_file.py', 'core\\utils\\utils.py', 'plot\\plot.py', 'assets\\palette.py', 'analysis\\savejson.py', 'analysis\\stats.py', 'metadata_creator\\metadata.py', 'metadata_creator\\entries.py', 'create_dataset.py', 'plot_dataset.py', '..\\dataplotter\\plotters.py', '..\\spyne\\core\\imagingdataset.py', '..\\spyne\\core\\utils\\movie_utils.py', 'tracing\\data_preparation.py', 'tracing\\data_augmentation.py', 'tracing\\data_generator.py', 'tracing\\model.py', 'tracing\\training.py', 'README.md', 'core\\makeroi\\scan_path.py']
+recent_files = ['getting_started.py', 'core\\structures.py', 'core\\bundles.py', 'core\\components.py', 'GUI\\guiStyles.py', 'GUI\\gui.py', 'GUI\\canvas.py', 'GUI\\frames.py', 'core\\makeroi\\roi_file.py', 'core\\utils\\utils.py', 'plot\\plot.py', 'assets\\palette.py', 'analysis\\savejson.py', 'analysis\\stats.py', 'metadata_creator\\metadata.py', 'metadata_creator\\entries.py', 'create_dataset.py', 'plot_dataset.py', '..\\dataplotter\\plotters.py', '..\\spyne\\core\\imagingdataset.py', '..\\spyne\\core\\utils\\movie_utils.py', 'tracing\\data_preparation.py', 'tracing\\data_augmentation.py', 'tracing\\data_generator.py', 'tracing\\model.py', 'tracing\\training.py', 'README.md', 'core\\makeroi\\scan_path.py', 'github.py', '__init__.py']
 
 [main]
 version = 0.2.0
