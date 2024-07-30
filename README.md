@@ -51,7 +51,7 @@ stack = rp.Stack('path/to/image.tif')
 stack.plot(cmap='viridis', norm=(100, 2000))
 ```
 
-![Example of a stack](descr_images/stack.png)
+![Example of a stack](assets/stack.png)
 
 ### Morphology
 
@@ -78,7 +78,7 @@ morph = rp.Morphology('path/to/image.tif', 'path/to/tracing.swc')
 morph.plot(morph.neuron, show_nodes=True, cmap='jet', linewidth=1)
 ```
 
-![Example of a morph neuron](descr_images/morph.png)
+![Example of a morph neuron](assets/morph.png)
 
 ### Scanfields
 
@@ -105,4 +105,4 @@ sf = rp.Scanfields('path/to/image.tif', 'path/to/tracing.swc')
 sf.plot(sf.neuComp, edgecolor='red')
 ```
 
-![Example of a neuronal scanfield](descr_images/sf.png)
+![Example of a neuronal scanfield](assets/sf.png)
