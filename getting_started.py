@@ -5,7 +5,7 @@ import ROIpy as rp
 import matplotlib.pyplot as plt
 from neuronpath.path import neuronpath
 
-paths = neuronpath('240123', 1)
+paths = neuronpath('240724', 1)
 
 # generate the structures Objects
 stack = rp.Stack(paths.stackpath)
@@ -38,7 +38,6 @@ rp.main()
 repo = rp.GitRepository()  # Initialize a new repository
 
 repo.add_all()  # Add all files and commit
-repo.commit("Deleted 'Tracing' and 'Metadata creator'")
+repo.commit("Update README.md")
 repo.push('main')  # Push changes to the remote repository to the main branch
 
-repo.status()  # Check status

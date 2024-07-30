@@ -174,8 +174,11 @@ class Roi:
             bottom_right: list,
             pixel_resolution_xy: list,
             pix_um_ratio: list,
+            acquisition_line_period: float,
+            line_scan_period: float,
+            rectangle_period: float,
             pixel_to_ref: np.ndarray = None,
-            affine: np.ndarray = None
+            affine: np.ndarray = None,
     ) -> None:
         """
         Individual rectangular Roi representation
@@ -248,6 +251,9 @@ class Roi:
         self.top_left_deg = [(i / obj_res) for i in self.top_left]
         self.pixel_to_ref_transform = np.array(pixel_to_ref)
         self.affine = np.array(affine)
+        self.acquisition_line_period = acquisition_line_period
+        self.line_scan_period = line_scan_period
+        self.rectangle_period = rectangle_period
 
     def __getattr__(
             self,

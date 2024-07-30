@@ -306,7 +306,10 @@ def find_rectangles(
                 far_node,
                 bottom_right,
                 pixel_resolution_xy=None,
-                pix_um_ratio=None)
+                pix_um_ratio=None,
+                acquisition_line_period=None,
+                line_scan_period=None,
+                rectangle_period=None)
 
             z_plane_rectangles.append(rectangle)
 
@@ -451,10 +454,21 @@ def merge_neighbors(
         z_most_common = int(mode(z_values))
 
         # Create a Roi object
-        new_rect = Roi(objective_resolution,
-                       zs, center, rotation, size, zs[z_most_common],
-                       close_node, far_node, bottom_right,
-                       pixel_resolution_xy=None, pix_um_ratio=None)
+        new_rect = Roi(
+            objective_resolution,
+            zs,
+            center,
+            rotation,
+            size,
+            zs[z_most_common],
+            close_node,
+            far_node,
+            bottom_right,
+            pixel_resolution_xy=None,
+            pix_um_ratio=None,
+            acquisition_line_period=None,
+            line_scan_period=None,
+            rectangle_period=None)
 
         merged_rectangles.append(new_rect)
 
@@ -648,11 +662,21 @@ def correct_curvatures(
                 bottom_right = [x, y]
 
                 # Create a new enlarged Roi object
-                widened_rect = Roi(objective_resolution,
-                                   zs, center, rotation, size, rect.z,
-                                   close_node, far_node, bottom_right,
-                                   pixel_resolution_xy=None,
-                                   pix_um_ratio=None)
+                widened_rect = Roi(
+                    objective_resolution,
+                    zs,
+                    center,
+                    rotation,
+                    size,
+                    rect.z,
+                    close_node,
+                    far_node,
+                    bottom_right,
+                    pixel_resolution_xy=None,
+                    pix_um_ratio=None,
+                    acquisition_line_period=None,
+                    line_scan_period=None,
+                    rectangle_period=None)
 
                 new_rects.append(widened_rect)
 
@@ -733,7 +757,10 @@ def elongate_rectangles(
                 far_node,
                 bottom_right,
                 pixel_resolution_xy=None,
-                pix_um_ratio=None)
+                pix_um_ratio=None,
+                acquisition_line_period=None,
+                line_scan_period=None,
+                rectangle_period=None)
 
             elongated_z_plane_rectangles.append(elongated_rect)
 
@@ -898,10 +925,11 @@ def remove_rect_within_radius(
             elif rect.compartment == 'basal dendrite':
                 radius = radius_basal
 
-            corners = [rect.bottom_left,
-                       rect.bottom_right,
-                       rect.top_left,
-                       rect.top_right]
+            corners = [
+                rect.bottom_left,
+                rect.bottom_right,
+                rect.top_left,
+                rect.top_right]
 
             max_distance = max(
                 euclidean_distance(corner, (class_var.soma.x,
@@ -1047,17 +1075,27 @@ def calculate_transform(
             far_node = rect.end_node + \
                 [rect.z, rect.end_node_id, rect.compartment]
 
-            new_rect = Roi(objective_resolution,
-                           zs, rect.center_xy, rect.rotation_degrees,
-                           rect.size_xy, rect.z,
-                           close_node, far_node, rect.bottom_right,
-                           pixel_resolution_xy=rect.pixel_resolution_xy,
-                           pix_um_ratio=rect.pix_um_ratio,
-                           pixel_to_ref=[list(row)
-                                         for row in
-                                         pixel_to_ref_transformation(
-                                             rect, T)],
-                           affine=[list(row) for row in T])
+            new_rect = Roi(
+                objective_resolution,
+                zs,
+                rect.center_xy,
+                rect.rotation_degrees,
+                rect.size_xy,
+                rect.z,
+                close_node,
+                far_node,
+                rect.bottom_right,
+                pixel_resolution_xy=rect.pixel_resolution_xy,
+                pix_um_ratio=rect.pix_um_ratio,
+                pixel_to_ref=[list(row)
+                              for row in
+                              pixel_to_ref_transformation(
+                                  rect, T)],
+                affine=[list(row) for row in T],
+                acquisition_line_period=rect.acquisition_line_period,
+                line_scan_period=rect.line_scan_period,
+                rectangle_period=rect.rectangle_period)
+
             new_z_plane_rectangles.append(new_rect)
 
         new_rectangles.append(new_z_plane_rectangles)
@@ -1126,125 +1164,124 @@ def roi_populate_pixels(
             z_plane,
             fill_fraction)
 
-        # Pre-allocate empty list
-        new_rects = [None] * len(z_plane)
+        adjustment_needed = True
+        framerate_delta = 0.2
 
-        for r, rect in enumerate(z_plane):
+        while adjustment_needed:
+            adjustment_needed = False
 
-            # Current dimensions of a single rectangle
-            width, height = rect.size_xy
-            aspect_ratio = width / height
+            # Pre-allocate empty list
+            new_rects = [None] * len(z_plane)
 
-            # Calculate the number of pixels based on the pixel size
-            num_pixels_width = np.ceil(width / pixel_size)
-            num_pixels_height = np.ceil(height / pixel_size)
+            for r, rect in enumerate(z_plane):
 
-            # Ensure pixel dimensions are even
-            if num_pixels_width % 2 != 0:
-                num_pixels_width += 1
-            if num_pixels_height % 2 != 0:
-                num_pixels_height += 1
+                # Current dimensions of a single rectangle
+                width, height = rect.size_xy
 
-            acquisition_line_period = dwell_time * num_pixels_width
+                # Calculate the number of pixels based on the pixel size
+                num_pixels_width = int(np.ceil(width / pixel_size))
+                num_pixels_height = int(np.ceil(height / pixel_size))
 
-            # this if-else chunck is from Scanimage GalvoGalvo.m
-            if class_var.sampling_rate is not None:
+                # Ensure pixel dimensions are even
+                if num_pixels_width % 2 != 0:
+                    num_pixels_width += 1
+                if num_pixels_height % 2 != 0:
+                    num_pixels_height += 1
 
-                scan_acq_samples = np.ceil(
-                    class_var.sampling_rate *
-                    acquisition_line_period /
-                    fill_fraction)
-                scan_acq_samples_range = np.arange(
-                    scan_acq_samples,
-                    int(np.ceil(1.5 * scan_acq_samples)) + 1)
+                acquisition_line_period = dwell_time * num_pixels_width
 
-                scan_acq_samples_range = scan_acq_samples_range[
-                    scan_acq_samples_range % 2 == 0]
-
-                scan_acq_times = (
-                    scan_acq_samples_range / class_var.sampling_rate)
-
-                ctl_samples = scan_acq_times * sampling_rate_ctl
-
-                ctl_samples = ctl_samples[ctl_samples % 2 == 0]
-
-                line_scan_period = (
-                    min(ctl_samples) / sampling_rate_ctl)
-
-            else:
+                # this chunck is from Scanimage GalvoGalvo.m
                 samples_acq = (
                     acquisition_line_period * sampling_rate_ctl)
-
                 samples_turnaround_half = np.ceil(
                     ((samples_acq / fill_fraction) - samples_acq) / 2)
-
                 samples_scan = samples_acq + 2 * samples_turnaround_half
-
                 line_scan_period = (
                     samples_scan / sampling_rate_ctl)
 
-            # line_scan_period = acquisition_line_period / fill_fraction
-            rectangle_period = line_scan_period * num_pixels_height
+                rectangle_period = line_scan_period * num_pixels_height
 
-            pix_um_ratio = num_pixels_width / width
-            if pix_um_ratio < optimal_pix_um_ratio:
-                pix_um_ratio = optimal_pix_um_ratio
+                pix_um_ratio = num_pixels_width / width
+                if pix_um_ratio < optimal_pix_um_ratio:
+                    pix_um_ratio = optimal_pix_um_ratio
 
-            # Recalculate width and height based on the pixel ratio
-            # Fixed pix/um ratio
-            width_recalculated = num_pixels_width / pix_um_ratio
-            height_recalculated = num_pixels_height / pix_um_ratio
+                # Recalculate width and height based on the pixel ratio
+                # Fixed pix/um ratio
+                width_recalculated = num_pixels_width / pix_um_ratio
+                height_recalculated = num_pixels_height / pix_um_ratio
 
-            # Calculate the new bottom right coordinates and nodes
-            x_center, y_center = rect.center_xy
-            half_width = width_recalculated / 2
-            half_height = height_recalculated / 2
-            rotation = rect.rotation_degrees
-            sin = np.sin(np.radians(rotation))
-            cos = np.cos(np.radians(rotation))
-            close_node = [x_center - half_height *
-                          cos, y_center - half_height * sin]
-            x = close_node[0] + half_width * sin
-            y = close_node[1] - half_width * cos
+                # Calculate the new bottom right coordinates and nodes
+                x_center, y_center = rect.center_xy
+                half_width = width_recalculated / 2
+                half_height = height_recalculated / 2
+                rotation = rect.rotation_degrees
+                sin = np.sin(np.radians(rotation))
+                cos = np.cos(np.radians(rotation))
+                close_node = [x_center - half_height *
+                              cos, y_center - half_height * sin]
+                x = close_node[0] + half_width * sin
+                y = close_node[1] - half_width * cos
 
-            close_node = rect.start_node + [
-                rect.z, rect.start_node_id, rect.compartment]
-            far_node = rect.end_node + [
-                rect.z, rect.end_node_id, rect.compartment]
-            close_node.append(rect.start_node_id)
-            far_node.append(rect.end_node_id)
+                close_node = rect.start_node + [
+                    rect.z, rect.start_node_id, rect.compartment]
+                far_node = rect.end_node + [
+                    rect.z, rect.end_node_id, rect.compartment]
+                close_node.append(rect.start_node_id)
+                far_node.append(rect.end_node_id)
 
-            new_bottom_right = [x, y]
+                new_bottom_right = [x, y]
 
-            # Create a new rectangle instance with updated properties
-            new_rect = Roi(
-                objective_resolution,
-                class_var.zs,
-                center=rect.center_xy,
-                rotation=rect.rotation_degrees,
-                size=[width_recalculated, height_recalculated],
-                z=rect.z,
-                start=close_node,
-                end=far_node,
-                bottom_right=new_bottom_right,
-                pixel_resolution_xy=[num_pixels_width, num_pixels_height],
-                pix_um_ratio=pix_um_ratio
-            )
+                # Create a new rectangle instance with updated properties
+                new_rect = Roi(
+                    objective_resolution,
+                    class_var.zs,
+                    center=rect.center_xy,
+                    rotation=rect.rotation_degrees,
+                    size=[width_recalculated, height_recalculated],
+                    z=rect.z,
+                    start=close_node,
+                    end=far_node,
+                    bottom_right=new_bottom_right,
+                    pixel_resolution_xy=[num_pixels_width, num_pixels_height],
+                    pix_um_ratio=pix_um_ratio,
+                    acquisition_line_period=acquisition_line_period,
+                    line_scan_period=line_scan_period,
+                    rectangle_period=rectangle_period
+                )
 
-            # Add the updated rectangle to the list
-            new_rects[r] = new_rect
+                # Add the updated rectangle to the list
+                new_rects[r] = new_rect
+
+                rect.size_xy = [width_recalculated, height_recalculated]
+
+            # Calculate the frame rate for the z-plane
+            z_framerate = calculate_z_framerate(
+                class_var, new_rects)
+
+            # Check if adjustment is needed
+            if abs(z_framerate - desired_framerate) > framerate_delta:
+                adjustment_needed = True
+                pixel_size *= (1.05
+                               if z_framerate < desired_framerate
+                               else 0.95)
 
         # Add the updated z-plane to the list
         new_z_planes[z] = new_rects
 
     # Calculate the resulting frame rates for each z-plane
-    frame_rates = calculate_z_framerate(class_var, new_z_planes)
+    frame_rates = calculate_all_framerates(class_var, new_z_planes)
 
     # Print frame rates for verification
     for z, rate in enumerate(frame_rates):
-        print(f"Z-plane 0{z}: {rate:.3f} Hz, period {1/rate:.3f}"
+        period = 1 / rate
+        difference = (period - desired_scanperiod)
+        string = "INCREASE" if difference > 0 else "DECREASE"
+
+        print(f"Z-plane 0{z}: {rate:.2f} Hz, period {period:.4f}, "
+              f"{string} flyback by {abs(difference):.4f}"
               if z < 10 else
-              f"Z-plane {z}: {rate:.3f} Hz, period {1/rate:.3f}")
+              f"Z-plane {z}: {rate:.2f} Hz, period {period:.4f}, "
+              f"{string} flyback by {abs(difference):.4f}")
 
     return new_z_planes
 
@@ -1276,7 +1313,7 @@ def calculate_pixel_size(
         [((rect.size_xy[0] / fill_fraction) * rect.size_xy[1])
          for rect in rectangles])
 
-    # time required to scan all pixels
+    # time required to scan all pixels if pixel were 1x1 um
     numerator = scan_area_um * pixel_dwell_time
     pixel_size_squared = numerator / desired_scanperiod
     pixel_size = math.sqrt(pixel_size_squared)
@@ -1284,30 +1321,93 @@ def calculate_pixel_size(
     return pixel_size
 
 
-def calculate_line_period(
+def fine_tune_pixel_dimensions(
         class_var: object,
-        rect: object
-) -> (float, float, float):
+        framerate_delta: float,
+        rects: list
+) -> list:
+    """
+    Fine-tunes the pixel dimensions to achieve the desired frame rate.
+
+    Parameters
+    ----------
+    frame_flyback : float
+        The time for the frame flyback in microseconds.
+    fly_to_line : float
+        The time to move to the next line in microseconds.
+    dwell_time : float
+        The time to scan one pixel in microseconds.
+    sampling_rate_ctl : float
+        The sampling rate of the data acquisition system.
+    fill_fraction : float
+        The fill fraction indicating the percentage of the scan line
+        that is actually used for data acquisition.
+    desired_framerate : float
+        The desired frame rate in Hz.
+    framerate_delta : float
+        The acceptable difference between the actual and desired frame rate.
+    rects : list
+        List of Roi objects for a single z-plane.
+    optimal_pix_um_ratio : float
+        The optimal pixel-to-micron ratio.
+
+    Returns
+    -------
+    list
+        Updated list of rectangles with modified pixel dimensions.
+    """
 
     dwell_time = class_var.dwell_time
+    sampling_rate_ctl = class_var.sampling_rate_ctl
     fill_fraction = class_var.fill_fraction
+    desired_framerate = class_var.desired_framerate
+    optimal_pix_um_ratio = class_var.optimal_pix_um_ratio
 
-    num_pixels_width, num_pixels_height = rect.pixel_resolution_xy
+    z_framerate = calculate_z_framerate(class_var, rects)
 
-    # Calculate line active acquisition time
-    line_active_acquisition_time = num_pixels_width * dwell_time
+    while abs(z_framerate - desired_framerate) > framerate_delta:
+        for rect in rects:
+            width, height = rect.size_xy
+            pix_um_ratio = rect.pix_um_ratio
 
-    # Calculate line period including fill fraction
-    line_period = line_active_acquisition_time / fill_fraction
+            if z_framerate < desired_framerate:
+                pix_um_ratio *= 1.05
+            else:
+                pix_um_ratio /= 1.05
 
-    # Calculate rectangle period
-    rect_period = line_period * num_pixels_height
+            if pix_um_ratio < optimal_pix_um_ratio:
+                pix_um_ratio = optimal_pix_um_ratio
 
-    return line_active_acquisition_time, line_period, rect_period
+            num_pixels_width = int(np.ceil(width * pix_um_ratio))
+            num_pixels_height = int(np.ceil(height * pix_um_ratio))
+
+            # Ensure pixel dimensions are even
+            if num_pixels_width % 2 != 0:
+                num_pixels_width += 1
+            if num_pixels_height % 2 != 0:
+                num_pixels_height += 1
+
+            acquisition_line_period = dwell_time * num_pixels_width
+            samples_acq = acquisition_line_period * sampling_rate_ctl
+            samples_turnaround_half = np.ceil(
+                ((samples_acq / fill_fraction) - samples_acq) / 2)
+            samples_scan = samples_acq + 2 * samples_turnaround_half
+            line_scan_period = samples_scan / sampling_rate_ctl
+            rectangle_period = line_scan_period * num_pixels_height
+
+            # Update rect properties
+            rect.pix_um_ratio = pix_um_ratio
+            rect.pixel_resolution_xy = [num_pixels_width, num_pixels_height]
+            rect.acquisition_line_period = acquisition_line_period
+            rect.line_scan_period = line_scan_period
+            rect.rectangle_period = rectangle_period
+
+        z_framerate = calculate_z_framerate(class_var, rects)
+
+    return rects
 
 
-
-def calculate_z_framerate(
+def calculate_all_framerates(
         class_var: object,
         rectangles: list,
 ) -> list:
@@ -1332,19 +1432,57 @@ def calculate_z_framerate(
 
     scan_period = []
     for z, z_plane in enumerate(rectangles):
-        if z_plane:
-            scan_period_z = 0
-            for rect in z_plane:
+        if not z_plane:
+            continue
+        scan_period_z = 0
+        for rect in z_plane:
 
-                (
-                    line_active_acquisition_time,
-                    line_period,
-                    rect_period
-                ) = calculate_line_period(class_var, rect)
+            rect_period = rect.rectangle_period
 
-                scan_period_z += rect_period
-            scan_period.append(scan_period_z + frame_flyback +
-                               (fly_to_line * (len(z_plane) - 1)))
+            scan_period_z += rect_period
+
+        scan_period.append(scan_period_z + frame_flyback +
+                           (fly_to_line * (len(z_plane) - 1)))
     framerate = [(1 / i) for i in scan_period]
+
+    return framerate
+
+
+def calculate_z_framerate(
+        class_var: object,
+        z_plane: list
+) -> float:
+    """
+    Calculates the frame rate for a single z-plane based on
+    rectangle properties and scanning parameters.
+
+    Parameters
+    ----------
+    frame_flyback : float
+        The time for the frame flyback in microseconds.
+    fly_to_line : float
+        The time to move to the next line in microseconds.
+    z_plane : list
+        List of Roi objects for a single z-plane.
+
+    Returns
+    -------
+    float
+        Frame rate for the z-plane.
+    """
+
+    frame_flyback = class_var.frame_flyback
+    fly_to_line = class_var.fly_to_line
+
+    scan_period_z = 0
+
+    for rect in z_plane:
+        rect_period = rect.rectangle_period
+        scan_period_z += rect_period
+
+    total_scan_period = (
+        scan_period_z + frame_flyback + (fly_to_line * (len(z_plane) - 1)))
+
+    framerate = 1 / total_scan_period
 
     return framerate
