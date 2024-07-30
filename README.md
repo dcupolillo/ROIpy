@@ -41,7 +41,7 @@ as possible, recorded in the channel of the used morphological filler/marker.
 `Stack` is the initial building block of the digitized dendritic structures.
 
 **Example Usage:**
-```
+```python
 import ROIpy as rp
 
 # Initialize a stack of neuron images
