@@ -54,23 +54,36 @@ def publish_to_github(repo_url, commit_message):
     """
     # Get the current working directory
     project_dir = os.getcwd()
-
+    
     # Initialize a git repository if it doesn't exist
     if not os.path.exists(os.path.join(project_dir, '.git')):
         subprocess.run(['git', 'init'], check=True)
-        subprocess.run(
-            ['git', 'remote', 'add', 'origin', repo_url], check=True)
-
+        subprocess.run(['git', 'remote', 'add', 'origin', repo_url], check=True)
+    
     # Add all files to the staging area
     subprocess.run(['git', 'add', '.'], check=True)
-
+    
+    # Check the status of the repository
+    status = subprocess.run(['git', 'status'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    print("Git status output:\n", status.stdout)
+    
     # Commit the changes
-    subprocess.run(['git', 'commit', '-m', commit_message], check=True)
-
+    try:
+        commit_result = subprocess.run(['git', 'commit', '-m', commit_message], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print(commit_result.stdout)
+        print(commit_result.stderr)
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred during commit: {e}")
+        print("stdout:", e.stdout)
+        print("stderr:", e.stderr)
+        return
+    
     # Push the changes to the remote repository
     try:
-        subprocess.run(['git', 'push', 'origin', 'master'], check=True)
+        push_result = subprocess.run(['git', 'push', 'origin', 'master'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print(push_result.stdout)
+        print(push_result.stderr)
     except subprocess.CalledProcessError as e:
-        print(f"Error occurred: {e}")
+        print(f"Error occurred during push: {e}")
         print("stdout:", e.stdout)
         print("stderr:", e.stderr)

@@ -36,7 +36,7 @@ rp.main()
 
 
 
-sf.create_roi(sf.neuComp)
+
 
 # Usage
 github_username = "dcupolillo"
