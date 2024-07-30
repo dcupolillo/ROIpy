@@ -34,11 +34,16 @@ sf.plot(sf.neuComp, ax=ax)
 # Start the graphical interface
 rp.main()
 
-
-
-
-
 # Publish to github
-rp.setup_https_authentication()
-# rp.publish_to_github("Initial commit of ROIpy project")
-rp.update_to_github("First update")
+repo = rp.GitRepository()
+# Initialize a new repository
+repo.init()
+# Add all files and commit
+repo.add_all()
+repo.commit('Test commit with class')
+
+# Push changes to the remote repository
+repo.push('main')
+
+# Check status
+repo.status()

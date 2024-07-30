@@ -5,170 +5,162 @@ import os
 import subprocess
 
 
-def setup_https_authentication(
-        username: str = "dcupolillo",
-        email: str = "dario.cupolillo@gmail.com",
-        token: str = "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"
-) -> None:
-    """
-    Set up HTTPS authentication for Git with a personal access token.
+class GitRepository:
 
-    Parameters:
-    - username (str): Your GitHub username.
-    - email (str): Your GitHub email.
-    - token (str): Your GitHub personal access token.
-    """
-    try:
-        # Set Git username and email
-        subprocess.run(
-            ['git', 'config', '--global', 'user.name', username], check=True)
-        subprocess.run(
-            ['git', 'config', '--global', 'user.email', email], check=True)
+    def __init__(
+            self,
+            repo_url: str = "https://github.com/dcupolillo/ROIpy.git",
+            username: str = "dcupolillo",
+            email: str = "dario.cupolillo@gmail.com",
+    ) -> None:
 
-        # Store the personal access token in the Git configuration
-        subprocess.run(
-            ['git', 'config', '--global', 'credential.helper', 'store'],
-            check=True)
+        self.url = repo_url
+        self.repo_path = os.getcwd()
 
-        # Create a credentials file with the token
-        with open(
-                os.path.expanduser('~/.git-credentials'), 'w') as cred_file:
-            cred_file.write(f"https://{username}:{token}@github.com\n")
+        if username and email:
+            self.setup_https_authentication(username, email)
 
-        print("HTTPS authentication setup complete")
+    def run_git_command(self, command):
+        """
+        Run a Git command in the repository.
+        """
+        try:
+            result = subprocess.run(
+                command,
+                cwd=self.repo_path,
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+            print(result.stdout)
+            return result.stdout
 
-    except subprocess.CalledProcessError as e:
-        print(f"Error occurred: {e}")
-        print("stdout:", e.stdout)
-        print("stderr:", e.stderr)
+        except subprocess.CalledProcessError as e:
+            print(f"Error occurred: {e}")
+            print("stdout:", e.stdout)
+            print("stderr:", e.stderr)
+            return e.stderr
 
+    def setup_https_authentication(self, username, email):
+        """
+        Set up HTTPS authentication for Git without a personal access token.
 
-def publish_to_github(
-        commit_message: str,
-        repo_url: str = "https://github.com/dcupolillo/ROIpy.git",
-) -> None:
-    """
-    Publish the current working directory to a specified GitHub repository.
+        Parameters:
+        - username (str): Your GitHub username.
+        - email (str): Your GitHub email.
+        """
+        try:
+            # Set Git username and email
+            subprocess.run(
+                ['git', 'config', '--global', 'user.name', username],
+                check=True)
+            subprocess.run(
+                ['git', 'config', '--global', 'user.email', email],
+                check=True)
 
-    Parameters:
-    - repo_url (str): The GitHub repository URL.
-    - commit_message (str): The commit message to use.
-    """
-    # Get the current working directory
-    project_dir = os.getcwd()
+            # Enable credential caching for 15 mins
+            subprocess.run(
+                ['git', 'config', '--global', 'credential.helper', 'cache'],
+                check=True)
 
-    # Initialize a git repository if it doesn't exist
-    if not os.path.exists(os.path.join(project_dir, '.git')):
-        subprocess.run(['git', 'init'], check=True)
-        subprocess.run(
-            ['git', 'remote', 'add', 'origin', repo_url], check=True)
+            print("HTTPS authentication setup complete")
 
-    # Add all files to the staging area
-    subprocess.run(['git', 'add', '.'], check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"Error occurred: {e}")
+            print("stdout:", e.stdout)
+            print("stderr:", e.stderr)
 
-    # Check the status of the repository
-    status = subprocess.run(
-        ['git', 'status'],
-        check=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True)
-    print("Git status output:\n", status.stdout)
+    def init(self):
+        return self.run_git_command(['git', 'init'])
 
-    # Commit the changes
-    try:
-        commit_result = subprocess.run(
-            ['git', 'commit', '-m', commit_message],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True)
-        print(commit_result.stdout)
-        print(commit_result.stderr)
-    except subprocess.CalledProcessError as e:
-        print(f"Error occurred during commit: {e}")
-        print("stdout:", e.stdout)
-        print("stderr:", e.stderr)
-        return
+    def clone(self, repo_url):
+        return self.run_git_command(['git', 'clone', repo_url, self.url])
 
-    # Pull the latest changes from the remote repository
-    try:
-        pull_result = subprocess.run(
-            ['git', 'pull', 'origin', 'main', '--rebase'],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True)
-        print(pull_result.stdout)
-        print(pull_result.stderr)
-    except subprocess.CalledProcessError as e:
-        print(f"Error occurred during pull: {e}")
-        print("stdout:", e.stdout)
-        print("stderr:", e.stderr)
-        return
+    def status(self):
+        return self.run_git_command(['git', 'status'])
 
-    # Push the changes to the remote repository
-    try:
-        push_result = subprocess.run(
-            ['git', 'push', 'origin', 'main'],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True)
-        print(push_result.stdout)
-        print(push_result.stderr)
-    except subprocess.CalledProcessError as e:
-        print(f"Error occurred during push: {e}")
-        print("stdout:", e.stdout)
-        print("stderr:", e.stderr)
+    def add(self, file_name):
+        return self.run_git_command(['git', 'add', file_name])
 
+    def add_all(self):
+        return self.run_git_command(['git', 'add', '-A'])
 
-def update_to_github(
-        commit_message: str,
-        repo_url: str = "https://github.com/dcupolillo/ROIpy.git"
-) -> None:
-    """
-    Add all new changes, commit, and push to the remote repository.
+    def commit(self, message):
+        return self.run_git_command(['git', 'commit', '-m', message])
 
-    Parameters:
-    - repo_url (str): The GitHub repository URL.
-    - commit_message (str): The commit message to use.
-    """
-    try:
-        # Add all files to the staging area
-        subprocess.run(['git', 'add', '.'], check=True)
+    def remove(self, file_name):
+        return self.run_git_command(['git', 'rm', '-r', file_name])
 
-        # Commit the changes
-        subprocess.run(
-            ['git', 'commit', '-m', commit_message], check=True)
+    def branch(self):
+        return self.run_git_command(['git', 'branch'])
 
-        # Pull the latest changes from the remote repository with rebase
-        subprocess.run(
-            ['git', 'pull', 'origin', 'main', '--rebase'], check=True)
+    def branch_all(self):
+        return self.run_git_command(['git', 'branch', '-a'])
 
-        # Push the changes to the remote repository
-        push_result = subprocess.run(
-            ['git', 'push', 'origin', 'main'],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True)
+    def create_branch(self, branch_name):
+        return self.run_git_command(['git', 'branch', branch_name])
 
-        print(push_result.stdout)
-        print(push_result.stderr)
+    def delete_branch(self, branch_name):
+        return self.run_git_command(['git', 'branch', '-d', branch_name])
 
-        # Verify repository status
-        status = subprocess.run(
-            ['git', 'status'],
-            check=True,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True)
-        print("Git status after push:\n", status.stdout)
+    def delete_remote_branch(self, branch_name):
+        return self.run_git_command(
+            ['git', 'push', 'origin', '--delete', branch_name])
 
-        print("Update to GitHub complete.")
+    def checkout(self, branch_name):
+        return self.run_git_command(['git', 'checkout', branch_name])
 
-    except subprocess.CalledProcessError as e:
-        print(f"Error occurred: {e}")
-        print("stdout:", e.stdout)
-        print("stderr:", e.stderr)
+    def checkout_new_branch(self, branch_name):
+        return self.run_git_command(['git', 'checkout', '-b', branch_name])
+
+    def checkout_remote_branch(self, branch_name):
+        return self.run_git_command(
+            ['git', 'checkout', '-b', branch_name, f'origin/{branch_name}'])
+
+    def rename_branch(self, old_name, new_name):
+        return self.run_git_command(
+            ['git', 'branch', '-m', old_name, new_name])
+
+    def merge(self, branch_name):
+        return self.run_git_command(['git', 'merge', branch_name])
+
+    def stash(self):
+        return self.run_git_command(['git', 'stash'])
+
+    def stash_clear(self):
+        return self.run_git_command(['git', 'stash', 'clear'])
+
+    def push(self, branch_name):
+        return self.run_git_command(['git', 'push', 'origin', branch_name])
+
+    def push_set_upstream(self, branch_name):
+        return self.run_git_command(
+            ['git', 'push', '-u', 'origin', branch_name])
+
+    def pull(self):
+        return self.run_git_command(['git', 'pull'])
+
+    def pull_branch(self, branch_name):
+        return self.run_git_command(['git', 'pull', 'origin', branch_name])
+
+    def add_remote(self, repo_url):
+        return self.run_git_command(
+            ['git', 'remote', 'add', 'origin', repo_url])
+
+    def set_remote_url(self, repo_url):
+        return self.run_git_command(
+            ['git', 'remote', 'set-url', 'origin', repo_url])
+
+    def log(self):
+        return self.run_git_command(['git', 'log'])
+
+    def log_summary(self):
+        return self.run_git_command(['git', 'log', '--summary'])
+
+    def log_oneline(self):
+        return self.run_git_command(['git', 'log', '--oneline'])
+
+    def diff(self, source_branch, target_branch):
+        return self.run_git_command(
+            ['git', 'diff', source_branch, target_branch])
