@@ -9,6 +9,19 @@ It provides a tool for defining, managing, visualizing and analyzing dendritic R
 
 Designed to interact with [Vidrio ScanImage software](https://vidriotechnologies.com/).
 
+### ScanImage setup
+
+Works with Linear Scan - Frame scan configuration (GalvoGalvo).
+Developed to overcome the inherent 2D limitation of arbitrary scanning.
+It generates ```.roi``` files that can be loaded and are interpreted by
+ScanImage **mROI Editor Window**.
+
+### Dendrite tracing
+
+Tested to work with ```.swc``` files generated with ImageJ Fiji plugin
+[Simple Neurite Tracer (SNT)](https://imagej.net/plugins/snt/).
+Dendritic portions are labeled as *apical dendrite* or *basal dendrite* or *soma*.
+
 ## Installation
 
 Simply copy the folder "ROIpy" within your project folder :file_folder:.
@@ -70,7 +83,7 @@ Each `NodeBundle` is composed of a series of `Node` components, defining the
 features of every individual point within the structure.
 
 **Example Usage:**
-```
+```python
 # Initialize the morphology with image and tracing files
 morph = rp.Morphology('path/to/image.tif', 'path/to/tracing.swc')
 
@@ -97,7 +110,7 @@ features of every individual rectangle within the structure.
 
 **Example Usage:**
 
-```
+```python
 # Initialize the scanfields with image and tracing files
 sf = rp.Scanfields('path/to/image.tif', 'path/to/tracing.swc')
 
