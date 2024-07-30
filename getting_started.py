@@ -38,9 +38,7 @@ rp.main()
 
 
 
-# Usage
-
-
+# Publish to github
 rp.setup_https_authentication()
 # rp.publish_to_github("Initial commit of ROIpy project")
 rp.update_to_github("First update")
