@@ -4,11 +4,7 @@
 import os
 import subprocess
 
-
-def publish_to_github(
-        repo_url,
-        commit_message
-) -> None:
+def publish_to_github(repo_url, commit_message):
     """
     Publish the current working directory to a specified GitHub repository.
 
@@ -18,18 +14,22 @@ def publish_to_github(
     """
     # Get the current working directory
     project_dir = os.getcwd()
-
+    
     # Initialize a git repository if it doesn't exist
     if not os.path.exists(os.path.join(project_dir, '.git')):
         subprocess.run(['git', 'init'], check=True)
-        subprocess.run(
-            ['git', 'remote', 'add', 'origin', repo_url], check=True)
-
+        subprocess.run(['git', 'remote', 'add', 'origin', repo_url], check=True)
+    
     # Add all files to the staging area
     subprocess.run(['git', 'add', '.'], check=True)
-
+    
     # Commit the changes
     subprocess.run(['git', 'commit', '-m', commit_message], check=True)
-
+    
     # Push the changes to the remote repository
-    subprocess.run(['git', 'push', 'origin', 'master'], check=True)
+    try:
+        subprocess.run(['git', 'push', 'origin', 'master'], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred: {e}")
+        print("stdout:", e.stdout)
+        print("stderr:", e.stderr)
