@@ -80,7 +80,7 @@ def publish_to_github(repo_url, commit_message):
     
     # Push the changes to the remote repository
     try:
-        push_result = subprocess.run(['git', 'push', 'origin', 'master'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        push_result = subprocess.run(['git', 'push', 'origin', 'main'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         print(push_result.stdout)
         print(push_result.stderr)
     except subprocess.CalledProcessError as e:
