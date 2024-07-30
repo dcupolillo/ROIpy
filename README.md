@@ -27,7 +27,7 @@ Dendritic portions are labeled as *apical dendrite* or *basal dendrite* or *soma
 Simply copy the folder "ROIpy" within your project folder :file_folder:.
 Ensure the folder is in your system path.
 
-```
+```python
 import sys
 sys.path.append('path/to/ROIpy')
 ```

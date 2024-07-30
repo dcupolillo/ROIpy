@@ -36,10 +36,9 @@ rp.main()
 
 # Publish to github
 repo = rp.GitRepository()  # Initialize a new repository
-repo.init()
 
 repo.add_all()  # Add all files and commit
-repo.commit('Update README.md')
+repo.commit("Deleted 'Tracing' and 'Metadata creator'")
 repo.push('main')  # Push changes to the remote repository to the main branch
 
 repo.status()  # Check status
