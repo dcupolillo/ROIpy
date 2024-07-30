@@ -33,7 +33,6 @@ class GitRepository:
                 stderr=subprocess.PIPE,
                 text=True
             )
-            print(result.stdout)
             return result.stdout
 
         except subprocess.CalledProcessError as e:

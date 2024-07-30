@@ -35,15 +35,11 @@ sf.plot(sf.neuComp, ax=ax)
 rp.main()
 
 # Publish to github
-repo = rp.GitRepository()
-# Initialize a new repository
+repo = rp.GitRepository()  # Initialize a new repository
 repo.init()
-# Add all files and commit
-repo.add_all()
+
+repo.add_all()  # Add all files and commit
 repo.commit('Test commit with class')
+repo.push('main')  # Push changes to the remote repository to the main branch
 
-# Push changes to the remote repository
-repo.push('main')
-
-# Check status
-repo.status()
+repo.status()  # Check status

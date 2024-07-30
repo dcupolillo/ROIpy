@@ -34,8 +34,8 @@ plotting methods for visual inspection.
 
 ### Stack
 
-The `Stack` class initializes with the path to a `.tif` image file (xyz, single channel) generated with **ScanImage**,
-and loads the image data along with its **ScanImage** metadata.
+The `Stack` class initializes with the path to a `.tif` image file (xyz, single channel, shape = [z, x, y])
+generated with **ScanImage**, and loads the image data along with its **ScanImage** metadata.
 The image should include a number of stacked images (z layers) including as many dendrites
 as possible, recorded in the channel of the used morphological filler/marker.
 `Stack` is the initial building block of the digitized dendritic structures.
