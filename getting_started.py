@@ -38,7 +38,12 @@ rp.main()
 
 sf.create_roi(sf.neuComp)
 
+# Usage
+github_username = "dcupolillo"
+github_email = "dario.cupolillo@gmail.com"
+personal_access_token = "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"
 
+rp.setup_https_authentication(github_username, github_email, personal_access_token)
 
 github_repository_url = "https://github.com/dcupolillo/ROIpy.git"
 commit_msg = "Initial commit of ROIpy project"
