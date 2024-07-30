@@ -78,6 +78,17 @@ def publish_to_github(repo_url, commit_message):
         print("stderr:", e.stderr)
         return
     
+    # Pull the latest changes from the remote repository
+    try:
+        pull_result = subprocess.run(['git', 'pull', 'origin', 'main', '--rebase'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print(pull_result.stdout)
+        print(pull_result.stderr)
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred during pull: {e}")
+        print("stdout:", e.stdout)
+        print("stderr:", e.stderr)
+        return
+    
     # Push the changes to the remote repository
     try:
         push_result = subprocess.run(['git', 'push', 'origin', 'main'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
