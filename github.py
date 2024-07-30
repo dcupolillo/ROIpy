@@ -46,82 +46,55 @@ def setup_https_authentication(username, email, token):
 
 def publish_to_github(repo_url, commit_message):
     """
-    Add all files to the repository for the first time, commit, and push to the remote repository.
+    Publish the current working directory to a specified GitHub repository.
 
     Parameters:
     - repo_url (str): The GitHub repository URL.
     - commit_message (str): The commit message to use.
     """
+    # Get the current working directory
+    project_dir = os.getcwd()
+    
+    # Initialize a git repository if it doesn't exist
+    if not os.path.exists(os.path.join(project_dir, '.git')):
+        subprocess.run(['git', 'init'], check=True)
+        subprocess.run(['git', 'remote', 'add', 'origin', repo_url], check=True)
+    
+    # Add all files to the staging area
+    subprocess.run(['git', 'add', '.'], check=True)
+    
+    # Check the status of the repository
+    status = subprocess.run(['git', 'status'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    print("Git status output:\n", status.stdout)
+    
+    # Commit the changes
     try:
-        # Get the current working directory
-        project_dir = os.getcwd()
-        
-        # Initialize a git repository if it doesn't exist
-        if not os.path.exists(os.path.join(project_dir, '.git')):
-            subprocess.run(['git', 'init'], check=True)
-            subprocess.run(['git', 'remote', 'add', 'origin', repo_url], check=True)
-        
-        # Add all files to the staging area
-        subprocess.run(['git', 'add', '.'], check=True)
-        
-        # Commit the changes
-        subprocess.run(['git', 'commit', '-m', commit_message], check=True)
-        
-        # Push the changes to the remote repository
-        push_result = subprocess.run(['git', 'push', '-u', 'origin', 'main'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        print(push_result.stdout)
-        print(push_result.stderr)
-        
-        print("Initial addition to GitHub complete.")
-        
+        commit_result = subprocess.run(['git', 'commit', '-m', commit_message], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print(commit_result.stdout)
+        print(commit_result.stderr)
     except subprocess.CalledProcessError as e:
-        print(f"Error occurred: {e}")
+        print(f"Error occurred during commit: {e}")
         print("stdout:", e.stdout)
         print("stderr:", e.stderr)
-
-
-def update_to_github(repo_url, commit_message):
-    """
-    Add all new changes, commit, and push to the remote repository.
-
-    Parameters:
-    - repo_url (str): The GitHub repository URL.
-    - commit_message (str): The commit message to use.
-    """
+        return
+    
+    # Pull the latest changes from the remote repository
     try:
-        # Get the current working directory
-        project_dir = os.getcwd()
-        
-        # Add all files to the staging area
-        subprocess.run(['git', 'add', '.'], check=True)
-        
-        # Commit the changes
-        subprocess.run(['git', 'commit', '-m', commit_message], check=True)
-        
-        # Pull the latest changes from the remote repository with rebase
-        try:
-            pull_result = subprocess.run(['git', 'pull', 'origin', 'main', '--rebase'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            print(pull_result.stdout)
-            print(pull_result.stderr)
-        except subprocess.CalledProcessError as e:
-            if "It seems that there is already a rebase-merge directory" in e.stderr:
-                print(f"Rebase conflict detected: {e}")
-                print("Aborting the ongoing rebase and trying again.")
-                resolve_rebase_conflicts()
-                return
-            print(f"Error occurred during pull: {e}")
-            print("stdout:", e.stdout)
-            print("stderr:", e.stderr)
-            return
-        
-        # Push the changes to the remote repository
+        pull_result = subprocess.run(['git', 'pull', 'origin', 'main', '--rebase'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        print(pull_result.stdout)
+        print(pull_result.stderr)
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred during pull: {e}")
+        print("stdout:", e.stdout)
+        print("stderr:", e.stderr)
+        return
+    
+    # Push the changes to the remote repository
+    try:
         push_result = subprocess.run(['git', 'push', 'origin', 'main'], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         print(push_result.stdout)
         print(push_result.stderr)
-        
-        print("Update to GitHub complete.")
-        
     except subprocess.CalledProcessError as e:
-        print(f"Error occurred: {e}")
+        print(f"Error occurred during push: {e}")
         print("stdout:", e.stdout)
         print("stderr:", e.stderr)
