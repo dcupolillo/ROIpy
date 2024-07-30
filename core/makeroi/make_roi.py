@@ -1185,15 +1185,13 @@ def roi_populate_pixels(
 
             # line_scan_period = acquisition_line_period / fill_fraction
             rectangle_period = line_scan_period * num_pixels_height
-            derived_line_period = rectangle_period / aspect_ratio
-
-            print(line_scan_period, derived_line_period * 0.9)
 
             pix_um_ratio = num_pixels_width / width
             if pix_um_ratio < optimal_pix_um_ratio:
                 pix_um_ratio = optimal_pix_um_ratio
 
             # Recalculate width and height based on the pixel ratio
+            # Fixed pix/um ratio
             width_recalculated = num_pixels_width / pix_um_ratio
             height_recalculated = num_pixels_height / pix_um_ratio
 

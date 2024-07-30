@@ -37,3 +37,10 @@ rp.main()
 
 
 sf.create_roi(sf.neuComp)
+
+
+
+github_repository_url = "https://github.com/dcupolillo/ROIpy.git"
+commit_msg = "Initial commit of ROIpy project"
+
+rp.publish_to_github(github_repository_url, commit_msg)
