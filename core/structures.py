@@ -280,7 +280,8 @@ class Scanfields(Morphology):
             sampling_rate: float = 1.250 * 1e6,
             sampling_rate_ctl: float = 156250,
             pixel_bin_factor: int = 4,
-            filtering_radius: tuple = (50.0, 20.0)
+            filtering_radius: tuple = (50.0, 20.0),
+            framerate_delta_threshold: float = 0.3,
     ) -> None:
         """
         Initialize a Scanfields instance with given image and tracing paths,
@@ -357,6 +358,7 @@ class Scanfields(Morphology):
         self.pixel_bin_factor = pixel_bin_factor
         self.dwell_time = self.pixel_bin_factor / self.sampling_rate
         self.filtering_radius = filtering_radius
+        self.framerate_delta_threshold = framerate_delta_threshold
 
         # Abbe's equation for diffraction limited spot
         # Rayleigh criterion: distance required to differentiate 2 structures

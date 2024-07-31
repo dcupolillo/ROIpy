@@ -1105,7 +1105,8 @@ def calculate_transform(
 
 def roi_populate_pixels(
         class_var: object,
-        rectangles: list
+        rectangles: list,
+        max_iterations: int = 100,
 ) -> list:
     """
     Derives scanfield pixel properties by reverse-calculation
@@ -1122,12 +1123,13 @@ def roi_populate_pixels(
        The class object containing relevant parameters.
     rectangles : list
         List of rectangles grouped by Z-plane.
+    max_iterations : int
+        Maximum number of iterations for pixel adjustment to prevent infinite loops.
 
     Returns
     -------
     list
         Updated list of rectangles with modified properties.
-
     """
 
     objective_resolution = class_var.objective_resolution
@@ -1137,12 +1139,15 @@ def roi_populate_pixels(
     fill_fraction = class_var.fill_fraction
     optimal_pix_um_ratio = class_var.optimal_pix_um_ratio
     sampling_rate_ctl = class_var.sampling_rate_ctl
+    framerate_delta_threshold = class_var.framerate_delta_threshold
 
     desired_framerate = class_var.desired_framerate
     desired_scanperiod = 1 / desired_framerate
 
-    # Pre-allocate empty list
-    new_z_planes = [None] * len(rectangles)
+    # Create empty list for dynamic appending
+    # in case z-plane splitting is necessary
+    new_z_planes = []
+    split_occurred = [False] * len(rectangles)
 
     for z, z_plane in enumerate(rectangles):
 
@@ -1164,11 +1169,14 @@ def roi_populate_pixels(
             z_plane,
             fill_fraction)
 
-        adjustment_needed = True
-        framerate_delta = 0.2
+        pixel_adjustment_needed = True
+        iteration_count = 0
+        best_rects = None
+        best_framerate = -float('inf')
 
-        while adjustment_needed:
-            adjustment_needed = False
+        while pixel_adjustment_needed and iteration_count < max_iterations:
+            pixel_adjustment_needed = False
+            minimal_pixum_ratio_reached = False
 
             # Pre-allocate empty list
             new_rects = [None] * len(z_plane)
@@ -1179,8 +1187,8 @@ def roi_populate_pixels(
                 width, height = rect.size_xy
 
                 # Calculate the number of pixels based on the pixel size
-                num_pixels_width = int(np.ceil(width / pixel_size))
-                num_pixels_height = int(np.ceil(height / pixel_size))
+                num_pixels_width = int(width / pixel_size)
+                num_pixels_height = int(height / pixel_size)
 
                 # Ensure pixel dimensions are even
                 if num_pixels_width % 2 != 0:
@@ -1204,6 +1212,7 @@ def roi_populate_pixels(
                 pix_um_ratio = num_pixels_width / width
                 if pix_um_ratio < optimal_pix_um_ratio:
                     pix_um_ratio = optimal_pix_um_ratio
+                    minimal_pixum_ratio_reached = True
 
                 # Recalculate width and height based on the pixel ratio
                 # Fixed pix/um ratio
@@ -1258,15 +1267,215 @@ def roi_populate_pixels(
             z_framerate = calculate_z_framerate(
                 class_var, new_rects)
 
-            # Check if adjustment is needed
-            if abs(z_framerate - desired_framerate) > framerate_delta:
-                adjustment_needed = True
-                pixel_size *= (1.05
-                               if z_framerate < desired_framerate
-                               else 0.95)
+            # Update best configuration if criteria are met
+            if z_framerate > best_framerate:
+                best_framerate = z_framerate
+                best_rects = new_rects
 
-        # Add the updated z-plane to the list
-        new_z_planes[z] = new_rects
+            if minimal_pixum_ratio_reached:
+                # Split the z-plane into two z-planes
+                mid_index = len(new_rects) // 2
+                new_z_planes.append(new_rects[:mid_index])
+                new_z_planes.append(new_rects[mid_index:])
+                split_occurred[z] = True
+                break
+
+            # Check if adjustment is needed
+            framerate_delta = abs(z_framerate - desired_framerate)
+            if (z_framerate <= desired_framerate or
+                    z_framerate > (desired_framerate +
+                                   framerate_delta_threshold)):
+                # Proportional scaling factor
+                scaling_factor = (
+                    1 + (framerate_delta / desired_framerate) * 0.1)
+
+                pixel_adjustment_needed = True
+                pixel_size *= (
+                    scaling_factor
+                    if z_framerate < desired_framerate
+                    else (2 - scaling_factor))
+            iteration_count += 1
+
+        # Add the best configuration found within max_iterations
+        if not minimal_pixum_ratio_reached:
+            new_z_planes.append(best_rects)
+
+    indices_to_refine = get_split_index(split_occurred)
+
+    all_refined = refine_split_layers(
+        class_var, new_z_planes, indices_to_refine)
+
+    return all_refined
+
+
+def get_split_index(split_indices_list):
+
+    new_split_indices_list = []
+    preceeding = 0
+
+    for n, element in enumerate(split_indices_list):
+        if element:
+            new_split_indices_list.append(n + preceeding)
+            new_split_indices_list.append(n + 1 + preceeding)
+            preceeding += 1
+
+    return new_split_indices_list
+
+
+def refine_split_layers(
+        class_var,
+        rectangles,
+        indices_to_refine,
+) -> None:
+
+    objective_resolution = class_var.objective_resolution
+    frame_flyback = class_var.frame_flyback
+    fly_to_line = class_var.fly_to_line
+    dwell_time = class_var.dwell_time
+    fill_fraction = class_var.fill_fraction
+    optimal_pix_um_ratio = class_var.optimal_pix_um_ratio
+    sampling_rate_ctl = class_var.sampling_rate_ctl
+    framerate_delta_threshold = class_var.framerate_delta_threshold
+
+    desired_framerate = class_var.desired_framerate
+    desired_scanperiod = 1 / desired_framerate
+
+    new_z_planes = [None] * len(rectangles)
+
+    for z, z_plane in enumerate(rectangles):
+
+        if z in indices_to_refine:
+
+            if not z_plane:
+                continue
+
+            # Time needed for scanning all the rectangular ROI
+            # without flyto and frame flyback time
+            roi_active_scantime = (
+                desired_scanperiod -
+                frame_flyback -
+                (fly_to_line * (len(z_plane) - 1))
+            )
+
+            # Initial pixel size considering all rectangles and overscan
+            pixel_size = calculate_pixel_size(
+                roi_active_scantime,
+                dwell_time,
+                z_plane,
+                fill_fraction)
+
+            pixel_adjustment_needed = True
+
+            while pixel_adjustment_needed:
+                pixel_adjustment_needed = False
+
+                # Pre-allocate empty list
+                new_rects = [None] * len(z_plane)
+
+                for r, rect in enumerate(z_plane):
+
+                    # Current dimensions of a single rectangle
+                    width, height = rect.size_xy
+
+                    # Calculate the number of pixels based on the pixel size
+                    num_pixels_width = int(width / pixel_size)
+                    num_pixels_height = int(height / pixel_size)
+
+                    # Ensure pixel dimensions are even
+                    if num_pixels_width % 2 != 0:
+                        num_pixels_width += 1
+                    if num_pixels_height % 2 != 0:
+                        num_pixels_height += 1
+
+                    acquisition_line_period = dwell_time * num_pixels_width
+
+                    # this chunck is from Scanimage GalvoGalvo.m
+                    samples_acq = (
+                        acquisition_line_period * sampling_rate_ctl)
+                    samples_turnaround_half = np.ceil(
+                        ((samples_acq / fill_fraction) - samples_acq) / 2)
+                    samples_scan = samples_acq + 2 * samples_turnaround_half
+                    line_scan_period = (
+                        samples_scan / sampling_rate_ctl)
+
+                    rectangle_period = line_scan_period * num_pixels_height
+
+                    pix_um_ratio = num_pixels_width / width
+                    if pix_um_ratio < optimal_pix_um_ratio:
+                        pix_um_ratio = optimal_pix_um_ratio
+
+                    # Recalculate width and height based on the pixel ratio
+                    # Fixed pix/um ratio
+                    width_recalculated = num_pixels_width / pix_um_ratio
+                    height_recalculated = num_pixels_height / pix_um_ratio
+
+                    # Calculate the new bottom right coordinates and nodes
+                    x_center, y_center = rect.center_xy
+                    half_width = width_recalculated / 2
+                    half_height = height_recalculated / 2
+                    rotation = rect.rotation_degrees
+                    sin = np.sin(np.radians(rotation))
+                    cos = np.cos(np.radians(rotation))
+                    close_node = [x_center - half_height *
+                                  cos, y_center - half_height * sin]
+                    x = close_node[0] + half_width * sin
+                    y = close_node[1] - half_width * cos
+
+                    close_node = rect.start_node + [
+                        rect.z, rect.start_node_id, rect.compartment]
+                    far_node = rect.end_node + [
+                        rect.z, rect.end_node_id, rect.compartment]
+                    close_node.append(rect.start_node_id)
+                    far_node.append(rect.end_node_id)
+
+                    new_bottom_right = [x, y]
+
+                    # Create a new rectangle instance with updated properties
+                    new_rect = Roi(
+                        objective_resolution,
+                        class_var.zs,
+                        center=rect.center_xy,
+                        rotation=rect.rotation_degrees,
+                        size=[width_recalculated, height_recalculated],
+                        z=rect.z,
+                        start=close_node,
+                        end=far_node,
+                        bottom_right=new_bottom_right,
+                        pixel_resolution_xy=[num_pixels_width, num_pixels_height],
+                        pix_um_ratio=pix_um_ratio,
+                        acquisition_line_period=acquisition_line_period,
+                        line_scan_period=line_scan_period,
+                        rectangle_period=rectangle_period
+                    )
+
+                    # Add the updated rectangle to the list
+                    new_rects[r] = new_rect
+
+                    rect.size_xy = [width_recalculated, height_recalculated]
+
+                # Calculate the frame rate for the z-plane
+                z_framerate = calculate_z_framerate(
+                    class_var, new_rects)
+
+                # Check if adjustment is needed
+                framerate_delta = abs(z_framerate - desired_framerate)
+                if (z_framerate <= desired_framerate or
+                        z_framerate > (desired_framerate +
+                                       framerate_delta_threshold)):
+                    # Proportional scaling factor
+                    scaling_factor = (
+                        1 + (framerate_delta / desired_framerate) * 0.1)
+
+                    pixel_adjustment_needed = True
+                    pixel_size *= (
+                        scaling_factor
+                        if z_framerate < desired_framerate
+                        else (2 - scaling_factor))
+
+            new_z_planes[z] = new_rects
+
+        else:
+            new_z_planes[z] = z_plane
 
     # Calculate the resulting frame rates for each z-plane
     frame_rates = calculate_all_framerates(class_var, new_z_planes)
@@ -1275,13 +1484,9 @@ def roi_populate_pixels(
     for z, rate in enumerate(frame_rates):
         period = 1 / rate
         difference = (period - desired_scanperiod)
-        string = "INCREASE" if difference > 0 else "DECREASE"
+        new_flyback = (class_var.frame_flyback - difference) * 1e3
 
-        print(f"Z-plane 0{z}: {rate:.2f} Hz, period {period:.4f}, "
-              f"{string} flyback by {abs(difference):.4f}"
-              if z < 10 else
-              f"Z-plane {z}: {rate:.2f} Hz, period {period:.4f}, "
-              f"{string} flyback by {abs(difference):.4f}")
+        print(f"Z-plane {z:02}: {rate:.3f} Hz, flyback: {new_flyback:.3f}")
 
     return new_z_planes
 

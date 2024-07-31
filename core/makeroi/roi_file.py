@@ -83,7 +83,7 @@ def generate_roi_file(
         RoiGroup = {
             "ver": 1,
             "classname": "scanimage.mroi.RoiGroup",
-            "name": "MROI Imaging ROI Group",
+            "name": "Z{z_ind:02}",
             "UserData": NullValue("null"),
             "roiUuid": str(generate_roi_uuid()[0]),
             "roiUuiduint64": generate_roi_uuid()[1],
