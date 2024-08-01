@@ -1,7 +1,6 @@
 from .core.structures import Stack, Morphology, Scanfields
 from .GUI.gui import main
 from .core.utils.utils import get_filename
-from .github import GitRepository
 
 
 try:

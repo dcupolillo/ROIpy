@@ -4,6 +4,7 @@
 import ROIpy as rp
 import matplotlib.pyplot as plt
 from neuronpath.path import neuronpath
+from github_project import GitRepository
 
 paths = neuronpath('240724', 2)
 
@@ -35,9 +36,9 @@ sf.plot(sf.neuComp, ax=ax)
 rp.main()
 
 # Publish to github
-repo = rp.GitRepository()  # Initialize a new repository
+repo = GitRepository()  # Initialize a new repository
 
 repo.add_all()  # Add all files and commit
-repo.commit("Update make_roi.py")
+repo.commit("Update make_roi.py - optimize frame rate and include layer split")
 repo.push('main')  # Push changes to the remote repository to the main branch
 
