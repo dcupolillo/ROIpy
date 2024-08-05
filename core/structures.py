@@ -1,7 +1,6 @@
 """ Created on Mon Nov  6 10:29:44 2023
     @author: dcupolillo """
 
-import flammkuchen as fl
 from pathlib import Path
 import tifffile
 import matplotlib.pyplot as plt
@@ -23,7 +22,7 @@ class Stack():
 
     def __init__(
         self,
-        imagepath: str or Path or NeuronPath
+        paths: NeuronPath
     ) -> None:
         """
         Initialize a Stack instance with the path to a .tif image file.
@@ -34,16 +33,13 @@ class Stack():
             The full path to the .tif image file.
         """
 
-        if isinstance(imagepath, str):
-            imagepath = Path(imagepath)
-
-        if not (isinstance(imagepath, Path)
-                and imagepath.suffix.lower() in ('.tif', '.tiff')):
+        if not (isinstance(paths.stackpath, Path)
+                and paths.stackpath.suffix.lower() in ('.tif', '.tiff')):
             raise Exception(
-                f"Invalid file format for {imagepath}."
+                f"Invalid file format for {paths.stackpath}."
                 "Expected .tif or .tiff file.")
 
-        self.imagename = imagepath
+        self.imagename = paths.stackpath
         self.image = tifffile.imread(self.imagename)
 
         metadata = parse_stack_metadata(self.imagename)
@@ -130,8 +126,8 @@ class Morphology(Stack):
 
     def __init__(
             self,
-            imagename: str or Path or NeuronPath,
-            tracename: str or Path or NeuronPath
+            paths: NeuronPath,
+
     ) -> None:
         """
         Creates a neuronal object (list of Nodes instances).
@@ -157,30 +153,39 @@ class Morphology(Stack):
 
         """
 
-        if not (isinstance(tracename, (str, Path, NeuronPath)) or
-                tracename.suffix.lower() != '.swc'):
-            raise Exception(f"Invalid file format for {tracename}."
+        if not (isinstance(paths.tracepath, Path) or
+                paths.tracepath.suffix.lower() != '.swc'):
+            raise Exception(f"Invalid file format for {paths.tracepath}."
                             "Expected .swc file.")
 
             raise Exception(
-                f"Invalid file format for {tracename}. Expected .swc file.")
+                f"Invalid file format for {paths.tracepath}."
+                "Expected .swc file.")
 
         # Super call Stack
-        super().__init__(imagename)
-        self.tracename = tracename
+        super().__init__(paths)
+        self.tracename = paths.tracepath
 
-        self.neuron = NodeBundle(parse_swc(
-            self.tracename,
-            self.objective_resolution,
-            self.zs,
-            self.pixel_to_ref_transform))
+        if paths.morphology.exists():
+            self.neuron = NodeBundle.load_from_h5(paths.morphology)
+        else:
+            self.neuron = NodeBundle(parse_swc(
+                self.tracename,
+                self.objective_resolution,
+                self.zs,
+                self.pixel_to_ref_transform))
+            self.neuron.save_to_h5(paths.morphology)
 
         self.apical = NodeBundle(
-            [node for node in self.neuron if node.type == 'apical dendrite'])
+            [node for node in self.neuron
+             if node._type == 'apical dendrite'])
+
         self.basal = NodeBundle(
-            [node for node in self.neuron if node.type == 'basal dendrite'])
+            [node for node in self.neuron
+             if node._type == 'basal dendrite'])
+
         self.soma = next(
-            (node for node in self.neuron if node.type == 'soma'), None)
+            (node for node in self.neuron if node._type == 'soma'), None)
 
     def plot(
             self,
@@ -266,8 +271,7 @@ class Scanfields(Morphology):
 
     def __init__(
             self,
-            imagename: str or Path or NeuronPath,
-            tracename: str or Path or NeuronPath,
+            paths: NeuronPath,
             desired_framerate: int = 16,
             elongating_factor: float = 1.33,
             dim_ratio_threshold: float = 3.5,
@@ -341,7 +345,7 @@ class Scanfields(Morphology):
         # if isinstance(imagename, str):
         #     imagename = Path(imagename)
 
-        super().__init__(imagename, tracename)
+        super().__init__(paths)
 
         self.desired_framerate = desired_framerate
         self.elongating_factor = elongating_factor
@@ -366,7 +370,11 @@ class Scanfields(Morphology):
             ((0.61 * self.wavelength / self.numerical_aperture)
              * 1e-3) / 2))
 
-        self.neuComp = ScanfieldBundle(self.create_roi(self.neuron))
+        if paths.scanfields.exists():
+            self.neuComp = ScanfieldBundle.load_from_h5(paths.scanfields)
+        else:
+            self.neuComp = ScanfieldBundle(self.create_roi(self.neuron))
+            self.neuComp.save_to_h5(paths.scanfields)
 
         self.apiComp = ScanfieldBundle(
             [[rect for rect in z if rect.compartment == 'apical dendrite']

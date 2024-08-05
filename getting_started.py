@@ -9,9 +9,9 @@ from github_project import GitRepository
 paths = neuronpath('240724', 2)
 
 # generate the structures Objects
-stack = rp.Stack(paths.stackpath)
-morph = rp.Morphology(paths.stackpath, paths.tracepath)
-sf = rp.Scanfields(paths.stackpath, paths.tracepath)
+stack = rp.Stack(paths)
+morph = rp.Morphology(paths)
+sf = rp.Scanfields(paths)
 
 # plot the stack
 stack.plot()
@@ -36,9 +36,8 @@ sf.plot(sf.neuComp, ax=ax)
 rp.main()
 
 # Publish to github
-repo = GitRepository()  # Initialize a new repository
-
+repo = GitRepository("ROIpy")  # Initialize a new repository
 repo.add_all()  # Add all files and commit
-repo.commit("Update make_roi.py - optimize frame rate and include layer split")
+repo.commit("Update morphology and Scanfields with saving to h5 methods")
 repo.push('main')  # Push changes to the remote repository to the main branch
 

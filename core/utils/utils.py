@@ -162,25 +162,27 @@ def parse_swc(
             fields = line.strip().split()
 
             # Create individual Node instances
-            node = Node(objective_resolution,
-                        fields[0],
-                        fields[1],
-                        fields[2],
-                        fields[3],
-                        fields[4],
-                        zs,
-                        fields[5],
-                        fields[6],
-                        pixel_to_ref_transform,
-                        x_voxel_separation, y_voxel_separation)
+            node = Node(
+                objective_resolution,
+                fields[0],
+                fields[1],
+                fields[2],
+                fields[3],
+                fields[4],
+                zs,
+                fields[5],
+                fields[6],
+                pixel_to_ref_transform,
+                x_voxel_separation,
+                y_voxel_separation)
             nodes.append(node)
 
     # Compute parent node
     for node in nodes:
         parent_id = node.parent_id
         if parent_id != -1:  # Skip root node
-            parent_node = next(n for n in nodes if n.id == parent_id)
-            parent_node.children.append(node.id)
+            parent_node = next(n for n in nodes if n._id == parent_id)
+            parent_node.children.append(node._id)    
 
     # Update is_fork attribute for each node based on children count
     for node in nodes:

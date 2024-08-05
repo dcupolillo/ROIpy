@@ -32,7 +32,14 @@ class Node:
             parent_id: int,
             matrix: np.ndarray,
             voxel_separation_x: float,
-            voxel_separation_y: float
+            voxel_separation_y: float,
+            is_fork: bool = False,
+            children: list = [],
+            x_deg: float = None,
+            y_deg: float = None,
+            x_pix: int = None,
+            y_pix: int = None,
+            z: float = None,
     ) -> None:
         """
         Individual node representation
@@ -77,8 +84,14 @@ class Node:
         transformed_pixel_to_ref = self.transform_coordinates(
             [x_corrected,  y_corrected], matrix)
 
-        self.id = int(_id)
-        self.type = self.get_type(int(_type))
+        self.obj_res = obj_res
+        self.zs = zs
+        self.matrix = matrix
+        self.voxel_separation_x = voxel_separation_x
+        self.voxel_separation_y = voxel_separation_y
+
+        self._id = int(_id)
+        self._type = self.get_type(int(_type))
         self.x = transformed_pixel_to_ref[0] * obj_res
         self.y = transformed_pixel_to_ref[1] * obj_res
         self.z = float(zs[int(float(z_ind))])
@@ -89,7 +102,7 @@ class Node:
         self.y_pix = y_corrected
         self.radius = float(radius)
         self.parent_id = int(parent_id)
-        self.is_fork = False
+        self.is_fork = is_fork
         self.children = []
 
     def __getattr__(
@@ -151,12 +164,33 @@ class Node:
     def __repr__(self):
         repr_strings = []
 
-        for key, value in self.__dict__.items():
+        attributes_to_display = [
+            '_id', '_type',
+            'x', 'y', 'z',
+            'radius', 'parent_id',
+            'is_fork', 'children']
+
+        for key in attributes_to_display:
+            value = getattr(self, key, None)
             if key.startswith('_'):
                 key = key.lstrip('_')
             repr_strings.append(f"{key} = {value}")
 
         return "\n(" + "\n".join(repr_strings) + ")\n"
+
+    def to_dict(self) -> dict:
+        return {
+            key: value
+            for key, value in self.__dict__.items()}
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        node = cls.__new__(cls)
+        for key, value in data.items():
+            if key.startswith('_'):
+                key = key.lstrip('_')
+            setattr(node, key, value)
+        return node
 
 
 class Roi:
@@ -313,3 +347,17 @@ class Roi:
             repr_strings.append(f"{key} = {value}")
 
         return "\n(" + "\n".join(repr_strings) + ")\n"
+
+    def to_dict(self) -> dict:
+        return {
+            key: value
+            for key, value in self.__dict__.items()}
+
+    @classmethod
+    def from_dict(cls, data: dict):
+        obj = cls.__new__(cls)
+        for key, value in data.items():
+            if key.startswith('_'):
+                key = key.lstrip('_')
+            setattr(obj, key, value)
+        return obj

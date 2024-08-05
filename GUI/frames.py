@@ -500,8 +500,10 @@ class ScanParameters(QFrame):
                 fly_to_line,
                 numerical_aperture,
                 sampling_rate,
+                self.sf.sampling_rate_ctl,
                 pixel_bin_factor,
-                filtering_radius)
+                filtering_radius,
+                self.sf.framerate_delta_threshold)
 
             self.change_plot.emit()  # TODO
             self.change_roi_file.emit(self.sf)

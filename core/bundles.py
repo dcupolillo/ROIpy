@@ -1,11 +1,13 @@
 """ Created on Mon Nov  6 14:22:55 2023
     @author: dcupolillo """
 
+import flammkuchen as fl
 import matplotlib.pyplot as plt
 from ROIpy.analysis.stats import (calculate_total_length,
                                   sholl_analysis, hull_area)
 from ROIpy.analysis.savejson import save_to_json
 from ROIpy.core.utils.utils import split_neurite
+from ROIpy.core.components import Node, Roi
 
 
 class NodeBundle():
@@ -43,6 +45,16 @@ class NodeBundle():
 
     def __len__(self):
         return len(self.nodes)
+
+    def save_to_h5(self, filename: str) -> None:
+        data = [node.to_dict() for node in self.nodes]
+        fl.save(filename, {'nodes': data})
+
+    @classmethod
+    def load_from_h5(cls, filename: str) -> 'NodeBundle':
+        data = fl.load(filename)['nodes']
+        nodes = [Node.from_dict(node) for node in data]
+        return cls(nodes)
 
     @property
     def neurite(self) -> 'Neurite':
@@ -242,6 +254,18 @@ class ScanfieldBundle():
 
     def __len__(self):
         return len(self.scanfield)
+
+    def save_to_h5(self, filename: str) -> None:
+        data = [[roi.to_dict() for roi in z_plane]
+                for z_plane in self.scanfield]
+        fl.save(filename, {'scanfields': data})
+
+    @classmethod
+    def load_from_h5(cls, filename: str) -> 'ScanfieldBundle':
+        data = fl.load(filename)['scanfields']
+        scanfield = [[Roi.from_dict(roi) for roi in z_plane]
+                     for z_plane in data]
+        return cls(scanfield)
 
     @property
     def shape(self):
