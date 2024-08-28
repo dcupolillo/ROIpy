@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from neuronpath.path import neuronpath
 from github_project import GitRepository
 
-paths = neuronpath('240724', 2)
+paths = neuronpath('240813', 1)
 
 # generate the structures Objects
 stack = rp.Stack(paths)
@@ -40,4 +40,3 @@ repo = GitRepository("ROIpy")  # Initialize a new repository
 repo.add_all()  # Add all files and commit
 repo.commit("Update morphology and Scanfields with saving to h5 methods")
 repo.push('main')  # Push changes to the remote repository to the main branch
-

@@ -145,11 +145,11 @@ def split_consecutive(
             if not node:
                 continue
 
-            if node.type == 'soma':
+            if node._type == 'soma':
                 continue
 
             # Extends current_group if nodes are consecutive
-            if not current_group or node.parent_id == current_group[-1].id:
+            if not current_group or node.parent_id == current_group[-1]._id:
                 current_group.append(node)
             else:
                 # If not consecutive, store the extended group,
@@ -1124,7 +1124,8 @@ def roi_populate_pixels(
     rectangles : list
         List of rectangles grouped by Z-plane.
     max_iterations : int
-        Maximum number of iterations for pixel adjustment to prevent infinite loops.
+        Maximum number of iterations for pixel adjustment
+        to prevent infinite loops.
 
     Returns
     -------
@@ -1441,7 +1442,8 @@ def refine_split_layers(
                         start=close_node,
                         end=far_node,
                         bottom_right=new_bottom_right,
-                        pixel_resolution_xy=[num_pixels_width, num_pixels_height],
+                        pixel_resolution_xy=[
+                            num_pixels_width, num_pixels_height],
                         pix_um_ratio=pix_um_ratio,
                         acquisition_line_period=acquisition_line_period,
                         line_scan_period=line_scan_period,
@@ -1477,16 +1479,16 @@ def refine_split_layers(
         else:
             new_z_planes[z] = z_plane
 
-    # Calculate the resulting frame rates for each z-plane
-    frame_rates = calculate_all_framerates(class_var, new_z_planes)
+    # # Calculate the resulting frame rates for each z-plane
+    # frame_rates = calculate_all_framerates(class_var, new_z_planes)
 
-    # Print frame rates for verification
-    for z, rate in enumerate(frame_rates):
-        period = 1 / rate
-        difference = (period - desired_scanperiod)
-        new_flyback = (class_var.frame_flyback - difference) * 1e3
+    # # Print frame rates for verification
+    # for z, rate in enumerate(frame_rates):
+    #     period = 1 / rate
+    #     difference = (period - desired_scanperiod)
+    #     new_flyback = (class_var.frame_flyback - difference) * 1e3
 
-        print(f"Z-plane {z:02}: {rate:.3f} Hz, flyback: {new_flyback:.3f}")
+    #     print(f"Z-plane {z:02}: {rate:.3f} Hz, flyback: {new_flyback:.3f}")
 
     return new_z_planes
 
@@ -1524,92 +1526,6 @@ def calculate_pixel_size(
     pixel_size = math.sqrt(pixel_size_squared)
 
     return pixel_size
-
-
-def fine_tune_pixel_dimensions(
-        class_var: object,
-        framerate_delta: float,
-        rects: list
-) -> list:
-    """
-    Fine-tunes the pixel dimensions to achieve the desired frame rate.
-
-    Parameters
-    ----------
-    frame_flyback : float
-        The time for the frame flyback in microseconds.
-    fly_to_line : float
-        The time to move to the next line in microseconds.
-    dwell_time : float
-        The time to scan one pixel in microseconds.
-    sampling_rate_ctl : float
-        The sampling rate of the data acquisition system.
-    fill_fraction : float
-        The fill fraction indicating the percentage of the scan line
-        that is actually used for data acquisition.
-    desired_framerate : float
-        The desired frame rate in Hz.
-    framerate_delta : float
-        The acceptable difference between the actual and desired frame rate.
-    rects : list
-        List of Roi objects for a single z-plane.
-    optimal_pix_um_ratio : float
-        The optimal pixel-to-micron ratio.
-
-    Returns
-    -------
-    list
-        Updated list of rectangles with modified pixel dimensions.
-    """
-
-    dwell_time = class_var.dwell_time
-    sampling_rate_ctl = class_var.sampling_rate_ctl
-    fill_fraction = class_var.fill_fraction
-    desired_framerate = class_var.desired_framerate
-    optimal_pix_um_ratio = class_var.optimal_pix_um_ratio
-
-    z_framerate = calculate_z_framerate(class_var, rects)
-
-    while abs(z_framerate - desired_framerate) > framerate_delta:
-        for rect in rects:
-            width, height = rect.size_xy
-            pix_um_ratio = rect.pix_um_ratio
-
-            if z_framerate < desired_framerate:
-                pix_um_ratio *= 1.05
-            else:
-                pix_um_ratio /= 1.05
-
-            if pix_um_ratio < optimal_pix_um_ratio:
-                pix_um_ratio = optimal_pix_um_ratio
-
-            num_pixels_width = int(np.ceil(width * pix_um_ratio))
-            num_pixels_height = int(np.ceil(height * pix_um_ratio))
-
-            # Ensure pixel dimensions are even
-            if num_pixels_width % 2 != 0:
-                num_pixels_width += 1
-            if num_pixels_height % 2 != 0:
-                num_pixels_height += 1
-
-            acquisition_line_period = dwell_time * num_pixels_width
-            samples_acq = acquisition_line_period * sampling_rate_ctl
-            samples_turnaround_half = np.ceil(
-                ((samples_acq / fill_fraction) - samples_acq) / 2)
-            samples_scan = samples_acq + 2 * samples_turnaround_half
-            line_scan_period = samples_scan / sampling_rate_ctl
-            rectangle_period = line_scan_period * num_pixels_height
-
-            # Update rect properties
-            rect.pix_um_ratio = pix_um_ratio
-            rect.pixel_resolution_xy = [num_pixels_width, num_pixels_height]
-            rect.acquisition_line_period = acquisition_line_period
-            rect.line_scan_period = line_scan_period
-            rect.rectangle_period = rectangle_period
-
-        z_framerate = calculate_z_framerate(class_var, rects)
-
-    return rects
 
 
 def calculate_all_framerates(

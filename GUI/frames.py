@@ -12,14 +12,14 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from ROIpy.core.structures import Stack, Morphology, Scanfields
 from ROIpy.assets.palette import dim
 from ROIpy.GUI.guiStyles import darkMode, icon
+from neuronpath.path import neuronpath
 
 
 class LoadFiles(QFrame):
 
-    tif_filename = None
-    swc_filename = None
+    paths = None
 
-    files_name = pyqtSignal(str, str, str)
+    files_name = pyqtSignal(object)
     structures = pyqtSignal(Stack, Morphology, Scanfields)
     update_progress_signal = pyqtSignal()
 
@@ -56,46 +56,25 @@ class LoadFiles(QFrame):
         self.layout.addWidget(title, 0, 0, 1, 3)
 
         # first row
-        tif_label = QLabel('Selected .tif file: ')
-        tif_label.setAlignment(Qt.AlignVCenter)
-        tif_label.setStyleSheet(darkMode.label)
-        self.layout.addWidget(tif_label, 1, 0, 1, 1)
+        path_label = QLabel('Select a path: ')
+        path_label.setAlignment(Qt.AlignVCenter)
+        path_label.setStyleSheet(darkMode.label)
+        self.layout.addWidget(path_label, 1, 0, 1, 1)
 
-        tif_entry = QLabel()
-        tif_entry.setWordWrap(False)
-        tif_entry.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        tif_entry.setStyleSheet(darkMode.entry)
-        tif_entry.setFixedWidth(350)
-        self.layout.addWidget(tif_entry, 1, 1, 1, 1)
+        path_entry = QLabel()
+        path_entry.setWordWrap(False)
+        path_entry.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        path_entry.setStyleSheet(darkMode.entry)
+        path_entry.setFixedWidth(350)
+        self.layout.addWidget(path_entry, 1, 1, 1, 1)
 
-        tif_button = QPushButton(' Choose')
-        tif_button.setStyleSheet(darkMode.button +
-                                 f'''QPushButton:hover {{
-                                 background-color: {dim.hovering.hex};}}''')
-        tif_button.setIcon(QIcon(icon.folder))
-        self.layout.addWidget(tif_button, 1, 2, 1, 1)
-        tif_button.clicked.connect(lambda: self.choose_file('tif', tif_entry))
-
-        # second row
-        swc_label = QLabel('Selected .swc file :')
-        swc_label.setAlignment(Qt.AlignVCenter)
-        swc_label.setStyleSheet(darkMode.label)
-        self.layout.addWidget(swc_label, 2, 0, 1, 1)
-
-        swc_entry = QLabel()
-        swc_entry.setWordWrap(False)
-        swc_entry.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        swc_entry.setStyleSheet(darkMode.entry)
-        swc_entry.setFixedWidth(350)
-        self.layout.addWidget(swc_entry, 2, 1, 1, 1)
-
-        swc_button = QPushButton(' Choose')
-        swc_button.setStyleSheet(darkMode.button +
-                                 f'''QPushButton:hover {{
-                                 background-color: {dim.hovering.hex};}}''')
-        swc_button.setIcon(QIcon(icon.folder))
-        self.layout.addWidget(swc_button, 2, 2, 1, 1)
-        swc_button.clicked.connect(lambda: self.choose_file('swc', swc_entry))
+        path_button = QPushButton(' Choose')
+        path_button.setStyleSheet(darkMode.button +
+                                  f'''QPushButton:hover {{
+                                  background-color: {dim.hovering.hex};}}''')
+        path_button.setIcon(QIcon(icon.folder))
+        self.layout.addWidget(path_button, 1, 2, 1, 1)
+        path_button.clicked.connect(lambda: self.choose_file(path_entry))
 
         self.generate_button = QPushButton(' Generate')
         self.generate_button.setStyleSheet(
@@ -103,60 +82,76 @@ class LoadFiles(QFrame):
             f'''QPushButton:hover {{
             background-color: {dim.hovering.hex};}}''')
         self.generate_button.setIcon(QIcon(icon.next))
-        self.layout.addWidget(self.generate_button, 3, 2)
+        self.layout.addWidget(self.generate_button, 2, 2)
         self.generate_button.clicked.connect(
-            lambda: self.generate(self.tif_filename,
-                                  self.swc_filename))
+            lambda: self.generate())
         self.generate_button.setEnabled(False)
 
     def choose_file(
-            self,
-            file_format: str,
-            label: QLabel
+        self,
+        label: QLabel
     ) -> None:
         """
-        Generic function to open file dialog.+
-        emit a signal to Main Window.
-        stores the filenames.
-        runs file loaded check.
+        Opens a dialog to select a folder and searches
+        for a .tif and a .swc file within it.
+        Updates the label with the folder path.
+        Stores the filenames of the found files.
+        Runs the file loaded check.
 
         Parameters
         ----------
-        file_format : str
-            DESCRIPTION.
         label : QLabel
-            DESCRIPTION.
+            Label widget to update with the folder path.
 
         Returns
         -------
         None
-
         """
 
-        options = QFileDialog.Options()
-        options |= QFileDialog.ReadOnly
-
-        file_filter = f"{file_format} Files (*.{file_format})"
-
-        file_name, _ = QFileDialog.getOpenFileName(
+        folder_name = QFileDialog.getExistingDirectory(
             self,
-            f"Open .{file_format} File",
+            "Select Folder",
             "",
-            file_filter,
-            options=options)
+            QFileDialog.ShowDirsOnly | QFileDialog.ReadOnly
+        )
 
-        if file_name:
-            label.setText(file_name)
+        if folder_name:
+            label.setText(folder_name)
             label.setStyleSheet(darkMode.entry)
 
-            self.folder_name = os.path.dirname(file_name)
+            # Store the folder name
+            self.folder_name = folder_name
 
-            if file_format == 'tif':
-                self.tif_filename = file_name
-            else:
-                self.swc_filename = file_name
+            # Split the folder path into its components
+            path_parts = os.path.normpath(folder_name).split(os.sep)
 
-        self.are_files_loaded()
+            # Store the last and second-to-last components
+            self.cell_n = int(''.join(filter(str.isdigit, path_parts[-1])))
+            self.date = str(path_parts[-2])
+
+            self.paths = neuronpath(
+                date=self.date,
+                neuron_number=self.cell_n,
+                home='C:\\Users\\vregio',
+                user='Desktop')
+
+            # Initialize variables to store file paths
+            self.tif_filename = self.paths.stackpath
+            self.swc_filename = self.paths.tracepath
+
+            # Search for .tif and .swc files in the selected folder
+            for root, dirs, files in os.walk(folder_name):
+                for file in files:
+                    if file.endswith('.tif'):
+                        self.tif_filename = os.path.join(root, file)
+                    elif file.endswith('.swc'):
+                        self.swc_filename = os.path.join(root, file)
+
+                # Stop searching if both files are found
+                if self.tif_filename and self.swc_filename:
+                    break
+
+            self.are_files_loaded()
 
     def are_files_loaded(
             self
@@ -165,17 +160,11 @@ class LoadFiles(QFrame):
         Check if both files are loaded
         """
 
-        if self.tif_filename and self.swc_filename:
+        if self.paths:
             self.generate_button.setEnabled(True)
-            self.files_name.emit(self.tif_filename,
-                                 self.swc_filename,
-                                 self.folder_name)
+            self.files_name.emit(self.paths)
 
-    def generate(
-            self,
-            tif: str,
-            swc: str
-    ) -> None:
+    def generate(self) -> None:
         """
         Creates the core Structures of ROIpy.
         Emit a signal to Main Window.
@@ -192,10 +181,9 @@ class LoadFiles(QFrame):
         -------
         None
         """
-
-        stack = Stack(tif)
-        morph = Morphology(tif, swc)
-        sf = Scanfields(tif, swc)
+        stack = Stack(self.paths)
+        morph = Morphology(self.paths)
+        sf = Scanfields(self.paths)
 
         self.structures.emit(stack, morph, sf)
         self.generate_button_clicked.emit()
@@ -248,7 +236,7 @@ class ScanParameters(QFrame):
         title.setStyleSheet(darkMode.title)
         layout.addWidget(title, 0, 0, 1, 4)
 
-        frame_rate_label = QLabel('frame_rate (Hz): ')
+        frame_rate_label = QLabel('Frame Rate (Hz): ')
         frame_rate_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         frame_rate_label.setStyleSheet(darkMode.label)
         layout.addWidget(frame_rate_label, 1, 0, 1, 1)
@@ -488,8 +476,7 @@ class ScanParameters(QFrame):
                 filtering_radius != self.sf.filtering_radius):
 
             self.sf = Scanfields(
-                self.stack.imagename,
-                self.morph.tracename,
+                self.stack.paths,
                 frame_rate,
                 elongating_factor,
                 dim_ratio_threshold,

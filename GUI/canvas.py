@@ -42,7 +42,7 @@ class ImageView(pg.ImageView):
         super().__init__(*args, **kwargs)
 
         # Set ImageView to be at least 50% of the entire window
-        image_window_ratio = 0.5
+        image_window_ratio = 0.6
         min_width = parent.window_width * image_window_ratio
         min_height = parent.window_height * image_window_ratio
         self.setMinimumWidth(int(min_width))
@@ -94,7 +94,6 @@ class Canvas(QFrame):
         self.add_sliders()
 
         # structures signal received
-        structures.connect(self.handle_structure_signal)
         structure_frame.morph_plotted.connect(self.plot_morph)
         structure_frame.clear_morph.connect(self.clear_morph)
         structure_frame.sf_plotted.connect(self.plot_scanfield)
@@ -193,8 +192,8 @@ class Canvas(QFrame):
             self
     ) -> None:
         """
-        When the PyQt signal is received, creates an instance of Stack
-        Enables the Z slider and channel slider
+        When the PyQt signal is received,
+        enables the Z slider and channel slider
         If image has 4 dimensions (slices, channels width, height),
         then enables also the channel slider
 

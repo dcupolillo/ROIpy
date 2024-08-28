@@ -39,6 +39,8 @@ class Stack():
                 f"Invalid file format for {paths.stackpath}."
                 "Expected .tif or .tiff file.")
 
+        self.paths = paths
+
         self.imagename = paths.stackpath
         self.image = tifffile.imread(self.imagename)
 

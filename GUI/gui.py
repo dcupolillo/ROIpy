@@ -12,17 +12,8 @@ from ROIpy.GUI.guiStyles import darkMode
 
 class MainWindow(QMainWindow):
 
-    def __init__(
-            self
-    ) -> None:
-        """
-        Main Window with Frames for each functionality.
-
-        Returns
-        -------
-        None
-
-        """
+    def __init__(self) -> None:
+        """ Main Window with Frames for each functionality."""
 
         super().__init__()
 
@@ -31,20 +22,12 @@ class MainWindow(QMainWindow):
         self.init_window()
         self.add_frames()
 
-    def init_variables(
-            self
-    ) -> None:
+    def init_variables(self) -> None:
 
-        self.tif_filename = None
-        self.swc_filename = None
-        self.folder_name = None
+        self.paths = None
 
-    def window_geometry(
-            self
-    ) -> None:
-        """
-        Defines window geometry as specified in gui_styles.style
-        """
+    def window_geometry(self) -> None:
+        """ Defines window geometry as specified in gui_styles.style."""
 
         self.window_height = darkMode.window_size[0]
         self.window_width = darkMode.window_size[1]
@@ -55,39 +38,22 @@ class MainWindow(QMainWindow):
         self.layout = QGridLayout(self.central_widget)
         self.setCentralWidget(self.central_widget)
 
-    def init_window(
-            self
-    ) -> None:
-        """
-        Set the graphical properties of the window.
-        """
+    def init_window(self) -> None:
+        """ Set the graphical properties of the window."""
 
         self.setStyleSheet(darkMode.window)
         self.setWindowTitle(f'ROIpy - {rp.__version__}')
         self.setGeometry(self.window_left_offset, self.window_top_offset,
                          self.window_width, self.window_height)
 
-    def add_frames(
-            self
-    ) -> None:
-        """
-        Add the individual frames.
-        Manages the signals.
-
-        Returns
-        -------
-        None
-
-        """
+    def add_frames(self) -> None:
+        """ Add the individual frames. Manages the signals."""
 
         # Load files frame and receive file names signal
         self.load_files = LoadFiles(self)
         self.load_files.files_name.connect(
-            lambda tif_filename, swc_filename, folder_name:
-                setattr(self, 'tif_filename', tif_filename) or
-                setattr(self, 'swc_filename', swc_filename) or
-                setattr(self, 'folder_name', folder_name))
-
+            lambda paths:
+                setattr(self, 'paths', paths))
         self.layout.addWidget(self.load_files, 0, 0, 1, 1)
 
         # Structure Buttons Frame and receive signal
@@ -100,7 +66,7 @@ class MainWindow(QMainWindow):
         self.canvas = Canvas(self,
                              self.load_files.structures,
                              self.structure_frame)
-        self.layout.addWidget(self.canvas, 0, 1, 4, 2)
+        self.layout.addWidget(self.canvas, 0, 1, 6, 6)
 
         # Scan parameters
         self.scan_parameters = ScanParameters(self)
@@ -110,7 +76,7 @@ class MainWindow(QMainWindow):
         self.layout.addWidget(self.scan_parameters, 2, 0, 1, 1)
 
         # Save
-        self.save_files = SaveFiles(self, self.folder_name)
+        self.save_files = SaveFiles(self, self.paths)
         self.canvas.which_scanfield_signal.connect(
             self.save_files.which_scanfield_to_save)
         self.load_files.structures.connect(self.save_files.get_structures)
