@@ -38,5 +38,10 @@ rp.main()
 # Publish to github
 repo = GitRepository("ROIpy")  # Initialize a new repository
 repo.add_all()  # Add all files and commit
-repo.commit("Update morphology and Scanfields with saving to h5 methods")
+repo.commit("Created a new version of the GUI")
 repo.push('main')  # Push changes to the remote repository to the main branch
+
+repo.create_branch('GUI_new_version')
+repo.add_all()  # Add all files and commit
+repo.commit("Created a new version of the GUI")
+repo.push('GUI_new_version')
