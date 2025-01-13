@@ -23,7 +23,7 @@ class Node:
             self,
             obj_res: float,
             _id: int,
-            _type: int,
+            _type: int or str,
             x: float,
             y: float,
             z_ind: int,
@@ -40,6 +40,7 @@ class Node:
             x_pix: int = None,
             y_pix: int = None,
             z: float = None,
+            branch_degree: int = None
     ) -> None:
         """
         Individual node representation
@@ -91,7 +92,10 @@ class Node:
         self.voxel_separation_y = voxel_separation_y
 
         self._id = int(_id)
-        self._type = self.get_type(int(_type))
+        self._type = (
+            self.get_type(int(_type))
+            if isinstance(_type, int)
+            else _type)
         self.x = transformed_pixel_to_ref[0] * obj_res
         self.y = transformed_pixel_to_ref[1] * obj_res
         self.z = float(zs[int(float(z_ind))])
@@ -104,6 +108,7 @@ class Node:
         self.parent_id = int(parent_id)
         self.is_fork = is_fork
         self.children = []
+        self.branch_degree = branch_degree
 
     def __getattr__(
             self,
@@ -168,7 +173,7 @@ class Node:
             '_id', '_type',
             'x', 'y', 'z',
             'radius', 'parent_id',
-            'is_fork', 'children']
+            'is_fork', 'children', 'branch_degree']
 
         for key in attributes_to_display:
             value = getattr(self, key, None)

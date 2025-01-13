@@ -20,7 +20,8 @@ ScanImage **mROI Editor Window**.
 
 Tested to work with ```.swc``` files generated with ImageJ Fiji plugin
 [Simple Neurite Tracer (SNT)](https://imagej.net/plugins/snt/).
-Dendritic portions are labeled as *apical dendrite* or *basal dendrite* or *soma*.
+.swc files generated with different softwares are not tested.
+Common labels are *apical dendrite* or *basal dendrite* or *soma*.
 
 ## Installation
 
@@ -44,6 +45,23 @@ sys.path.append('path/to/ROIpy')
 formed by individual **components**. Each strucures handles metadata, indexing, and
 plotting methods for visual inspection.
 
+## Dependency on Neuronpath
+
+`ROIpy` objects initialization depends on the custom dataset handler `Neuronpath`.
+Similarly, copy the folder "neuronpath" within your project folder :file_folder:.
+Ensure the folder is in your system path.
+
+**Example Usage:**
+```python
+import sys
+sys.path.append('path/to/neuronpath')
+
+from neuronpath.path import neuronpath
+paths = neuronpath('date_string', cell_number)
+
+# date_string in the format YYMMDD (i.e. 240505)
+# cell_number as an integer (i.e. 1)
+```
 
 ### Stack
 
@@ -58,7 +76,7 @@ as possible, recorded in the channel of the used morphological filler/marker.
 import ROIpy as rp
 
 # Initialize a stack of neuron images
-stack = rp.Stack('path/to/image.tif')
+stack = rp.Stack(paths)
 
 # Plot the stack image
 stack.plot(cmap='viridis', norm=(100, 2000))
@@ -85,7 +103,7 @@ features of every individual point within the structure.
 **Example Usage:**
 ```python
 # Initialize the morphology with image and tracing files
-morph = rp.Morphology('path/to/image.tif', 'path/to/tracing.swc')
+morph = rp.Morphology(paths)
 
 # Plot the morphology
 morph.plot(morph.neuron, show_nodes=True, cmap='jet', linewidth=1)
@@ -112,7 +130,7 @@ features of every individual rectangle within the structure.
 
 ```python
 # Initialize the scanfields with image and tracing files
-sf = rp.Scanfields('path/to/image.tif', 'path/to/tracing.swc')
+sf = rp.Scanfields(paths)
 
 # Plot the scanfields
 sf.plot(sf.neuComp, edgecolor='red')

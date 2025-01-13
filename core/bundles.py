@@ -2,6 +2,7 @@
     @author: dcupolillo """
 
 import flammkuchen as fl
+import numpy as np
 import matplotlib.pyplot as plt
 from ROIpy.analysis.stats import (calculate_total_length,
                                   sholl_analysis, hull_area)
@@ -208,6 +209,26 @@ class Neurite():
         """
 
         self.neurites = neurites
+
+        branches_degree = []
+        branches_length = []
+        for neurite in self.neurites:
+            branches_degree.append(
+                list(set([node.branch_degree for node in neurite]))[0])
+            branches_length.append(calculate_total_length(neurite))
+
+        self.branches_degree = branches_degree
+        self.branches_length = branches_length
+
+        unique_degrees = set(self.branches_degree)
+
+        self.cumulative_lengths = [
+            sum(length
+                for degree, length in zip(
+                        self.branches_degree, self.branches_length)
+                if degree == d)
+            for d in sorted(unique_degrees)
+        ]
 
     def __getitem__(
             self,

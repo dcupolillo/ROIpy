@@ -4,7 +4,6 @@
 import ROIpy as rp
 import matplotlib.pyplot as plt
 from neuronpath.path import neuronpath
-from github_project import GitRepository
 
 paths = neuronpath('240813', 1)
 
@@ -34,9 +33,3 @@ sf.plot(sf.neuComp, ax=ax)
 
 # Start the graphical interface
 rp.main()
-
-# Publish to github
-repo = GitRepository("ROIpy")  # Initialize a new repository
-repo.add_all()  # Stage all files (if there are any changes)
-repo.commit("Created a new version of the GUI")  # Commit changes
-repo.push('GUI_new_version')  # Push changes to the new branch

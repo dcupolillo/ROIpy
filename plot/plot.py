@@ -7,10 +7,9 @@ import matplotlib.colors as colors
 import matplotlib.patches as patches
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from matplotlib.cm import ScalarMappable
+from matplotlib.animation import FuncAnimation
 import matplotlib.colors as mcolors
 import numpy as np
-
 from ROIpy.assets.palette import dim
 
 
@@ -283,6 +282,240 @@ def plot_morph(
                  color=color, linewidth=linewidth, z=z)
 
 
+def plot_morph_3d(
+        input_data: list,
+        show_nodes: bool = False,
+        scan_angle: bool = False,
+        color: str = 'black',
+        linewidth: int = 1,
+        axis_lims: list = None,
+        cmap: str = 'viridis',
+        azim: float = None,
+        elev: float = None,
+        ax: plt.Axes = None
+):
+    """
+    Plot a 3D representation of a morphology object.
+
+    Parameters
+    ----------
+    input_data : list
+        List of Node objects representing the morphology structure.
+    show_nodes : bool, optional
+        If True, display individual nodes. Default is False.
+    scan_angle : bool, optional
+        If True, use angle-based coordinates. Default is False.
+    color : str, optional
+        Color of the skeleton lines. Default is 'black'.
+    linewidth : int, optional
+        Width of the connecting lines. Default is 1.
+    axis_lims : list, optional
+        Axis limits [xmin, xmax, ymin, ymax, zmin, zmax]. Default is None.
+    cmap : str, optional
+        Colormap to use for node coloring. Default is 'viridis'.
+
+    Returns
+    -------
+    None
+    """
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
+
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
+
+    node_dict = {node.id: node for node in input_data}
+    segments = [
+        (
+            [node.x, parent.x],
+            [node.y, parent.y],
+            [node.z, parent.z]
+        )
+        for node in input_data if node.parent_id in node_dict
+        for parent in [node_dict[node.parent_id]]
+    ]
+
+    for seg in segments:
+        x, y, z = seg
+        ax.plot(x[:2], y[:2], z[:2], color=color, linewidth=linewidth)
+
+    if show_nodes:
+        x_nodes = [node.x_deg if scan_angle else node.x for node in input_data]
+        y_nodes = [node.y_deg if scan_angle else node.y for node in input_data]
+        z_nodes = [node.z for node in input_data]
+
+        cmap = plt.get_cmap(cmap)
+        norm = plt.Normalize(min(z_nodes), max(z_nodes))
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+
+        ax.scatter(
+            x_nodes, y_nodes, z_nodes, c=z_nodes, cmap=cmap)
+        cbar = plt.colorbar(sm, ax=ax)
+        cbar.set_label("Z")
+
+    if axis_lims:
+        ax.set_xlim(axis_lims[0], axis_lims[1])
+        ax.set_ylim(axis_lims[2], axis_lims[3])
+        ax.set_zlim(axis_lims[4], axis_lims[5])
+
+    else:
+        x_vals = [node.x for node in input_data]
+        y_vals = [node.y for node in input_data]
+        z_vals = [node.z for node in input_data]
+        max_range = np.array(
+            [max(x_vals) - min(x_vals),
+             max(y_vals) - min(y_vals),
+             max(z_vals) - min(z_vals)]).max() / 2.0
+
+        mid_x = (max(x_vals) + min(x_vals)) * 0.5
+        mid_y = (max(y_vals) + min(y_vals)) * 0.5
+        mid_z = (max(z_vals) + min(z_vals)) * 0.5
+
+        ax.set_xlim(mid_x - max_range, mid_x + max_range)
+        ax.set_ylim(mid_y - max_range, mid_y + max_range)
+        ax.set_zlim(mid_z - max_range, mid_z + max_range)
+
+    if azim is not None:
+        ax.view_init(elev=elev if elev is not None else 30, azim=azim)
+
+
+def animate_morph_3d(
+        input_data: list,
+        show_nodes: bool = False,
+        scan_angle: bool = False,
+        color: str = 'black',
+        linewidth: int = 1,
+        axis_lims: list = None,
+        cmap: str = 'viridis',
+        elev_start: float = 30,
+        elev_end: float = -30,
+        azimut_start: float = 0,
+        azimut_end: float = 360,
+        interval: int = 10,
+        frames: int = 360,
+        save_path: str = None,
+        axis_label: bool = False,
+):
+    """
+    Animate a 3D plot of a morphology structure with customizable
+    rotation and elevation changes.
+
+    Parameters
+    ----------
+    input_data : list
+        List of Node objects representing the morphology
+        structure to be plotted.
+    show_nodes : bool, optional
+        If True, individual nodes of the morphology are
+        displayed as scatter points.
+        Default is False.
+    scan_angle : bool, optional
+        If True, uses angle-based coordinates for node positions.
+        Default is False.
+    color : str, optional
+        Color of the lines connecting nodes in the morphology structure.
+        Default is 'black'.
+    linewidth : int, optional
+        Width of the lines connecting the nodes.
+        Default is 1.
+    axis_lims : list, optional
+        A list specifying the axis limits as
+        [xmin, xmax, ymin, ymax, zmin, zmax].
+        If None, the limits are determined automatically
+        based on the data.
+        Default is None.
+    cmap : str, optional
+        Colormap to use for coloring nodes based
+        on their z-coordinates (if `show_nodes` is True).
+        Default is 'viridis'.
+    elev_start : float, optional
+        Starting elevation angle (vertical tilt)
+        in degrees for the animation.
+        Default is 30.
+    elev_end : float, optional
+        Ending elevation angle (vertical tilt)
+        in degrees for the animation.
+        Default is -30.
+    azimut_start : float, optional
+        Starting azimuth angle (horizontal rotation)
+        in degrees for the animation.
+        Default is 0.
+    azimut_end : float, optional
+        Ending azimuth angle (horizontal rotation)
+        in degrees for the animation.
+        Default is 360.
+    interval : int, optional
+        Time interval between frames in milliseconds.
+        Default is 10.
+    frames : int, optional
+        Total number of frames in the animation.
+        Default is 360.
+    save_path : str, optional
+        File path to save the animation (e.g., as a .gif or .mp4 file).
+        If None, the animation is not saved.
+        Default is None.
+    axis_label : bool, optional
+        If True, axis labels ("X", "Y", "Z") are displayed.
+        If False, axis labels and ticks are hidden.
+        Default is False.
+
+    Returns
+    -------
+    anim : matplotlib.animation.FuncAnimation
+        The generated animation object.
+        This can be displayed using plt.show() or saved to a file.
+
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    if not axis_label:
+        ax.tick_params(axis='both', which='both', length=0)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        ax.set_zlabel("")
+    else:
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
+
+    plot_morph_3d(
+        input_data=input_data,
+        show_nodes=show_nodes,
+        scan_angle=scan_angle,
+        color=color,
+        linewidth=linewidth,
+        axis_lims=axis_lims,
+        cmap=cmap,
+        azim=azimut_start,
+        elev=elev_start,
+        ax=ax
+    )
+
+    def update(frame):
+        current_elev = (
+            elev_start + (elev_end - elev_start) *
+            (frame / (frames - 1)))
+        current_azimut = (
+            azimut_start + (azimut_end - azimut_start) *
+            (frame / (frames - 1)))
+        ax.view_init(elev=current_elev, azim=current_azimut)
+        return ax,
+
+    anim = FuncAnimation(
+        fig, update, frames=frames, interval=interval, blit=False
+    )
+
+    if save_path:
+        anim.save(save_path, writer="pillow")
+
+    return anim
+
+
 def plot_morph_scanned_highlight(
         class_var: object,
         input_data: list,
@@ -477,8 +710,6 @@ def plot_scanfields_3d(
         class_var: object,
         rectangles: list,
         ax: plt.Axes = None,
-        figsize: tuple = None,
-        show_title: bool = False,
         cmap: str = None,
         edgecolor: str = dim.black.hex,
         linewidth: int = 1,
@@ -533,10 +764,8 @@ def plot_scanfields_3d(
         rectangles = [rectangles]
 
     if not ax:
-        fig = plt.figure(figsize=figsize)
+        fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
-        if show_title:
-            ax.set_title(class_var.stack_name)
 
         corners = (class_var.corners_deg if scan_angle
                    else class_var.corners_um)
@@ -604,3 +833,135 @@ def plot_scanfields_3d(
 
     ax.view_init(elev=elev, azim=azim)
     ax.dist = zoom
+
+
+def animate_scanfields_3d(
+        class_var: object,
+        rectangles: list,
+        cmap: str,
+        edgecolor: str,
+        linewidth: int,
+        alpha: float,
+        scan_angle: bool,
+        elev_start: float,
+        elev_end: float,
+        azimut_start: float,
+        azimut_end: float,
+        interval: int,
+        frames: int,
+        save_path: str,
+        zoom: float,
+        axis_label: bool
+):
+    """
+    Animate a 3D representation of scanfields with customizable rotation and elevation.
+
+    Parameters
+    ----------
+    class_var : object
+        The Scanfield object containing metadata.
+    rectangles : list
+        List of Roi objects to be plotted.
+    figsize : tuple, optional
+        Figure size (width, height) in inches. Default is None.
+    show_title : bool, optional
+        Whether to display the title of the plot. Default is False.
+    cmap : str, optional
+        Colormap to use for coloring rectangles based on z values. Default is None.
+    edgecolor : str, optional
+        Color of the rectangle edges. Default is dim.black.hex.
+    linewidth : int, optional
+        Width of the rectangle edges. Default is 1.
+    alpha : float, optional
+        Transparency of the rectangles. Default is None.
+    scan_angle : bool, optional
+        If True, plot rectangles using angle coordinates. Default is False.
+    elev_start : float, optional
+        Starting elevation angle (vertical tilt) in degrees. Default is 30.
+    elev_end : float, optional
+        Ending elevation angle (vertical tilt) in degrees. Default is -30.
+    azimut_start : float, optional
+        Starting azimuth angle (horizontal rotation) in degrees. Default is 0.
+    azimut_end : float, optional
+        Ending azimuth angle (horizontal rotation) in degrees. Default is 360.
+    interval : int, optional
+        Time interval between frames in milliseconds. Default is 10.
+    frames : int, optional
+        Total number of frames in the animation. Default is 360.
+    save_path : str, optional
+        File path to save the animation (e.g., .gif or .mp4). Default is None.
+    zoom : float, optional
+        Zoom level for the 3D plot. Default is None.
+    axis_label : bool, optional
+        If True, display axis labels ("X", "Y", "Z"). Default is False.
+
+    Returns
+    -------
+    anim : matplotlib.animation.FuncAnimation
+        The generated animation object.
+    """
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    corners = (class_var.corners_deg if scan_angle
+               else class_var.corners_um)
+    units = (class_var.units_deg if scan_angle
+             else class_var.units_um)
+
+    ax.set_xlim(min(corners[0]), max(corners[1]))
+    ax.set_ylim(max(corners[2]), min(corners[3]))
+    ax.set_zlim(class_var.zs[-1], class_var.zs[0])
+    ax.set_xlabel(units, labelpad=30)
+    ax.set_ylabel(units, labelpad=30)
+
+    ax.set_aspect('equal')
+
+    # Configure axis labels and grid
+    if not axis_label:
+        ax.tick_params(axis='both', which='both', length=0)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_zticks([])
+        ax.set_xlabel("")
+        ax.set_ylabel("")
+        ax.set_zlabel("")
+    else:
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_zlabel("Z")
+
+    # Initial plot of scanfields
+    plot_scanfields_3d(
+        class_var=class_var,
+        rectangles=rectangles,
+        ax=ax,
+        cmap=cmap,
+        edgecolor=edgecolor,
+        linewidth=linewidth,
+        alpha=alpha,
+        scan_angle=scan_angle,
+        elev=elev_start,
+        azim=azimut_start,
+        zoom=zoom
+    )
+
+    # Update function for the animation
+    def update(frame):
+        current_elev = elev_start + (elev_end - elev_start) * (frame / (frames - 1))
+        current_azimut = azimut_start + (azimut_end - azimut_start) * (frame / (frames - 1))
+        ax.view_init(elev=current_elev, azim=current_azimut)
+        return ax,
+
+    # Create the animation
+    anim = FuncAnimation(
+        fig, update, frames=frames, interval=interval, blit=False
+    )
+
+    # Save the animation if a save path is provided
+    if save_path:
+        anim.save(save_path, writer="pillow")
+
+    plt.show()
+
+    return anim
+

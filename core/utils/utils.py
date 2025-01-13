@@ -215,24 +215,60 @@ def split_neurite(
     current_section = []
 
     for i, node in enumerate(input_data):
-        if node.type == 'soma':
-            current_section.append(node)
-            sections.append(current_section)
+
+        if node._type == 'soma':
+            if current_section:
+                sections.append(current_section)
             current_section = []
-        elif node.parent_id == -1:
-            continue
-        elif i == len(input_data) - 1:
+            continue  # skip soma
+
+        elif i == len(input_data) - 1:  # last node
             current_section.append(node)
             sections.append(current_section)
+
         else:
-            if input_data[i+1].parent_id == node.id:
-                parent = input_data[i]
+            if input_data[i+1].parent_id == node._id:
                 current_section.append(node)
             else:
-                parent = None
-            if parent not in current_section:
                 current_section.append(node)
                 sections.append(current_section)
                 current_section = []
 
     return sections
+
+
+def assign_branch_degree(input_data):
+
+    neurites = split_neurite(input_data)
+
+    branch_degree = 1
+
+    already_classified_nodes = set()
+
+    # Start with the first-degree branches
+    current_degree_branches = [
+        n for n, neurite in enumerate(neurites)
+        if neurite[0].parent_id == 1]
+
+    # Loop to assign branch degrees iteratively
+    while current_degree_branches:
+
+        for i in current_degree_branches:
+            for node in neurites[i]:
+                node.branch_degree = branch_degree
+
+        already_classified_nodes.update({
+            node._id for i in current_degree_branches
+            for node in neurites[i]})
+
+        fork_nodes = {
+            node._id for i in current_degree_branches
+            for node in neurites[i] if node.is_fork}
+
+        next_degree_branches = [
+            n for n, neurite in enumerate(neurites)
+            if neurite[0].parent_id in fork_nodes
+            and neurite[0]._id not in already_classified_nodes]
+
+        current_degree_branches = next_degree_branches
+        branch_degree += 1

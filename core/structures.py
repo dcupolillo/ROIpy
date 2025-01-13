@@ -8,10 +8,13 @@ import matplotlib.pyplot as plt
 from ROIpy.core.bundles import NodeBundle, ScanfieldBundle
 from ROIpy.plot.plot import (
     plot_image, plot_morph,
+    plot_morph_3d, animate_morph_3d,
     plot_scanfield, plot_scanfields_3d,
+    animate_scanfields_3d,
     plot_morph_scanned_highlight)
 
-from ROIpy.core.utils.utils import parse_swc, parse_stack_metadata
+from ROIpy.core.utils.utils import (
+    parse_swc, parse_stack_metadata, assign_branch_degree)
 from ROIpy.core.makeroi import make_roi, roi_file
 from ROIpy.assets.palette import dim
 
@@ -19,18 +22,44 @@ from neuronpath.path import NeuronPath
 
 
 class Stack():
+    """
+    Represents a 3D image stack (.tif format) generated with ScanImage.
+    This class initializes with a path to a single-channel or
+    multi-channel image stack (shape: [z, x, y] or [c, z, x, y]),
+    loads the image data, and parses associated ScanImage metadata.
+    It is the foundational element for processing dendritic structures.
+
+    Example
+    -------
+    >>> import ROIpy as rp
+    >>> from neuronpath.path import neuronpath
+    >>> paths = neuronpath('date_string', cell_number)
+    >>> stack = rp.Stack(paths)  # Initialize stack
+    >>> stack.plot(cmap='viridis', norm=(100, 2000))  # Visualize
+
+    """
 
     def __init__(
         self,
         paths: NeuronPath
     ) -> None:
         """
-        Initialize a Stack instance with the path to a .tif image file.
+        Initialize a Stack instance.
 
         Parameters
         ----------
-        imagepath : Path or NeuronPath
-            The full path to the .tif image file.
+        paths : NeuronPath
+            Object manager for stored data. The stack image is defined
+            under the object.stackpath attribute.
+
+        Raises
+        ------
+        Exception
+            If the provided path is not a .tif or .tiff file.
+
+        Returns
+        -------
+        None
         """
 
         if not (isinstance(paths.stackpath, Path)
@@ -42,7 +71,10 @@ class Stack():
         self.paths = paths
 
         self.imagename = paths.stackpath
-        self.image = tifffile.imread(self.imagename)
+
+        image_data = tifffile.imread(self.imagename)
+        self.image = (
+            image_data[1] if image_data.ndim == 4 else image_data)
 
         metadata = parse_stack_metadata(self.imagename)
         for key, value in metadata.items():
@@ -72,31 +104,31 @@ class Stack():
             z: int = None
     ) -> plt.Axes:
         """
-        Plot the max projection stack image.
+        Plot the max projection stack image or individual images.
 
         Parameters
         ----------
-        scanAngle : bool, optional
-            Select the plotting unit. The default is False.
-        ax : plt.axes.Axes, optional
-            If specified, plots within it. The default is None.
+        scan_angle : bool, optional
+            If True, uses scan angle units for plotting. Default is False.
+        ax : plt.Axes, optional
+            Axes to plot the image on. If None, creates a new Axes.
         norm : list or tuple, optional
-            Specifies the LUT limits. The default is None.
+            Limits for the lookup table (LUT). Default is None.
         cmap : str, optional
-            Colormap of the image. The default is None.
+            Colormap for the image. Default is None, which plots in grayscale.
         z : int, optional
-            If specified, only that slice is plotted. The default is None.
+            Specific slice to plot.
+            If None, plots the entire stack. Default is None.
 
         Returns
         -------
-        plt.axes.Axes
+        plt.Axes
             The axes with the plotted image.
 
-        Example usage
+        Example
         -------
-        fig, ax = plt.subplots()
-        stack.plot(cmap = 'viridis', norm = (100, 2000), ax = ax)
-
+        >>> fig, ax = plt.subplots()
+        >>> stack.plot(cmap='viridis', norm=(100, 2000), ax=ax)
         """
 
         return plot_image(
@@ -110,20 +142,30 @@ class Stack():
 
 class Morphology(Stack):
     """
-    Class to represent neuronal morphology data.
+    Represents neuronal morphology data, inheriting from the Stack class.
 
-    Attributes:
-        tracename (str): Pathname of the tracing file.
-        neuron (NodeBundle): Neuronal structure loaded from the tracing file.
-        apical (NodeBundle): Subset of the neuron structure
-                             representing apical dendrites.
-        basal (NodeBundle): Subset of the neuron structure
-                            representing basal dendrites.
-        soma (Node): Soma node of the neuron.
+    The Morphology class processes the structure of the neuron
+    from a .swc tracing file.
+    Rectangular ROIs are defined and placed on this structure.
 
-    Example usage:
-        morph = Morphology("imagename.tif", "tracingname.swc")
+    Attributes
+    ----------
+    neuron : NodeBundle
+        The overall neuron structure containing all compartments.
+    apical : NodeBundle
+        The apical dendritic compartment.
+    basal : NodeBundle
+        The basal dendritic compartment.
+    soma : Node or None
+        The cell body of the neuron.
 
+    Example
+    -------
+    >>> import ROIpy as rp
+    >>> from neuronpath.path import neuronpath
+    >>> paths = neuronpath('date_string', cell_number)
+    >>> morph = rp.Morphology(paths)
+    >>> morph.plot(morph.neuron, show_nodes=True, cmap='jet', linewidth=1)
     """
 
     def __init__(
@@ -132,17 +174,11 @@ class Morphology(Stack):
 
     ) -> None:
         """
-        Creates a neuronal object (list of Nodes instances).
+        Initializes a neuronal object. Inherits attributes from Stack.
 
-        Inherits all field of view attributes from from Stack.
-        Subclasses Scanfield.
-
-        Parameters
-        ----------
-        imagename : str
-            image pathname.
-        tracename : str
-            tracing pathname.
+        paths : NeuronPath
+            Object manager for stored data. The stack image is defined
+            under the object.stackpath attribute.
 
         Raises
         ------
@@ -152,20 +188,16 @@ class Morphology(Stack):
         Returns
         -------
         None
-
         """
 
         if not (isinstance(paths.tracepath, Path) or
                 paths.tracepath.suffix.lower() != '.swc'):
-            raise Exception(f"Invalid file format for {paths.tracepath}."
-                            "Expected .swc file.")
-
             raise Exception(
                 f"Invalid file format for {paths.tracepath}."
                 "Expected .swc file.")
 
-        # Super call Stack
         super().__init__(paths)
+
         self.tracename = paths.tracepath
 
         if paths.morphology.exists():
@@ -176,6 +208,7 @@ class Morphology(Stack):
                 self.objective_resolution,
                 self.zs,
                 self.pixel_to_ref_transform))
+            assign_branch_degree(self.neuron)
             self.neuron.save_to_h5(paths.morphology)
 
         self.apical = NodeBundle(
@@ -199,51 +232,39 @@ class Morphology(Stack):
             axis_lims: list = None,
             cmap: str = None,
             scan_angle: bool = False,
-            color: str = dim.black.hex,
+            color: str = "black",
             linewidth: int = 1
     ) -> plt.Axes:
         """
-        Plot the structure.
+        Plot the neuronal morphology structure.
 
         Parameters
         ----------
-        input_data : TYPE
-            DESCRIPTION.
-        z_planes : bool, optional
-            If True return a multiplot with each individual Z plane.
-            The default is False.
+        input_data : NodeBundle or Node
+            The data to plot (e.g., apical, basal, or full neuron structure).
         show_segments : bool, optional
-            If True, plot the line connecting the nodes.
-            The default is True.
+            Plot lines connecting the nodes (default is True).
         show_nodes : bool, optional
-            If True, plots the individual nodes as scattered dots.
-            The default is False.
+            Plot individual nodes as scatter points (default is False).
         z : int, optional
-            DESCRIPTION. The default is None.
-        ax : plt.Axes.ax, optional
-            if specified, plots in the indicated plot. The default is None.
+            Specific z-plane to plot (default is None for all).
+        ax : plt.Axes, optional
+            Matplotlib axes to plot on (default is None for new axes).
         axis_lims : list, optional
-            if specified, ax will be bounded to lists
+            Axes bounds as [xmin, xmax, ymin, ymax] (default is None).
         cmap : str, optional
-            colormap of the scattered nodes based on their Z position.
-            The default is None.
+            Colormap for z-position visualization (default is None).
         scan_angle : bool, optional
-            if True, plots in units of angle degrees.
-            The default is False.
+            Plot using angle units (default is False).
         color : str, optional
-            color of the connecting lines. The default is dim.black.hex.
+            Line color (default is `dim.black.hex`).
         linewidth : int, optional
-            Specifies the width of the connecting line. The default is 1.
+            Line width for connecting segments (default is 1).
 
         Returns
         -------
-        plt.Axes.ax
-            The axes with the plotted morphology structure.
-
-        Example usage
-        -------
-            morph.plot(morph.neuron, nodes = True, cmap = 'jet', linewidth = 3)
-
+        plt.Axes
+            The axes with the plotted morphology.
         """
 
         return plot_morph(
@@ -259,16 +280,130 @@ class Morphology(Stack):
             color=color,
             linewidth=linewidth)
 
+    def plot_3d(
+            self,
+            input_data,
+            show_segments: bool = True,
+            show_nodes: bool = False,
+            z: int = None,
+            ax: plt.Axes = None,
+            axis_lims: list = None,
+            cmap: str = None,
+            scan_angle: bool = False,
+            color: str = "black",
+            linewidth: int = 1,
+            azim: float = 45,
+            elev: float = 30,
+    ) -> plt.Axes:
+        """
+        Plot the neuronal morphology in 3D.
+
+        Parameters are similar to the `plot` method, with added `azim`
+        and `elev` for camera angle control.
+
+        azim : float, optional
+            Azimuthal angle for the 3D plot view (default is 45 degrees).
+        elev : float, optional
+            Elevation angle for the 3D plot view (default is 30 degrees).
+
+        Returns
+        -------
+        plt.Axes
+            The axes with the plotted 3D morphology.
+        """
+
+        return plot_morph_3d(
+            input_data,
+            show_nodes=show_nodes,
+            scan_angle=scan_angle,
+            color=color,
+            linewidth=linewidth,
+            axis_lims=axis_lims,
+            cmap=cmap,
+            azim=azim,
+            elev=elev,
+            ax=ax)
+
+    def animate_3d(
+            self,
+            input_data,
+            show_nodes: bool = False,
+            axis_lims: list = None,
+            cmap: str = None,
+            scan_angle: bool = False,
+            color: str = dim.black.hex,
+            linewidth: int = 1,
+            elev_start: float = 30,
+            elev_end: float = 30,
+            azimut_start: float = 0,
+            azimut_end: float = 360,
+            interval: int = 50,
+            frames: int = 360,
+            save_path: str or Path = None,
+            axis_label: bool = False,
+    ) -> plt.Axes:
+        """
+        Animate the neuronal morphology in 3D.
+
+        Parameters are similar to the `plot` method, with the addition of:
+
+        elev_start : float, optional
+            Starting elevation angle for the animation (default is 30 degrees).
+        elev_end : float, optional
+            Ending elevation angle for the animation (default is 30 degrees).
+        azimut_start : float, optional
+            Starting azimuthal angle for the animation (default is 0 degrees).
+        azimut_end : float, optional
+            Ending azimuthal angle for the animation (default is 360 degrees).
+        interval : int, optional
+            Time interval (in ms) between animation frames (default is 50).
+        frames : int, optional
+            Number of frames in the animation (default is 360).
+        save_path : str or Path, optional
+            File path to save the animation (default is None, no save).
+        axis_label : bool, optional
+            Whether to include axis labels in the animation (default is False).
+
+        Returns
+        -------
+        plt.Axes
+            The axes with the animated 3D morphology.
+        """
+
+        return animate_morph_3d(
+            input_data,
+            show_nodes=show_nodes,
+            scan_angle=scan_angle,
+            color=color,
+            linewidth=linewidth,
+            axis_lims=axis_lims,
+            cmap=cmap,
+            elev_start=elev_start,
+            elev_end=elev_end,
+            azimut_start=azimut_start,
+            azimut_end=azimut_end,
+            interval=interval,
+            frames=frames,
+            save_path=save_path,
+            axis_label=axis_label,)
+
 
 class Scanfields(Morphology):
 
     """
-    A class to create and manage scanfields for imaging,
+    A class to create and manage scanfields (rectangular ROIs) for imaging,
     inheriting from the Morphology class.
 
-    This class is designed to work with neuronal imaging data,
-    creating scanfields
-    based on provided morphology data and imaging parameters.
+    This class uses neuronal morphology data to define scanfields based on
+    imaging and experimental parameters. It includes methods for visualization,
+    ROI generation, and exporting data in compatible formats.
+
+    Example
+    -------
+    >>> import ROIpy as rp
+    >>> from neuronpath.path import neuronpath
+    >>> paths = neuronpath('date_string', cell_number)
+    >>> sf = rp.Scanfield(paths)
     """
 
     def __init__(
@@ -295,57 +430,42 @@ class Scanfields(Morphology):
 
         Parameters
         ----------
-        imagename : str
-            image pathname.
-        tracename : str
-            tracing pathname.
+        paths : NeuronPath
+            Paths to the image and tracing files.
         desired_framerate : int, optional
-            rate (Hz) at which frames are acquired. The default is 16.
+            Imaging framerate in Hz (default: 16).
         elongating_factor : float, optional
-            multiplier for ROI elongation across
-            longitudinal axis during ROI design. The default is 1.33.
+            ROI elongation factor along the longitudinal axis (default: 1.33).
         dim_ratio_threshold : float, optional
-            width-to-height ratio threshold for assigning
-            rectangular rois to merging function. The default is 3.5.
+            Width-to-height ratio threshold for ROI design (default: 3.5).
         overlap_threshold : float, optional
-            treshold for area covered by surrounding
-            rectangles in a single scanfield. The default is 0.90.
+            Overlap threshold for ROI merging (default: 0.90).
         wavelength : int, optional
-            wavelength (nm) of used laser beam. The default is 830.
+            Laser wavelength in nanometers (default: 830 nm).
         fill_fraction : float, optional
-            ratio between the length of an active acquisition of a line
-            and the total length of the line.
-            In Galvo-Galvo mode, spatial and temporal fill fraction
-            are equal. The default is 0.9.
+            Fraction of active acquisition time per line (default: 0.9).
         frame_flyback : float, optional
-            time (s) to allow scan mirror to travel from frame end position
-            to frame start position at the end of a frame.
-            The default is 0.001.
+            Time for mirrors to return to
+            the frame start position (default: 0.001 s).
         fly_to_line : float, optional
-            time (s) to allow  scanner to transition from the end position
-            of one ROI to the start position of another. The default is 0.001.
+            Time for scanner movement between ROIs (default: 0.001 s).
         numerical_aperture : float, optional
-            of the used objective. The default is 0.8.
+            Objective lens numerical aperture (default: 0.8).
         sampling_rate : float, optional
-            rate (Hz) of ADC spample collection. The default is 1.250 * 1e6.
+            ADC sampling rate in Hz (default: 1.25 MHz).
+        sampling_rate_ctl : float, optional
+            Control sampling rate in Hz (default: 156,250).
         pixel_bin_factor : int, optional
-            ADC samples that are averaged into one pixel. The default is 4.
+            ADC samples averaged per pixel (default: 4).
+        filtering_radius : tuple, optional
+            Spatial filtering radii in micrometers (default: (50.0, 20.0)).
+        framerate_delta_threshold : float, optional
+            Allowed framerate deviation (default: 0.3).
 
         Returns
         -------
-        None.
-
-        Example usage
-        -------
-        sf = Scanfield("imagename.tif", "tracingname.swc")
-
-        # to change the final computed framerate
-        sf.desiredFramerate = 18
-
+        None
         """
-
-        # if isinstance(imagename, str):
-        #     imagename = Path(imagename)
 
         super().__init__(paths)
 
@@ -404,20 +524,17 @@ class Scanfields(Morphology):
             input_data: Morphology
     ) -> ScanfieldBundle:
         """
-        Functions to create rotated rectangular Rois
-        based on node positions in xyz
-        applies desired_framerate, elongating_factor and dim_ratio_threshold
+        Create rectangular ROIs based on morphology nodes.
 
         Parameters
         ----------
         input_data : Morphology
-            the compartement to be subdivided in Rois.
+            Morphology data to be subdivided into ROIs.
 
         Returns
         -------
         ScanfieldBundle
-            nested list of Roi objects.
-
+            Nested list of ROI objects.
         """
 
         return make_roi.make_roi(self, input_data)
@@ -479,8 +596,6 @@ class Scanfields(Morphology):
             self,
             input_roi: ScanfieldBundle,
             ax: plt.Axes = None,
-            figsize: tuple = None,
-            show_title: bool = False,
             cmap: str = None,
             scan_angle: bool = False,
             edgecolor: str = dim.black.hex,
@@ -489,13 +604,34 @@ class Scanfields(Morphology):
             azim: int or float = None,
             zoom: int or float = None,
     ) -> plt.Axes:
+        """
+        Plot the scanfields in 3D with customizable
+        camera angles and other options.
+
+         Parameters are similar to the `plot` method, with added `azim`
+         and `elev` for camera angle control.
+
+         azim : float, optional
+             Azimuthal angle for the 3D plot view.
+             Default is None for default Matplotlib view.
+         elev : float, optional
+             Elevation angle for the 3D plot view.
+             Default is None for default Matplotlib view.
+
+        Returns
+        -------
+        plt.Axes
+            The 3D Matplotlib axes containing the plotted scanfields.
+
+        Example
+        -------
+        >>> sf.plot_3d(sf.neuComp, azim=45, elev=30, cmap='viridis')
+        """
 
         return plot_scanfields_3d(
                 self,
                 input_roi,
                 ax=ax,
-                figsize=figsize,
-                show_title=show_title,
                 cmap=cmap,
                 edgecolor=edgecolor,
                 linewidth=linewidth,
@@ -503,6 +639,68 @@ class Scanfields(Morphology):
                 elev=elev,
                 azim=azim,
                 zoom=zoom)
+
+    def animate_3d_scanfields(
+            self,
+            rectangles: ScanfieldBundle,
+            elev_start: float = 40,
+            elev_end: float = -40,
+            azimut_start: float = 0,
+            azimut_end: float = 360,
+            frames: int = 360,
+            interval: float = 50,
+            cmap: str = None,
+            edgecolor: str = dim.black.hex,
+            linewidth: int = 1,
+            alpha: float = 1.,
+            scan_angle: bool = False,
+            save_path: str = None,
+            zoom: float = None,
+            axis_label: bool = False
+    ) -> None:
+        """
+        Animate the scanfields in 3D with dynamic camera angles.
+
+        Parameters are similar to the `plot` method, with the addition of:
+
+       elev_start : float, optional
+           Starting elevation angle for the animation. Default is 40 degrees.
+       elev_end : float, optional
+           Ending elevation angle for the animation. Default is -40 degrees.
+       azimut_start : float, optional
+           Starting azimuthal angle for the animation. Default is 0 degrees.
+       azimut_end : float, optional
+           Ending azimuthal angle for the animation. Default is 360 degrees.
+       frames : int, optional
+           Total number of frames in the animation. Default is 360.
+       interval : float, optional
+           Time interval (in milliseconds) between frames. Default is 50 ms.
+       save_path : str, optional
+           Path to save the animation. Default is None (no save).
+       zoom : float, optional
+           Zoom factor for the animation. Default is None.
+       axis_label : bool, optional
+           If True, includes axis labels in the animation. Default is False.
+        """
+
+        return animate_scanfields_3d(
+            self,
+            rectangles,
+            elev_start=elev_start,
+            elev_end=elev_end,
+            azimut_start=azimut_start,
+            azimut_end=azimut_end,
+            frames=frames,
+            interval=interval,
+            cmap=cmap,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
+            alpha=alpha,
+            scan_angle=scan_angle,
+            save_path=save_path,
+            zoom=zoom,
+            axis_label=axis_label
+        )
 
     def plot_scanned(
             self,
@@ -532,22 +730,30 @@ class Scanfields(Morphology):
             structure_type: str = None
     ) -> None:
         """
-        Save the generated ROIs into a json-formatted text
-        that can be interpreted by ScanImage mROI Editor.
+        Save the generated ROIs in a format compatible with ScanImage.
 
         Parameters
         ----------
         input_data : ScanfieldBundle
-            The Scanfield bundle to save as .roi file.
+            The scanfield bundle to save as `.roi` files.
         folder_path : str
-            destionation of the .roi files.
+            Destination directory for the `.roi` files.
         structure_type : str, optional
-            'neuron', 'apical' or 'basal'. The default is None.
+            Type of structure to save
+            ('neuron', 'apical', or 'basal'). Default is None.
+
+        Raises
+        ------
+        ValueError
+            If `structure_type` is not one of ['neuron', 'apical', 'basal'].
 
         Returns
         -------
         None
 
+        Example
+        -------
+        >>> sf.save(sf.neuComp, 'path/to/save', structure_type='neuron')
         """
         if structure_type not in ['neuron', 'apical', 'basal']:
             raise ValueError('Invalid structure_type')
@@ -563,7 +769,21 @@ class Scanfields(Morphology):
             inputData: ScanfieldBundle
     ) -> None:
         """
-        Prints the total number of generated rectangles.
+        Print the total number of rectangles in the scanfield bundle.
+
+        Parameters
+        ----------
+        inputData : ScanfieldBundle
+            The bundle of scanfields to count.
+
+        Returns
+        -------
+        None
+
+        Example
+        -------
+        >>> sf.count(sf.neuComp)
+        Total rectangles: 128
         """
 
         print(sum(len(z) for z in inputData))
