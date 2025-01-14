@@ -81,8 +81,8 @@ def parse_stack_metadata(
     ch_available_list = np.arange(n_channel_available)
     ch_active = ([framedata['SI.hChannels.channelsActive']]
                  if isinstance(
-                         framedata['SI.hChannels.channelsActive'], int)
-                 else framedata['SI.hChannels.channelsActive'])
+        framedata['SI.hChannels.channelsActive'], int)
+        else framedata['SI.hChannels.channelsActive'])
 
     ch_active_list = [True if (n+1) in ch_active else False
                       for i, n in enumerate(ch_available_list)]
@@ -125,7 +125,7 @@ def parse_swc(
         filename: str,
         objective_resolution: float,
         zs: list,
-        pixel_to_ref_transform: list or np.ndarray
+        pixel_to_ref_transform: list | np.ndarray
 ) -> list:
     """
     Read the swc file, extract the data and generates a list of Node instances
@@ -182,7 +182,7 @@ def parse_swc(
         parent_id = node.parent_id
         if parent_id != -1:  # Skip root node
             parent_node = next(n for n in nodes if n._id == parent_id)
-            parent_node.children.append(node._id)    
+            parent_node.children.append(node._id)
 
     # Update is_fork attribute for each node based on children count
     for node in nodes:
@@ -191,45 +191,51 @@ def parse_swc(
     return nodes
 
 
-def split_neurite(
-        input_data
-) -> list:
+def split_neurite(input_data) -> list:
     """
-    Divide an input in sections, where a section is delimited by either:
-        - soma point, end point
-        - forking point, end point
+    Divide a neuronal structure into sections (neurites).
+
+    A neurite is defined as a section delimited by:
+    - Soma and an end point
+    - Forking point and an end point
 
     Parameters
     ----------
     input_data : NodeBundle
-        Morphology Structure.
+        Morphology structure containing nodes to split into neurites.
 
     Returns
     -------
     list
-        list of split segments of nodes.
-
+        A list of lists, where each inner list contains nodes representing
+        a single neurite section.
     """
 
     sections = []
     current_section = []
 
     for i, node in enumerate(input_data):
+        # Add the soma node to a new section
         if node.type == 'soma':
             current_section.append(node)
             sections.append(current_section)
             current_section = []
+
+        # Skip nodes without a valid parent
         elif node.parent_id == -1:
             continue
+
+        # Handle the last node in the input data
         elif i == len(input_data) - 1:
             current_section.append(node)
             sections.append(current_section)
+
         else:
-            if input_data[i+1].parent_id == node.id:
-                parent = input_data[i]
-                current_section.append(node)
-            else:
-                parent = None
+            # Check if the next node is a child of the current node
+            parent = input_data[i] if input_data[i +
+                                                 1].parent_id == node.id else None
+            current_section.append(node)
+
             if parent not in current_section:
                 current_section.append(node)
                 sections.append(current_section)

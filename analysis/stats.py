@@ -11,13 +11,13 @@ def internode_distance(
         node2: object
 ) -> float:
     """
-    Calculate the Euclidean distance between two nodes in the XY plane.
+    Calculate the Euclidean distance between two nodes in XYZ.
 
     Parameters
     ----------
-    node1 : tuple or list
+    node1 : Node
         First node instance.
-    node2 : tuple or list
+    node2 : Node
         Second node instance.
 
     Returns
@@ -27,7 +27,11 @@ def internode_distance(
 
     """
 
-    vector = np.array([node2.x - node1.x, node2.y - node1.y])
+    vector = np.array([
+        node2.x - node1.x,
+        node2.y - node1.y,
+        node2.z - node1.z
+    ])
     return np.linalg.norm(vector)
 
 
@@ -95,17 +99,17 @@ def sholl_analysis(
         input_data: object,
         radius_step: float,
         n_radii: int,
-        ax: plt.Axes = None,
-        ax_sholl_curve: plt.Axes = None,
-        circle_color: str = None,
-        circle_linestyle: str = None,
-        circle_linewidth: int or float = None,
-        intersection_color: str = None,
-        marker: str = 'o',
-        size: int or float = None
+        ax: plt.Axes,
+        ax_sholl_curve: plt.Axes,
+        circle_color: str,
+        circle_linestyle: str,
+        circle_linewidth: int | float,
+        intersection_color: str,
+        marker: str,
+        size: int | float
 ) -> tuple:
     """
-    Perform Sholl analysis to count intersections at different radii.
+    Perform 3D Sholl analysis to count intersections at different radii.
     This version of the function also generates a graphical representation.
 
     Parameters
@@ -125,10 +129,11 @@ def sholl_analysis(
     -------
     tuple
         A tuple containing a list of intersection counts at different radii,
-               and the radii themselves.
+        and the radii themselves.
 
     """
-    center_node = [node for node in input_data if node.type == 'soma'][0]
+    center_node = [
+        node for node in input_data if node.type == 'soma'][0]
 
     max_radius = radius_step * n_radii
     radii = np.arange(0, max_radius + radius_step, radius_step)
@@ -145,18 +150,17 @@ def sholl_analysis(
         intersecting_nodes_per_radius_basal = []
 
         for neurite in input_data.neurite:
-            # Initialize a comparator for distance
 
             first_node_distance = internode_distance(center_node, neurite[0])
             last_node_distance = internode_distance(center_node, neurite[-1])
 
             if (first_node_distance >= radius and
                     last_node_distance >= radius):
-                continue  # Skip the entire neurite
+                # Skip this neurite if entirely outside the sphere
+                continue
 
             if last_node_distance < first_node_distance:
-                # for neurites that extends toward the soma
-                # Reverse the neurite list to consider it as extending backward
+                # Reverse neurite direction if needed
                 neurite = neurite[::-1]
 
             for n, node in enumerate(neurite):
@@ -177,6 +181,19 @@ def sholl_analysis(
 
     if not ax:
         fig, ax = plt.subplots()
+    ax.set_aspect('equal')
+    ax.autoscale()
+
+    for radius in radii:
+        circle = plt.Circle(
+            (center_node.x, center_node.y),
+            radius,
+            color=circle_color,
+            fill=False,
+            linestyle=circle_linestyle,
+            linewidth=circle_linewidth,
+        )
+        ax.add_artist(circle)
 
     for radius, nodes in zip(radii, intersecting_nodes_apical):
         for node in nodes:
@@ -186,19 +203,11 @@ def sholl_analysis(
                 color=intersection_color,
                 marker=marker,
                 s=size,
-                label=('Apical'
-                       if radius == radii[0]
-                       and nodes.index(node) == 0
-                       else ""))
-
-        circle = plt.Circle(
-            (center_node.x, center_node.y),
-            radius,
-            color=circle_color,
-            fill=False,
-            linestyle=circle_linestyle,
-            linewidth=circle_linewidth)
-        ax.add_artist(circle)
+                label=(
+                    'Apical'
+                    if radius == radii[0]
+                    and nodes.index(node) == 0
+                    else ""))
 
     for radius, nodes in zip(radii, intersecting_nodes_basal):
         for node in nodes:
@@ -208,22 +217,11 @@ def sholl_analysis(
                 color=intersection_color,
                 marker=marker,
                 s=size,
-                label=('Basal'
-                       if radius == radii[0]
-                       and nodes.index(node) == 0
-                       else ""))
-
-        circle = plt.Circle(
-            (center_node.x, center_node.y),
-            radius,
-            color=circle_color,
-            fill=False,
-            linestyle=circle_linestyle,
-            linewidth=circle_linewidth)
-        ax.add_artist(circle)
-
-    ax.set_aspect('equal')
-    ax.autoscale()
+                label=(
+                    'Basal'
+                    if radius == radii[0]
+                    and nodes.index(node) == 0
+                    else ""))
 
     if not ax_sholl_curve:
         fig_sholl_curve, ax_sholl_curve = plt.subplots()
@@ -232,82 +230,92 @@ def sholl_analysis(
     ax_sholl_curve.plot(-radii, counts_basal, label='Basal')
     ax_sholl_curve.legend()
 
-    return np.array(counts_apical), np.array(counts_basal), radii
+    return (
+        np.array(counts_apical),
+        np.array(counts_basal),
+        radii)
 
 
-def hull_area(
-        input_data: list,
-        show_plot: bool = True,
-        ax: plt.Axes = None,
-        terminal_point_color: str = 'red',
-        linecolor: str = 'blue',
-        facecolor: str = 'none',
-        linewidth: int or float = 1,
-        linestyle: str = '-',
-        **kwargs
+def hull_volume(
+    input_data: list,
+    show_plot: bool,
+    ax: plt.Axes,
+    terminal_point_color: str,
+    linecolor: str,
+    facecolor: str,
+    linewidth: int | float,
+    linestyle: str,
+    **kwargs,
 ) -> float:
     """
-    Calculate the area of the convex hull formed by a set of points.
+    Calculate and optionally plot the convex hull volume formed by terminal points.
 
     Parameters
     ----------
     input_data : list
-        A list of nodes or points.
-    plot : bool, optional
-        If True, plot the convex hull. Default is True. The default is True.
-    ax : plt.Axes.ax, optional
-        The axes to plot the convex hull.
-        If not provided, a new plot will be created. The default is None.
+        List of nodes representing the neuronal structure.
+    show_plot : bool, optional
+        If True, plots the convex hull. Default is True.
+    ax : plt.Axes, optional
+        Matplotlib axes to plot on. If None, a new plot is created.
+    terminal_point_color : str, optional
+        Color of terminal points in the plot. Default is 'red'.
+    linecolor : str, optional
+        Color of the convex hull edges. Default is 'blue'.
+    facecolor : str, optional
+        Color of the convex hull area. Default is 'none'.
+    linewidth : int | float, optional
+        Line width of the convex hull edges. Default is 1.
+    linestyle : str, optional
+        Line style of the convex hull edges. Default is '-'.
 
     Returns
     -------
     float
-        The area of the convex hull.
+        The volume of the convex hull.
 
+    Example
+    -------
+    >>> volume = hull_volume(nodes, show_plot=True)
     """
-
+    # Build parent-to-children mapping
     parent_to_children = {}
-
-    # Populate the parent_to_children dictionary
     for node in input_data:
-        parent_id = node.parent_id
-        if parent_id is not None:
-            if parent_id not in parent_to_children:
-                parent_to_children[parent_id] = []
-            parent_to_children[parent_id].append(node.id)
+        if node.parent_id is not None:
+            parent_to_children.setdefault(node.parent_id, []).append(node.id)
 
-    # Identify terminal nodes (nodes that are parents to no other nodes)
-    terminal_nodes = [node for node in input_data
-                      if node.id not in parent_to_children]
+    # Identify terminal nodes (no children)
+    terminal_nodes = [
+        node for node in input_data if node.id not in parent_to_children]
 
-    # Extract x and y coordinates of terminal nodes
+    # Extract x, y, and z coordinates of terminal nodes
     x_terminal = np.array([node.x for node in terminal_nodes])
     y_terminal = np.array([node.y for node in terminal_nodes])
+    z_terminal = np.array([node.z for node in terminal_nodes])
 
-    # Create points for the ConvexHull
-    points = np.column_stack((x_terminal, y_terminal))
-
-    # Calculate the ConvexHull
+    # Points for convex hull
+    points = np.column_stack((x_terminal, y_terminal, z_terminal))
     hull = ConvexHull(points)
 
-    # Get the vertices of the convex hull
-    hull_vertices = hull.vertices
-    hull_points = points[hull_vertices]
-
-    # Plot the neuron and terminal nodes and the convex hull polygon
+    # Plotting (optional, 2D projection in XY plane)
     if show_plot:
-        if not ax:
+        if ax is None:
             fig, ax = plt.subplots()
         ax.set_aspect('equal')
 
-        for point in hull_points:
-            ax.scatter(point[0], point[1], color=terminal_point_color)
+        # Scatter terminal points (projected to XY plane)
+        ax.scatter(points[:, 0], points[:, 1],
+                   color=terminal_point_color, **kwargs)
 
-        hull_polygon = plt.Polygon(hull_points,
-                                   edgecolor=linecolor,
-                                   facecolor=facecolor,
-                                   linewidth=linewidth,
-                                   linestyle=linestyle)
+        # Draw the convex hull edges in 2D (projected to XY plane)
+        hull_polygon = plt.Polygon(
+            points[hull.vertices, :2],  # Use only x, y for 2D polygon
+            edgecolor=linecolor,
+            facecolor=facecolor,
+            linewidth=linewidth,
+            linestyle=linestyle,
+        )
         ax.add_patch(hull_polygon)
 
+    # Return the 3D volume of the convex hull
     return hull.volume

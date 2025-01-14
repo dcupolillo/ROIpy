@@ -173,7 +173,7 @@ def split_consecutive(
 def distance_node(
         class_var: object,
         input_data: list
-) -> (list, list):
+) -> tuple:
     """
     Calculate the closest and farthest points
     within each segment of consecutive nodes
@@ -321,7 +321,7 @@ def find_rectangles(
 def remove_short_rectangles(
         class_var: object,
         rectangles: list
-) -> (list, list):
+) -> tuple:
     """
     Removes rectangles based on the width-to-height ratio.
 
@@ -789,8 +789,9 @@ def convert_to_polygon(
 
     """
 
-    return Polygon([rectangle.bottom_right, rectangle.bottom_left,
-                    rectangle.top_left, rectangle.top_right])
+    return Polygon(
+        [rectangle.bottom_right, rectangle.bottom_left,
+         rectangle.top_left, rectangle.top_right])
 
 
 def calculate_overlap_matrix(

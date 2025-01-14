@@ -3,31 +3,41 @@
 
 import flammkuchen as fl
 import matplotlib.pyplot as plt
-from ROIpy.analysis.stats import (calculate_total_length,
-                                  sholl_analysis, hull_area)
+from ROIpy.analysis.stats import (
+    calculate_total_length,
+    sholl_analysis, hull_volume)
+from ROIpy.core.makeroi import convert_to_polygon
 from ROIpy.analysis.savejson import save_to_json
 from ROIpy.core.utils.utils import split_neurite
 from ROIpy.core.components import Node, Roi
 
 
 class NodeBundle():
+    """
+    A helper class to wrap a list of nodes (whole neuron, apical or basal dedrites)
+    and provide additional methods for analysis, visualization, and data manipulation.
+
+    Attributes
+    ----------
+    nodes : list
+        A list of `Node` objects representing the neuronal structure.
+    """
 
     def __init__(
             self,
             nodes: list
     ) -> None:
         """
-        Helper class to wrap a list of nodes and provide additional methods.
+        Initialize a NodeBundle instance.
 
         Parameters
         ----------
         nodes : list
-            list of Nodes.
+            A list of `Node` objects.
 
         Returns
         -------
         None
-
         """
 
         self.nodes = nodes
@@ -47,17 +57,45 @@ class NodeBundle():
         return len(self.nodes)
 
     def save_to_h5(self, filename: str) -> None:
+        """
+        Save the NodeBundle to an HDF5 file.
+        Prevents recomputing the bundles for every created instance.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the HDF5 file where data will be saved.
+
+        Returns
+        -------
+        None
+        """
+
         data = [node.to_dict() for node in self.nodes]
         fl.save(filename, {'nodes': data})
 
     @classmethod
-    def load_from_h5(cls, filename: str) -> 'NodeBundle':
+    def load_from_h5(cls, filename: str) -> object:
+        """
+        Load a NodeBundle from an HDF5 file.
+
+        Parameters
+        ----------
+        filename : str
+            Path to the HDF5 file containing node data.
+
+        Returns
+        -------
+        object: NodeBundle
+            A NodeBundle instance loaded from the file.
+        """
+
         data = fl.load(filename)['nodes']
         nodes = [Node.from_dict(node) for node in data]
         return cls(nodes)
 
     @property
-    def neurite(self) -> 'Neurite':
+    def neurite(self) -> object:
         """
         Split the structure into a Neurite object.
 
@@ -68,20 +106,21 @@ class NodeBundle():
 
         Returns
         -------
-        Neurite
+        object: Neurite
             Returns a Neurite object with added functionalities.
 
         """
 
-        return Neurite(split_neurite(self.nodes))
+        return Neurites(split_neurite(self.nodes))
 
     def totlen(self) -> float:
         """
+        Calculate the total length of the neurites.
+
         Returns
         -------
         float
-            Returns the total length of neurites in micrometers (µm).
-
+            Total length of neurites in micrometers (µm).
         """
 
         return calculate_total_length(self.nodes)
@@ -94,28 +133,56 @@ class NodeBundle():
             ax_sholl_curve: plt.Axes = None,
             circle_color: str = 'gray',
             circle_linestyle: str = 'dashed',
-            circle_linewidth: int or float = 1,
+            circle_linewidth: int | float = 1,
             intersection_color: str = 'blue',
             marker: str = '+',
-            size: int or float = 60
+            size: int | float = 60
     ) -> plt.Axes:
         """
-        Performs bidimensional Sholl analysis
+        Perform 3D Sholl analysis with 2D visualization.
+
+        This method calculates intersections (for both apical and basal dendrites)
+        of neurites with concentric spheres in 3D space and visualizes
+        the results using 2D plots.
 
         Parameters
         ----------
         radius_step : float
-            the distance between concentric circles.
-        nradii : int
-            number of concentric circles.
-        ax : plt.Axes.ax, optional
-            if specified, plot within it. The default is None.
+            Distance between concentric spheres (µm).
+        n_radii : int
+            Number of concentric spheres.
+        ax : plt.Axes, optional
+            Matplotlib axes for plotting the Sholl analysis. Default is None.
+        ax_sholl_curve : plt.Axes, optional
+            Matplotlib axes for plotting the Sholl curve. Default is None.
+        circle_color : str, optional
+            Color of concentric circles in the 2D plot. Default is 'gray'.
+        circle_linestyle : str, optional
+            Linestyle of concentric circles. Default is 'dashed'.
+        circle_linewidth : int | float, optional
+            Line width of concentric circles. Default is 1.
+        intersection_color : str, optional
+            Color of intersection markers. Default is 'blue'.
+        marker : str, optional
+            Marker style for intersections. Default is '+'.
+        size : int | float, optional
+            Marker size for intersections. Default is 60.
 
         Returns
         -------
-        TYPE
-            DESCRIPTION.
+        plt.Axes
+            Matplotlib axes containing the Sholl analysis plot.
 
+        Example
+        -------
+        >>> fig, ax = plt.subplots()
+        >>> fig_curve, ax_curve = plt.subplots()
+        >>> counts_apical, counts_basal, radii = node_bundle.sholl(
+                radius_step=10,
+                n_radii=20,
+                ax=ax,
+                ax_sholl_curve=ax_curve,
+            )
         """
         return sholl_analysis(
             input_data=self,
@@ -123,6 +190,7 @@ class NodeBundle():
             n_radii=n_radii,
             ax=ax,
             ax_sholl_curve=ax_sholl_curve,
+            circle_color=circle_color,
             circle_linestyle=circle_linestyle,
             circle_linewidth=circle_linewidth,
             intersection_color=intersection_color,
@@ -134,109 +202,151 @@ class NodeBundle():
             show_plot: bool = True,
             ax: plt.Axes = None,
             terminal_point_color: str = None,
-            linecolor: str = None,
+            linecolor: str = 'gray',
             facecolor: str = None,
-            linewidth: int or float = None,
-            linestyle: str = None
+            linewidth: int | float = 1,
+            linestyle: str = '-'
     ) -> plt.Axes:
         """
-        Plots the hull area.
+        Calculate and optionally plot the convex hull volume of terminal points.
+
+        This method wraps the `hull_volume` function, calculating the 3D volume
+        of the convex hull formed by terminal points of the neuronal structure.
+        A 2D projection of the convex hull can also be plotted.
 
         Parameters
         ----------
-        ax : plt.Axes.ax, optional
-            If specified, plots within it. The default is None.
+        show_plot : bool, optional
+            If True, plots the 2D projection of the convex hull. Default is True.
+        ax : plt.Axes, optional
+            Matplotlib axes to plot on. If None, a new plot is created.
+        terminal_point_color : str, optional
+            Color of terminal points in the plot. Default is 'red'.
+        linecolor : str, optional
+            Color of the convex hull edges. Default is 'blue'.
+        facecolor : str, optional
+            Color of the convex hull area. Default is 'none'.
+        linewidth : int | float, optional
+            Line width of the convex hull edges. Default is 1.
+        linestyle : str, optional
+            Line style of the convex hull edges. Default is '-'.
 
         Returns
         -------
-        plt.Axes.ax
-            Plot of the hull area.
+        float
+            The volume of the convex hull (in µm³).
 
+        Example
+        -------
+        >>> fig, ax = plt.subplots()
+        >>> volume = node_bundle.hull(show_plot=True, ax=ax)
+        >>> print(f"Convex Hull Volume: {volume:.2f} µm³")
         """
-
-        return hull_area(
-            self.nodes,
+        return hull_volume(
+            input_data=self.nodes,
             show_plot=show_plot,
             ax=ax,
             terminal_point_color=terminal_point_color,
             linecolor=linecolor,
             facecolor=facecolor,
             linewidth=linewidth,
-            linestyle=linestyle)
+            linestyle=linestyle,
+        )
 
-    def save(
-            self,
-            json_name: str
-    ) -> None:
+    def save(self, json_filename: str) -> None:
         """
-        Save data in a json-formatted file
+        Save the NodeBundle data to a JSON-formatted file.
+
+        This method serializes the NodeBundle into a JSON file for external storage
+        or sharing. The JSON file contains the information of all nodes within the
+        bundle.
 
         Parameters
         ----------
         json_name : str
-            Path to file.
+            Path to the JSON file where data will be saved.
 
         Returns
         -------
         None
 
+        Example
+        -------
+        >>> node_bundle.save('output/nodes.json')
         """
 
-        return save_to_json(self,
-                            json_name=json_name)
+        return save_to_json(self, json_filename)
 
 
-class Neurite():
+class Neurites():
+    """
+    Representation of a neuronal structure divided into neurites.
 
-    def __init__(
-            self,
-            neurites: NodeBundle
-    ) -> None:
+    This class provides a wrapper for a `NodeBundle` that organizes its
+    contents into distinct neurites, allowing for simplified indexing and
+    length retrieval.
+    """
+
+    def __init__(self, neurites: NodeBundle) -> None:
         """
-        Representation of a NodeBundle class
-        divided in neurites
+        Initialize a Neurites instance.
 
         Parameters
         ----------
         neurites : NodeBundle
-            Input structure.
+            A NodeBundle containing the structure to be divided into neurites.
 
         Returns
         -------
         None
-
         """
 
         self.neurites = neurites
 
-    def __getitem__(
-            self,
-            index):
+    def __getitem__(self, index):
         return self.neurites[index]
 
     def __len__(self):
+        """
+        Get the number of neurites.
+
+        Returns
+        -------
+        int
+            The total number of neurites.
+        """
         return len(self.neurites)
 
 
 class ScanfieldBundle():
+    """
+    A helper class to wrap a collection of ROI (Region of Interest) objects.
+
+    This class organizes a list of lists of `Roi` objects, typically representing
+    scanfields across multiple Z-planes, and provides utility methods for
+    saving, loading, and calculating properties of the scanfields.
+
+    Attributes
+    ----------
+    scanfield : list
+        A list of lists containing `Roi` objects for each Z-plane.
+    """
 
     def __init__(
             self,
             scanfield: list
     ) -> None:
         """
-        Helper class to wrap a list of Rois and provide additional methods.
-        Collection of lists of Roi objects.
+        Initialize a ScanfieldBundle instance.
 
         Parameters
         ----------
         scanfield : list
-            DESCRIPTION.
+            A list of lists containing `Roi` objects for each Z-plane.
 
         Returns
         -------
         None
-
         """
 
         self.scanfield = scanfield
@@ -256,12 +366,42 @@ class ScanfieldBundle():
         return len(self.scanfield)
 
     def save_to_h5(self, filename: str) -> None:
-        data = [[roi.to_dict() for roi in z_plane]
-                for z_plane in self.scanfield]
+        """
+        Save the ScanfieldBundle to an HDF5 file.
+        Prevents recomputing the bundles for every created instance.
+
+        Parameters
+        ----------
+        filename : str
+            The path to the HDF5 file where the scanfields will be saved.
+
+        Returns
+        -------
+        None
+        """
+
+        data = [
+            [roi.to_dict() for roi in z_plane]
+            for z_plane in self.scanfield]
+
         fl.save(filename, {'scanfields': data})
 
     @classmethod
-    def load_from_h5(cls, filename: str) -> 'ScanfieldBundle':
+    def load_from_h5(cls, filename: str) -> object:
+        """
+        Load a ScanfieldBundle from an HDF5 file.
+
+        Parameters
+        ----------
+        filename : str
+            The path to the HDF5 file containing the scanfields.
+
+        Returns
+        -------
+        object: ScanfieldBundle
+            An instance of the ScanfieldBundle loaded from the file.
+        """
+
         data = fl.load(filename)['scanfields']
         scanfield = [[Roi.from_dict(roi) for roi in z_plane]
                      for z_plane in data]
@@ -270,8 +410,13 @@ class ScanfieldBundle():
     @property
     def shape(self):
         """
-        Returns the shape of the scanfields as in:
-            [n of scanfield, (list of n of Rois)].
+        Get the shape of the ScanfieldBundle.
+
+        Returns
+        -------
+        tuple
+            A tuple containing the number of Z-planes and a list of the number
+            of ROIs in each Z-plane.
         """
 
         return len(self.scanfield), [len(row) for row in self.scanfield]
@@ -279,7 +424,34 @@ class ScanfieldBundle():
     @property
     def area(self) -> float:
         """
-        Returns the total area included by multiple Rois
-        """
+        Calculate the total area covered by all ROIs in the ScanfieldBundle.
 
-        return sum(rect.area for z in self.scanfield for rect in z)
+        This method converts ROIs to Polygon objects and accounts for overlapping portions
+        by subtracting intersection areas, ensuring non-overlapping area calculation.
+
+        Returns
+        -------
+        float
+            The total non-overlapping area covered by the ROIs.
+        """
+        total_area = 0
+        processed_polygons = []
+
+        for z_plane in self.scanfield:
+            for roi in z_plane:
+                # Convert the ROI to a polygon
+                current_polygon = convert_to_polygon(roi)
+
+                # Add the current polygon's area
+                total_area += current_polygon.area
+
+                # Subtract overlapping areas with previously processed polygons
+                for processed_polygon in processed_polygons:
+                    overlap_area = current_polygon.intersection(
+                        processed_polygon).area
+                    total_area -= overlap_area
+
+                # Add the current polygon to the processed list
+                processed_polygons.append(current_polygon)
+
+        return total_area
