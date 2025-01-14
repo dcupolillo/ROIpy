@@ -4,8 +4,9 @@
 import flammkuchen as fl
 import numpy as np
 import matplotlib.pyplot as plt
-from ROIpy.analysis.stats import (calculate_total_length,
-                                  sholl_analysis, hull_area)
+from ROIpy.analysis.stats import (
+    calculate_total_length,
+    sholl_analysis, hull_area)
 from ROIpy.analysis.savejson import save_to_json
 from ROIpy.core.utils.utils import split_neurite
 from ROIpy.core.components import Node, Roi
@@ -28,7 +29,6 @@ class NodeBundle():
         Returns
         -------
         None
-
         """
 
         self.nodes = nodes
@@ -180,7 +180,6 @@ class NodeBundle():
         Returns
         -------
         None
-
         """
 
         return save_to_json(self,
@@ -225,7 +224,7 @@ class Neurite():
         self.cumulative_lengths = [
             sum(length
                 for degree, length in zip(
-                        self.branches_degree, self.branches_length)
+                    self.branches_degree, self.branches_length)
                 if degree == d)
             for d in sorted(unique_degrees)
         ]

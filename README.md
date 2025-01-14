@@ -1,27 +1,29 @@
 # ROIpy
- 
+
 ## Description
 
-ROIpy is a python package for Region of Interest (ROI) semi-automatic
+ROIpy is a python package for ROI (Region of Interest) semi-automatic
 generation and placement for neuroimaging of neuronal dendrites of
 individual neurons :microscope::brain:.
 It provides a tool for defining, managing, visualizing and analyzing dendritic ROIs.
 
-Designed to interact with [Vidrio ScanImage software](https://vidriotechnologies.com/).
+Designed to interface with [Vidrio ScanImage software](https://vidriotechnologies.com/).
 
 ### ScanImage setup
 
-Works with Linear Scan - Frame scan configuration (GalvoGalvo).
-Developed to overcome the inherent 2D limitation of arbitrary scanning.
-It generates ```.roi``` files that can be loaded and are interpreted by
-ScanImage **mROI Editor Window**.
+ROIpy is designed to facilitate scanning along dendritic arborization.
+In Scanimage, it works for Linear Scan - Frame scan configuration (GalvoGalvo).
+ROIpy is developed to overcome the inherent 2D limitation of arbitrary scanning,
+by generating a set of discrete planes with scattered rectangular ROIs spanning
+the depth of the neuron. It outputs `.roi` files which can be loaded and are
+interpreted by ScanImage **mROI Editor Window**.
 
 ### Dendrite tracing
 
-Tested to work with ```.swc``` files generated with ImageJ Fiji plugin
+Tested to work with `.swc` files generated with ImageJ Fiji plugin
 [Simple Neurite Tracer (SNT)](https://imagej.net/plugins/snt/).
 .swc files generated with different softwares are not tested.
-Common labels are *apical dendrite* or *basal dendrite* or *soma*.
+Common labels are _apical dendrite_ or _basal dendrite_ or _soma_.
 
 ## Installation
 
@@ -52,6 +54,7 @@ Similarly, copy the folder "neuronpath" within your project folder :file_folder:
 Ensure the folder is in your system path.
 
 **Example Usage:**
+
 ```python
 import sys
 sys.path.append('path/to/neuronpath')
@@ -72,6 +75,7 @@ as possible, recorded in the channel of the used morphological filler/marker.
 `Stack` is the initial building block of the digitized dendritic structures.
 
 **Example Usage:**
+
 ```python
 import ROIpy as rp
 
@@ -101,6 +105,7 @@ Each `NodeBundle` is composed of a series of `Node` components, defining the
 features of every individual point within the structure.
 
 **Example Usage:**
+
 ```python
 # Initialize the morphology with image and tracing files
 morph = rp.Morphology(paths)
@@ -114,8 +119,8 @@ morph.plot(morph.neuron, show_nodes=True, cmap='jet', linewidth=1)
 ### Scanfields
 
 The `Scanfields` class inherits from `Morphology` and manages the creation of rotated rectangular scanfields for imaging. It uses various imaging parameters to generate the ROIs.
-Refers to **Scanimage** `scanimage.mroi.scanfield.fields.RotatedRectangle` objects. Generates and saves :floppy_disk: 
-a number of single-plane json-formatted  `.roi` files corresponding to the different z layers to be provided to **ScanImage** ROI Editor for multiple ROI (mROI) definition.
+Refers to **Scanimage** `scanimage.mroi.scanfield.fields.RotatedRectangle` objects. Generates and saves :floppy_disk:
+a number of single-plane json-formatted `.roi` files corresponding to the different z layers to be provided to **ScanImage** ROI Editor for multiple ROI (mROI) definition.
 
 Similarly to `Morphology` bundles, a `Scanfield` object includes a series of `ScanfieldBundle`:
 
