@@ -28,8 +28,9 @@ sf.plot(sf.neuComp, edgecolor='red', cmap='viridis')
 fig, ax = plt.subplots()
 ax.set_aspect('equal')
 stack.plot(ax=ax)
-morph.plot(morph.neuron, ax=ax)
-sf.plot(sf.neuComp, ax=ax)
+morph.plot(morph.neuron, ax=ax, color="lime")
+sf.plot(sf.neuComp, ax=ax, edgecolor="fuchsia")
+plt.show()
 
 # Start the graphical interface
-rp.main()
+# rp.main()

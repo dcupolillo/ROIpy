@@ -14,33 +14,30 @@ from ROIpy.assets.palette import dim
 
 
 def plot_image(
-        class_var: object,
-        scan_angle: bool = False,
-        ax: plt.Axes = None,
-        norm: tuple or list = None,
-        cmap: str = None,
-        z: int = None
+        class_instance: object,
+        scan_angle: bool,
+        ax: plt.Axes,
+        norm: tuple or list,
+        cmap: str,
+        z: int
 ) -> None:
     """
     Plots a 2D image from a Stack class instance.
 
     Parameters
     ----------
-    class_var : object
+    class_instance : object
         The class instance containing image data and attributes.
     scan_angle : bool, optional
         Specifies whether the scan angle should be used for plotting.
-        Default is False. The default is False.
     ax : plt.Axes, optional
         The axes on which to plot. If not provided, a new subplot is created.
-        The default is None.
     norm : tuple or list, optional
-        Normalize colorscale. The default is None.
+        Normalize colorscale.
     cmap : str, optional
         Colormap of pixel intensity (Matplotlib default colormaps).
-        The default is None.
     z : int, optional
-        If specified, plot the single Z plane. The default is None.
+        If specified, plot the single Z plane.
 
     Raises
     ------
@@ -57,29 +54,27 @@ def plot_image(
         fig, ax = plt.subplots()
         ax.set_aspect('equal')
         if isinstance(z, int):
-            ax.set_title(f'{class_var.stack_name}, z = {z}')
+            ax.set_title(f'{class_instance.stack_name}, z = {z}')
         else:
-            ax.set_title(f'{class_var.stack_name}')
+            ax.set_title(f'{class_instance.stack_name}')
         ax.autoscale()
 
-    img = (class_var.image[z] if z is not None
-           else np.max(class_var.image, axis=0))
+    img = (class_instance.image[z] if z is not None
+           else np.max(class_instance.image, axis=0))
 
     # Define the field of view corners and set axis limit
-    corners = class_var.corners_um if not scan_angle else class_var.corners_deg
+    corners = class_instance.corners_um if not scan_angle else class_instance.corners_deg
     flat_corners = [[values for values in sublist] for sublist in corners]
-    extent = [np.min(flat_corners), np.max(flat_corners),
-              np.max(flat_corners), np.min(flat_corners)]
+    extent = [
+        np.min(flat_corners), np.max(flat_corners),
+        np.max(flat_corners), np.min(flat_corners)]
 
     ax.set_xlim(min(corners[0]), max(corners[1]))
     ax.set_ylim(max(corners[2]), min(corners[3]))
 
-    label = class_var.units_um if not scan_angle else class_var.units_deg
+    label = class_instance.units_um if not scan_angle else class_instance.units_deg
     ax.set_xlabel(label)
     ax.set_ylabel(label)
-
-    # Define colormap
-    cmap = cmap if cmap else 'binary_r'
 
     if norm is None:
         ax.imshow(img, extent=extent, cmap=cmap)
@@ -92,13 +87,13 @@ def plot_image(
 
 
 def skeleton(
-        input_data: list = None,
-        ax: plt.Axes = None,
-        tridim: bool = False,
-        scan_angle: bool = False,
-        color: str = 'black',
-        linewidth: int = 1,
-        z: int = None
+        input_data: list,
+        ax: plt.Axes,
+        tridim: bool,
+        scan_angle: bool,
+        linewidth: int,
+        z: int,
+        color: str = "black",
 ) -> None:
     """
     Plots the 2D or 3D skeleton of a structure using matplotlib.
@@ -107,19 +102,18 @@ def skeleton(
     ----------
     input_data : list, optional
         List of Node objects representing the structure.
-        The default is None.
     ax : plt.Axes, optional
-        Axes object(s) to plot on. The default is None.
+        Axes object(s) to plot on.
     tridim : bool, optional
-        Whether to plot in 3D or not. The default is False.
+        Whether to plot in 3D or not.
     scan_angle : bool, optional
-        Whether to use angle-based coordinates or not. The default is False.
+        Whether to use angle-based coordinates or not.
     color : str, optional
         Color of the plot lines. The default is 'black'.
     linewidth : int, optional
-        Width of the plot lines. The default is 1.
+        Width of the plot lines.
     z : int, optional
-        If specified, plot only this Z plane. The default is None.
+        If specified, plot only this Z plane.
 
     Returns
     -------
@@ -127,7 +121,6 @@ def skeleton(
 
     """
 
-    color = color if color is not None else dim.black.hex
     axes = ax if isinstance(ax, list) else [ax]
 
     node_dict = {node.id: node for node in input_data} if input_data else {}
@@ -144,88 +137,104 @@ def skeleton(
             if axis is None or (z is not None and z != node.z_ind):
                 continue
 
-            x_values = ([node.x, parent.x] if not scan_angle
-                        else [node.x_deg, parent.x_deg])
-            y_values = ([node.y, parent.y] if not scan_angle
-                        else [node.y_deg, parent.y_deg])
+            x_values = (
+                [node.x, parent.x] if not scan_angle
+                else [node.x_deg, parent.x_deg])
+            y_values = (
+                [node.y, parent.y] if not scan_angle
+                else [node.y_deg, parent.y_deg])
 
             if not tridim:
-                axis.plot(x_values,
-                          y_values,
-                          color=color,
-                          linewidth=linewidth)
+                axis.plot(
+                    x_values,
+                    y_values,
+                    color=color,
+                    linewidth=linewidth)
             else:
                 z_values = [node.z, parent.z]
-                axis.plot(x_values,
-                          y_values,
-                          z_values,
-                          color=color,
-                          linewidth=linewidth)
+                axis.plot(
+                    x_values,
+                    y_values,
+                    z_values,
+                    color=color,
+                    linewidth=linewidth)
 
 
 def plot_morph(
-        class_var: object,
+        class_instance: object,
         input_data: list,
-        z: int = None,
-        show_segments: bool = True,
-        show_nodes: bool = False,
-        scan_angle: bool = False,
-        ax: plt.Axes = None,
-        axis_lims: list = None,
-        cmap: str = 'viridis',
-        color: str = None,
-        linewidth: int = 1
+        z: int,
+        show_segments: bool,
+        show_nodes: bool,
+        scan_angle: bool,
+        ax: plt.Axes,
+        axis_lims: list,
+        cmap: str,
+        color: str,
+        linewidth: int
 ) -> None:
     """
-    Plot a two-dimensional representation of a morphology object.
+    Plot a two-dimensional representation of a neuronal morphology.
+
+    This function visualizes a neuronal morphology in 2D, optionally showing 
+    the segmented skeleton, individual nodes, and a colormap indicating Z-plane 
+    depth. The morphology can be visualized either in spatial (µm) or angular 
+    (degrees) coordinates.
 
     Parameters
     ----------
-    class_var : object
-        The morphology object to visualize.
+    class_instance : object
+        The morphology object containing attributes:
+        - `zs`: List of Z-plane values (in µm or degrees).
+        - `stack_name`: Name of the morphology stack.
+        - `corners_deg` or `corners_um`: Bounding box for the morphology 
+          in degrees or micrometers.
+        - `units_deg` or `units_um`: Units for the plot axes.
     input_data : list
-        DESCRIPTION.List of Node objects representing the structure.
-    z : int, optional
-        DESCRIPTION. The default is None.
-    show_segments : bool, optional
-        If True, show the skeleton of segmented compartments.
-        The default is True.
-    show_nodes : bool, optional
-        If True, show individual nodes on the plot. The default is False.
-    scan_angle : bool, optional
-        If True, use angle-based coordinates.
-        The default is False.
-    ax : plt.Axes, optional
-        Axes object(s) to plot on, or None to create new axes.
-        The default is None.
-    cmap : str, optional
-        Colormap to use for coloring different Z planes.
-        The default is 'viridis'.
-    color : str, optional
-        Color of the skeleton lines. The default is None.
-    linewidth : int, optional
-        Width of the connecting line between nodes The default is 1.
+        List of `Node` objects representing the neuronal structure.
+    z : int
+        Specific Z-plane index to plot. If None, all Z-planes are plotted.
+    show_segments : bool
+        If True, display the skeleton connecting nodes.
+    show_nodes : bool
+        If True, display individual nodes as scatter points.
+    scan_angle : bool
+        If True, use angle-based coordinates (degrees). If False, use 
+        spatial coordinates (micrometers).
+    ax : plt.Axes
+        Matplotlib axes object to plot on. If None, a new plot is created.
+    axis_lims : list, optional
+        List specifying the axis limits as [xmin, xmax, ymin, ymax].
+        If None, default bounds are used.
+    cmap : str
+        Name of the colormap to use for visualizing Z-plane depth.
+    color : str
+        Color of the skeleton lines.
+    linewidth : int
+        Width of the lines connecting nodes in the skeleton.
 
     Returns
     -------
     None
-
+        This function modifies the provided axes object or creates a new 
+        Matplotlib plot.
     """
 
-    color = color if color is not None else dim.black.hex
     cmap = plt.get_cmap(cmap)
-    norm = colors.Normalize(vmin=min(class_var.zs), vmax=max(class_var.zs))
+    norm = colors.Normalize(
+        vmin=min(class_instance.zs),
+        vmax=max(class_instance.zs))
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
     z = float(z) if z is not None else None
 
     if ax is None:
         fig, ax = plt.subplots()
-        ax.set_title(class_var.stack_name)
+        ax.set_title(class_instance.stack_name)
         ax.set_aspect('equal')
 
-        corners = class_var.corners_deg if scan_angle else class_var.corners_um
-        units = class_var.units_deg if scan_angle else class_var.units_um
+        corners = class_instance.corners_deg if scan_angle else class_instance.corners_um
+        units = class_instance.units_deg if scan_angle else class_instance.units_um
 
         ax.set_xlim(min(corners[0]), max(corners[1]))
         ax.set_ylim(max(corners[2]), min(corners[3]))
@@ -237,10 +246,12 @@ def plot_morph(
         ax.set_ylim(max(axis_lims[2]), min(axis_lims[3]))
 
     if z is None:
-        x_values = ([node.x_deg for node in input_data] if scan_angle
-                    else [node.x for node in input_data])
-        y_values = ([node.y_deg for node in input_data] if scan_angle
-                    else [node.y for node in input_data])
+        x_values = (
+            [node.x_deg for node in input_data] if scan_angle
+            else [node.x for node in input_data])
+        y_values = (
+            [node.y_deg for node in input_data] if scan_angle
+            else [node.y for node in input_data])
         z_values = [node.z for node in input_data]
 
         if not show_nodes and not show_segments:
@@ -255,15 +266,17 @@ def plot_morph(
             cbar.set_label('Z')
 
     else:
-        x_values = ([node.x_deg for node in input_data if node.z_ind == z]
-                    if scan_angle
-                    else [node.x for node in input_data
-                          if node.z_ind == z])
-        y_values = ([node.y_deg for node in input_data
-                     if node.z_ind == z]
-                    if scan_angle
-                    else [node.y for node in input_data
-                          if node.z_ind == z])
+        x_values = (
+            [node.x_deg for node in input_data if node.z_ind == z]
+            if scan_angle
+            else [node.x for node in input_data
+                  if node.z_ind == z])
+        y_values = (
+            [node.y_deg for node in input_data
+             if node.z_ind == z]
+            if scan_angle
+            else [node.y for node in input_data
+                  if node.z_ind == z])
         z_values = [node.z for node in input_data if node.z_ind == z]
 
         if not show_nodes and not show_segments:
@@ -278,21 +291,27 @@ def plot_morph(
             cbar.set_label('Z')
 
     if show_segments:
-        skeleton(input_data=input_data, ax=ax, scan_angle=scan_angle,
-                 color=color, linewidth=linewidth, z=z)
+        skeleton(
+            input_data=input_data,
+            ax=ax,
+            tridim=False,
+            scan_angle=scan_angle,
+            color=color,
+            linewidth=linewidth,
+            z=z)
 
 
 def plot_morph_3d(
         input_data: list,
-        show_nodes: bool = False,
-        scan_angle: bool = False,
-        color: str = 'black',
-        linewidth: int = 1,
-        axis_lims: list = None,
-        cmap: str = 'viridis',
-        azim: float = None,
-        elev: float = None,
-        ax: plt.Axes = None
+        show_nodes: bool,
+        scan_angle: bool,
+        color: str,
+        linewidth: int,
+        axis_lims: list,
+        cmap: str,
+        azim: float,
+        elev: float,
+        ax: plt.Axes
 ):
     """
     Plot a 3D representation of a morphology object.
@@ -302,17 +321,17 @@ def plot_morph_3d(
     input_data : list
         List of Node objects representing the morphology structure.
     show_nodes : bool, optional
-        If True, display individual nodes. Default is False.
+        If True, display individual nodes.
     scan_angle : bool, optional
-        If True, use angle-based coordinates. Default is False.
+        If True, use angle-based coordinates.
     color : str, optional
-        Color of the skeleton lines. Default is 'black'.
+        Color of the skeleton lines.
     linewidth : int, optional
-        Width of the connecting lines. Default is 1.
+        Width of the connecting lines.
     axis_lims : list, optional
-        Axis limits [xmin, xmax, ymin, ymax, zmin, zmax]. Default is None.
+        Axis limits [xmin, xmax, ymin, ymax, zmin, zmax].
     cmap : str, optional
-        Colormap to use for node coloring. Default is 'viridis'.
+        Colormap to use for node coloring.
 
     Returns
     -------
@@ -383,20 +402,20 @@ def plot_morph_3d(
 
 def animate_morph_3d(
         input_data: list,
-        show_nodes: bool = False,
-        scan_angle: bool = False,
-        color: str = 'black',
-        linewidth: int = 1,
-        axis_lims: list = None,
-        cmap: str = 'viridis',
-        elev_start: float = 30,
-        elev_end: float = -30,
-        azimut_start: float = 0,
-        azimut_end: float = 360,
-        interval: int = 10,
-        frames: int = 360,
-        save_path: str = None,
-        axis_label: bool = False,
+        show_nodes: bool,
+        scan_angle: bool,
+        color: str,
+        linewidth: int,
+        axis_lims: list,
+        cmap: str,
+        elev_start: float,
+        elev_end: float,
+        azimut_start: float,
+        azimut_end: float,
+        interval: int,
+        frames: int,
+        save_path: str,
+        axis_label: bool,
 ):
     """
     Animate a 3D plot of a morphology structure with customizable
@@ -410,56 +429,42 @@ def animate_morph_3d(
     show_nodes : bool, optional
         If True, individual nodes of the morphology are
         displayed as scatter points.
-        Default is False.
     scan_angle : bool, optional
         If True, uses angle-based coordinates for node positions.
-        Default is False.
     color : str, optional
         Color of the lines connecting nodes in the morphology structure.
-        Default is 'black'.
     linewidth : int, optional
         Width of the lines connecting the nodes.
-        Default is 1.
     axis_lims : list, optional
         A list specifying the axis limits as
         [xmin, xmax, ymin, ymax, zmin, zmax].
         If None, the limits are determined automatically
         based on the data.
-        Default is None.
     cmap : str, optional
         Colormap to use for coloring nodes based
         on their z-coordinates (if `show_nodes` is True).
-        Default is 'viridis'.
     elev_start : float, optional
         Starting elevation angle (vertical tilt)
         in degrees for the animation.
-        Default is 30.
     elev_end : float, optional
         Ending elevation angle (vertical tilt)
         in degrees for the animation.
-        Default is -30.
     azimut_start : float, optional
         Starting azimuth angle (horizontal rotation)
         in degrees for the animation.
-        Default is 0.
     azimut_end : float, optional
         Ending azimuth angle (horizontal rotation)
         in degrees for the animation.
-        Default is 360.
     interval : int, optional
         Time interval between frames in milliseconds.
-        Default is 10.
     frames : int, optional
         Total number of frames in the animation.
-        Default is 360.
     save_path : str, optional
         File path to save the animation (e.g., as a .gif or .mp4 file).
         If None, the animation is not saved.
-        Default is None.
     axis_label : bool, optional
         If True, axis labels ("X", "Y", "Z") are displayed.
         If False, axis labels and ticks are hidden.
-        Default is False.
 
     Returns
     -------
@@ -472,16 +477,18 @@ def animate_morph_3d(
     ax = fig.add_subplot(111, projection='3d')
     if not axis_label:
         ax.tick_params(axis='both', which='both', length=0)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_zticks([])
-        ax.set_xlabel("")
-        ax.set_ylabel("")
-        ax.set_zlabel("")
+        ax.set(
+            xticks=([]),
+            yticks=([]),
+            zticks=([]),
+            xlabel="",
+            ylabel="",
+            zlabel="")
     else:
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        ax.set_zlabel("Z")
+        ax.set(
+            xlabel="X",
+            ylabel="Y",
+            zlabel="Z")
 
     plot_morph_3d(
         input_data=input_data,
@@ -516,131 +523,48 @@ def animate_morph_3d(
     return anim
 
 
-def plot_morph_scanned_highlight(
-        class_var: object,
-        input_data: list,
-        rectangles: list,
-        z: int = None,
-        scan_angle: bool = False,
-        ax: plt.Axes = None,
-        axis_lims: list = None,
-        color: str = None,
-        linewidth: int = 2
-) -> None:
-    """
-    TODO
-
-    Parameters
-    ----------
-    class_var : object
-        DESCRIPTION.
-    input_data : list
-        DESCRIPTION.
-    rectangles : list
-        DESCRIPTION.
-    z : int, optional
-        DESCRIPTION. The default is None.
-    scan_angle : bool, optional
-        DESCRIPTION. The default is False.
-    ax : plt.Axes, optional
-        DESCRIPTION. The default is None.
-    axis_lims : list, optional
-        DESCRIPTION. The default is None.
-    color : str, optional
-        DESCRIPTION. The default is None.
-    linewidth : int, optional
-        DESCRIPTION. The default is 1.
-
-    Returns
-    -------
-    None
-        DESCRIPTION.
-
-    """
-
-    z = float(z) if z is not None else None
-
-    if ax is None:
-        fig, ax = plt.subplots()
-        ax.set_title(class_var.stack_name)
-        ax.set_aspect('equal')
-
-        corners = class_var.corners_deg if scan_angle else class_var.corners_um
-        units = class_var.units_deg if scan_angle else class_var.units_um
-
-        ax.set_xlim(min(corners[0]), max(corners[1]))
-        ax.set_ylim(max(corners[2]), min(corners[3]))
-        ax.set_xlabel(units)
-        ax.set_ylabel(units)
-
-    if axis_lims is not None:
-        ax.set_xlim(min(axis_lims[0]), max(axis_lims[1]))
-        ax.set_ylim(max(axis_lims[2]), min(axis_lims[3]))
-
-    for z_plane_rects in rectangles:
-        if z_plane_rects:
-            for rect in z_plane_rects:
-                highlighted_data = [
-                    node for node in input_data
-                    if (node.id >= rect.start_node_id and
-                        node.id <= rect.end_node_id)]
-                # FIXME: check dendrites that run the opposite way,
-                # i.e. towards the soma,
-                # the order of their id is reversed
-
-                skeleton(
-                    input_data=highlighted_data,
-                    ax=ax,
-                    scan_angle=scan_angle,
-                    color=color,
-                    linewidth=linewidth,
-                    z=z)
-
-
 def plot_scanfield(
-        class_var: object,
+        class_instance: object,
         rectangles: list,
-        ax: plt.Axes = None,
-        axis_lims: list = None,
-        cmap: str = None,
-        edgecolor: str = dim.black.hex,
-        linewidth: int = 1,
-        scan_angle: bool = False
+        ax: plt.Axes,
+        axis_lims: list,
+        cmap: str,
+        edgecolor: str,
+        linewidth: int,
+        scan_angle: bool
 ) -> None:
     """
     Plot rectangles representing ROIs on a given axis.
 
     Parameters
     ----------
-    class_var : object
+    class_instance : object
         The Scanfield object containing metadata.
     rectangles : list
         List of Roi objects to be plotted.
     ax : plt.Axes, optional
         The axis on which to plot.
         If None, a new figure and axis will be created.
-        The default is None.
     axis_lims : list, optional,
         If specified, plot will be bounded to limits.
     cmap : str, optional
         Colormap to use for coloring the rectangles based on z values.
-        The default is None.
     edgecolor : str, optional
-        Color of the rectangle edges. The default is dim.black.hex.
+        Color of the rectangle edges.
     linewidth : int, optional
-        Width of rectangle's line. The default is 1.
+        Width of rectangle's line.
     scan_angle : bool, optional
         If True, the rectangles will be plotted using angle coordinates.
-        The default is False.
 
     Returns
     -------
-
+    None
     """
 
     if cmap:
         cmap = plt.cm.get_cmap(cmap)
-        norm = colors.Normalize(vmin=min(class_var.zs), vmax=max(class_var.zs))
+        norm = colors.Normalize(
+            vmin=min(class_instance.zs), vmax=max(class_instance.zs))
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
     # If it's a 2d lists of ROIs (multiple scanfields)
@@ -664,13 +588,13 @@ def plot_scanfield(
     if not ax:
         fig, ax = plt.subplots()
         ax.set_aspect('equal')
-        ax.set_title(class_var.stack_name)
+        ax.set_title(class_instance.stack_name)
         ax.autoscale()
 
-        corners = (class_var.corners_deg if scan_angle
-                   else class_var.corners_um)
-        units = (class_var.units_deg if scan_angle
-                 else class_var.units_um)
+        corners = (class_instance.corners_deg if scan_angle
+                   else class_instance.corners_um)
+        units = (class_instance.units_deg if scan_angle
+                 else class_instance.units_um)
 
         ax.set_xlim(min(corners[0]), max(corners[1]))
         ax.set_ylim(max(corners[2]), min(corners[3]))
@@ -707,50 +631,47 @@ def plot_scanfield(
 
 
 def plot_scanfields_3d(
-        class_var: object,
+        class_instance: object,
         rectangles: list,
-        ax: plt.Axes = None,
-        cmap: str = None,
-        edgecolor: str = dim.black.hex,
-        linewidth: int = 1,
-        alpha: float = None,
-        scan_angle: bool = False,
-        elev: int or float = None,
-        azim: int or float = None,
-        zoom: float = None
+        ax: plt.Axes,
+        cmap: str,
+        edgecolor: str,
+        linewidth: int,
+        alpha: float,
+        scan_angle: bool,
+        elev: int or float,
+        azim: int or float,
+        zoom: float
 ) -> None:
     """
     Plot rectangles representing ROIs in a 3D space.
 
     Parameters
     ----------
-    class_var : object
+    class_instance : object
         The Scanfield object containing metadata.
     rectangles : list
         List of Roi objects to be plotted.
     ax : plt.Axes, optional
         The axis on which to plot. If None, a new 3D axis will be created.
-        The default is None.
     figsize : tuple, optional
-        Figure size (width, height) in inches. The default is None.
+        Figure size (width, height) in inches.
     show_title : bool, optional
-        Whether to show the title of the plot. The default is False.
+        Whether to show the title of the plot.
     cmap : str, optional
         Colormap to use for coloring the rectangles based on z values.
-        The default is None.
     edgecolor : str, optional
-        Color of the rectangle edges. The default is dim.black.hex.
+        Color of the rectangle edges.
     linewidth : int, optional
-        Width of the rectangle's edges. The default is 1.
+        Width of the rectangle's edges.
     alpha : float, optional
-        Transparency of the rectangles. The default is None.
+        Transparency of the rectangles.
     scan_angle : bool, optional
         If True, the rectangles will be plotted using angle coordinates.
-        The default is False.
     elev : int or float, optional
-        Elevation angle in the z plane. The default is None.
+        Elevation angle in the z plane.
     azim : int or float, optional
-        Azimuthal angle in the x, y plane. The default is None.
+        Azimuthal angle in the x, y plane.
 
     Returns
     -------
@@ -767,14 +688,14 @@ def plot_scanfields_3d(
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
 
-        corners = (class_var.corners_deg if scan_angle
-                   else class_var.corners_um)
-        units = (class_var.units_deg if scan_angle
-                 else class_var.units_um)
+        corners = (class_instance.corners_deg if scan_angle
+                   else class_instance.corners_um)
+        units = (class_instance.units_deg if scan_angle
+                 else class_instance.units_um)
 
         ax.set_xlim(min(corners[0]), max(corners[1]))
         ax.set_ylim(max(corners[2]), min(corners[3]))
-        ax.set_zlim(class_var.zs[-1], class_var.zs[0])
+        ax.set_zlim(class_instance.zs[-1], class_instance.zs[0])
         ax.set_xlabel(units, labelpad=30)
         ax.set_ylabel(units, labelpad=30)
 
@@ -821,7 +742,7 @@ def plot_scanfields_3d(
             linewidths=linewidth,
             edgecolors=edgecolor,
             facecolors=color if cmap else None
-            )
+        )
 
         ax.add_collection3d(poly3d)
 
@@ -836,7 +757,7 @@ def plot_scanfields_3d(
 
 
 def animate_scanfields_3d(
-        class_var: object,
+        class_instance: object,
         rectangles: list,
         cmap: str,
         edgecolor: str,
@@ -858,42 +779,42 @@ def animate_scanfields_3d(
 
     Parameters
     ----------
-    class_var : object
+    class_instance : object
         The Scanfield object containing metadata.
     rectangles : list
         List of Roi objects to be plotted.
     figsize : tuple, optional
-        Figure size (width, height) in inches. Default is None.
+        Figure size (width, height) in inches.
     show_title : bool, optional
-        Whether to display the title of the plot. Default is False.
+        Whether to display the title of the plot.
     cmap : str, optional
-        Colormap to use for coloring rectangles based on z values. Default is None.
+        Colormap to use for coloring rectangles based on z values.
     edgecolor : str, optional
-        Color of the rectangle edges. Default is dim.black.hex.
+        Color of the rectangle edges.
     linewidth : int, optional
-        Width of the rectangle edges. Default is 1.
+        Width of the rectangle edges.
     alpha : float, optional
-        Transparency of the rectangles. Default is None.
+        Transparency of the rectangles.
     scan_angle : bool, optional
-        If True, plot rectangles using angle coordinates. Default is False.
+        If True, plot rectangles using angle coordinates.
     elev_start : float, optional
-        Starting elevation angle (vertical tilt) in degrees. Default is 30.
+        Starting elevation angle (vertical tilt) in degrees.
     elev_end : float, optional
-        Ending elevation angle (vertical tilt) in degrees. Default is -30.
+        Ending elevation angle (vertical tilt) in degrees.
     azimut_start : float, optional
-        Starting azimuth angle (horizontal rotation) in degrees. Default is 0.
+        Starting azimuth angle (horizontal rotation) in degrees.
     azimut_end : float, optional
-        Ending azimuth angle (horizontal rotation) in degrees. Default is 360.
+        Ending azimuth angle (horizontal rotation) in degrees.
     interval : int, optional
-        Time interval between frames in milliseconds. Default is 10.
+        Time interval between frames in milliseconds.
     frames : int, optional
-        Total number of frames in the animation. Default is 360.
+        Total number of frames in the animation.
     save_path : str, optional
-        File path to save the animation (e.g., .gif or .mp4). Default is None.
+        File path to save the animation (e.g., .gif or .mp4).
     zoom : float, optional
-        Zoom level for the 3D plot. Default is None.
+        Zoom level for the 3D plot.
     axis_label : bool, optional
-        If True, display axis labels ("X", "Y", "Z"). Default is False.
+        If True, display axis labels ("X", "Y", "Z").
 
     Returns
     -------
@@ -903,14 +824,14 @@ def animate_scanfields_3d(
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    corners = (class_var.corners_deg if scan_angle
-               else class_var.corners_um)
-    units = (class_var.units_deg if scan_angle
-             else class_var.units_um)
+    corners = (class_instance.corners_deg if scan_angle
+               else class_instance.corners_um)
+    units = (class_instance.units_deg if scan_angle
+             else class_instance.units_um)
 
     ax.set_xlim(min(corners[0]), max(corners[1]))
     ax.set_ylim(max(corners[2]), min(corners[3]))
-    ax.set_zlim(class_var.zs[-1], class_var.zs[0])
+    ax.set_zlim(class_instance.zs[-1], class_instance.zs[0])
     ax.set_xlabel(units, labelpad=30)
     ax.set_ylabel(units, labelpad=30)
 
@@ -932,7 +853,7 @@ def animate_scanfields_3d(
 
     # Initial plot of scanfields
     plot_scanfields_3d(
-        class_var=class_var,
+        class_instance=class_instance,
         rectangles=rectangles,
         ax=ax,
         cmap=cmap,
@@ -947,8 +868,10 @@ def animate_scanfields_3d(
 
     # Update function for the animation
     def update(frame):
-        current_elev = elev_start + (elev_end - elev_start) * (frame / (frames - 1))
-        current_azimut = azimut_start + (azimut_end - azimut_start) * (frame / (frames - 1))
+        current_elev = elev_start + \
+            (elev_end - elev_start) * (frame / (frames - 1))
+        current_azimut = azimut_start + \
+            (azimut_end - azimut_start) * (frame / (frames - 1))
         ax.view_init(elev=current_elev, azim=current_azimut)
         return ax,
 
@@ -964,4 +887,3 @@ def animate_scanfields_3d(
     plt.show()
 
     return anim
-
