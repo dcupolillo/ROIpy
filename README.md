@@ -10,7 +10,7 @@ Designed to interface with [Vidrio ScanImage software](https://vidriotechnologie
 
 ROIpy is designed to facilitate scanning along dendritic arborization. In Scanimage, it works for **Linear Scan - Frame scan** configuration (_Galvo-Galvo_). ROIpy is developed to overcome the inherent 2D limitation of arbitrary scanning, by generating a set of discrete planes populated with scattered rectangular ROIs spanning the depth of the neuron.
 
-It outputs `.roi` files which can be loaded and are interpreted by ScanImage **mROI Editor Window**.
+It outputs `.roi` files which can be loaded and are interpreted by ScanImage [mROI Editor Window](<https://docs.scanimage.org/Premium+Features/Multiple+Region+of+Interest+(MROI).html>).
 
 ### Dendrite tracing
 
@@ -41,8 +41,8 @@ sys.path.append("path/to/ROIpy")
 
 #### Stack
 
-Represents a stack of images of a given neuron, which includes all dendrites within its depth.
-The initial Stack is acquired from Scanimage. Each z-layer defines the discrete planes where ROIs will be placed on. The stack is necessary to outline the dendritic structure using SNT.
+Represents a stack of images of a given neuron, which includes all dendrites along depth.
+The initial Stack is acquired using Scanimage [Stack Control](https://docs.scanimage.org/Basic+Features/Stack+Acquisition.html). Each z-layer defines the discrete planes where ROIs will be placed on. The stack is necessary to outline the dendritic structure using SNT.
 
 #### Morphology
 
@@ -66,11 +66,9 @@ paths = neuronpath("date_string", cell_number)
 # cell_number: int (i.e. 1)
 ```
 
+## Example usage
+
 ### Stack
-
-The `Stack` class initializes with the path to a `.tif` image file (xyz, single channel, shape = [z, x, y]) generated with **ScanImage**, and loads the image data along with its **ScanImage** metadata. The image should include a number of stacked images (z layers) including as many dendrites as possible, recorded in the channel of the used morphological filler/marker. `Stack` is the initial building block of the digitized dendritic structures.
-
-**Example Usage:**
 
 ```python
 import ROIpy as rp
@@ -86,8 +84,6 @@ stack.plot(cmap="viridis", norm=(100, 2000))
 
 ### Morphology
 
-The `Morphology` class inherits from `Stack` and represents the neuronal morphology data. Consitutes the structure upon which rectangular ROIs are defined and placed. It takes a `.swc` file as input.
-
 A `Morphology` object includes a series of `NodeBudle`:
 
 1. `neuron`: the structure of the overall neuron, which includes all the others.
@@ -96,8 +92,6 @@ A `Morphology` object includes a series of `NodeBudle`:
 4. `soma`: the cell body of the neuron.
 
 Each `NodeBundle` is composed of a series of `Node` components, defining the features of every individual point within the structure.
-
-**Example Usage:**
 
 ```python
 # Initialize the morphology with image and tracing files
@@ -111,17 +105,15 @@ morph.plot(morph.neuron, show_nodes=True, cmap="jet", linewidth=1)
 
 ### Scanfields
 
-The `Scanfields` class inherits from `Morphology` and manages the creation of rotated rectangular scanfields for imaging. It uses various imaging parameters to generate the ROIs. Refers to **Scanimage** `scanimage.mroi.scanfield.fields.RotatedRectangle` objects. Generates and saves :floppy_disk: a number of single-plane json-formatted `.roi` files corresponding to the different z layers to be provided to **ScanImage** ROI Editor for multiple ROI (mROI) definition.
+Refers to **Scanimage** `scanimage.mroi.scanfield.fields.RotatedRectangle` objects. Generates and saves :floppy_disk: a number of single-plane json-formatted `.roi` files corresponding to the different zlayers to be loaded to **ScanImage** ROI Editor for multiple ROI (mROI) definition.
 
 Similarly to `Morphology` bundles, a `Scanfield` object includes a series of `ScanfieldBundle`:
 
-1. `neuComp`: The ensemble of dendritic ROIs, covering the whole neuron.
+1. `neuComp`: (as in neuronal compartment), the ensemble of dendritic ROIs, covering the whole neuron.
 2. `apiComp`: ROIs covering the apical dendritic compartment.
 3. `basComp`: ROIs coveing the basal dendritic compartment.
 
 Each `ScanfieldBundle` is a collection of individual `Roi` components, defining the features of every individual rectangle within the structure.
-
-**Example Usage:**
 
 ```python
 # Initialize the scanfields with image and tracing files
