@@ -7,8 +7,19 @@ import math
 
 
 class Node:
+    """
+    Representation of an individual node in a neuronal morphology.
 
-    # Node type classificators
+    This class encapsulates the attributes and transformations associated with
+    a single node within a neuronal structure, including positional information,
+    type classification, and connections to parent/child nodes.
+
+    Attributes
+    ----------
+    TYPE_MAPPING : dict
+        Maps integer type codes (from .swc files) to descriptive compartment names.
+    """
+
     TYPE_MAPPING = {
         -1: 'root',
         0: 'undefined',
@@ -43,41 +54,52 @@ class Node:
             branch_degree: int = None
     ) -> None:
         """
-        Individual node representation
-        Gets initialized when creating a Morphology object
+        Initialize a Node instance.
 
         Parameters
         ----------
         obj_res : float
-            Objective Resolution.
+            Objective resolution (conversion factor for coordinates).
         _id : int
-            node id.
+            Unique identifier for the node.
         _type : int
-            compartment node belongs to.
+            Compartment type code (e.g., soma, axon).
         x : float
-            x position.
+            X-coordinate of the node (in pixels).
         y : float
-            y position.
+            Y-coordinate of the node (in pixels).
         z_ind : int
-            z slice node lays onto.
+            Index of the Z-plane the node is located on.
         zs : list
-            list of all the scanned z positions.
+            List of all scanned Z positions (in µm).
         radius : float
-            radius of the node.
+            Radius of the node (in µm).
         parent_id : int
-            id of the parent node the node is connected to.
+            ID of the parent node connected to this node.
         matrix : np.ndarray
-            transformation matrix.
+            Transformation matrix for coordinate conversion.
         voxel_separation_x : float
-            conversion factor generated during tracing.
+            Voxel-to-micrometer conversion factor along X.
         voxel_separation_y : float
-            conversion factor generated during tracing.
+            Voxel-to-micrometer conversion factor along Y.
+        is_fork : bool, optional
+            Indicates if the node is a bifurcation point. Default is False.
+        children : list, optional
+            List of IDs of child nodes. Default is an empty list.
+        x_deg : float, optional
+            X-coordinate in degrees after transformation. Default is None.
+        y_deg : float, optional
+            Y-coordinate in degrees after transformation. Default is None.
+        x_pix : int, optional
+            X-coordinate in pixels. Default is None.
+        y_pix : int, optional
+            Y-coordinate in pixels. Default is None.
+        z : float, optional
+            Z-coordinate in micrometers. Default is None.
 
         Returns
         -------
         None
-            DESCRIPTION.
-
         """
 
         x_corrected = float(x) / voxel_separation_x
@@ -127,23 +149,24 @@ class Node:
             matrix: np.ndarray
     ) -> list:
         """
-        Apply matrix transformation on individual nodes.
+        Apply a transformation matrix to the node's coordinates.
 
         Parameters
         ----------
         coords : list or tuple
-            x, y coordinates of a single node.
+            X, Y coordinates of the node.
         matrix : np.ndarray
-            transformation matrix.
+            Transformation matrix.
 
         Returns
         -------
         list
-            transformed coordinates.
-
+            Transformed coordinates.
         """
+
         pixel_coords = np.array(coords + [1])
         ref_coords = np.dot(matrix, pixel_coords)
+
         return ref_coords[:-1]
 
     def get_type(
@@ -151,23 +174,29 @@ class Node:
             _type: int
     ) -> str:
         """
-        Returns neuron type
+        Retrieve the compartment type name for a given type code.
 
         Parameters
         ----------
         _type : int
-            the identity classificator provided by .swc file.
+            Type code from the .swc file.
 
         Returns
         -------
         str
-            compartment name.
-
+            Compartment name corresponding to the type code.
         """
         return self.TYPE_MAPPING.get(_type, 'unknown')
 
     def __repr__(self):
-        repr_strings = []
+        """
+        Return a custom string representation of the Node instance.
+
+        Returns
+        -------
+        str
+            String representation of the Node instance.
+        """
 
         attributes_to_display = [
             '_id', '_type',
@@ -175,30 +204,62 @@ class Node:
             'radius', 'parent_id',
             'is_fork', 'children', 'branch_degree']
 
-        for key in attributes_to_display:
+        repr_strings = [None] * len(attributes_to_display)
+
+        for n, key in enumerate(attributes_to_display):
             value = getattr(self, key, None)
-            if key.startswith('_'):
-                key = key.lstrip('_')
-            repr_strings.append(f"{key} = {value}")
+            key = key.lstrip('_') if key.startswith('_') else key
+            repr_strings[n] = f"{key} = {value}"
 
         return "\n(" + "\n".join(repr_strings) + ")\n"
 
     def to_dict(self) -> dict:
+        """
+        Serialize the Node instance to a dictionary.
+
+        Returns
+        -------
+        dict
+            Dictionary representation of the Node instance.
+        """
+
         return {
             key: value
             for key, value in self.__dict__.items()}
 
     @classmethod
     def from_dict(cls, data: dict):
+        """
+        Create a Node instance from a dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary containing Node attributes.
+
+        Returns
+        -------
+        Node
+            Node instance created from the dictionary.
+        """
+
         node = cls.__new__(cls)
         for key, value in data.items():
             if key.startswith('_'):
                 key = key.lstrip('_')
             setattr(node, key, value)
+
         return node
 
 
 class Roi:
+    """
+    Representation of an individual rectangular ROI (Region of Interest).
+
+    This class encapsulates attributes and methods to define and manipulate a
+    rectangular ROI, including transformations, corner calculations, and
+    metadata generation.
+    """
 
     def __init__(
             self,
@@ -220,48 +281,51 @@ class Roi:
             affine: np.ndarray = None,
     ) -> None:
         """
-        Individual rectangular Roi representation
-        Gets initialized when creating a Scanfield object.
-        Calculate all corner's position
-        Calculate all dimensions in micrometers, scanner degrees and pixel
+        Initialize a rectangular ROI.
 
         Parameters
         ----------
         obj_res : float
-            Objective Resolution of the used objective.
+            Objective resolution of the used objective.
         zs : list
-            list of all the scanned z positions.
+            List of all scanned Z positions (in µm).
         center : list
-            x, y coordinates of the rect_deg's center.
+            [x, y] coordinates of the rectangle's center (in µm).
         rotation : float
-            rotation degrees.
+            Rotation of the rectangle (in degrees).
         size : list
-            x, y dimension in micrometers.
+            [width, height] dimensions of the rectangle (in µm).
         z : float
-            z slice the rectangle lays onto.
+            Z position (in µm) of the rectangle.
         start : list
-            x, y coordinate of the first Node included.
+            [x, y, id, compartment] of the starting node within the rectangle.
         end : list
-            x, y coordinates of the last Node included.
+            [x, y, id, compartment] of the ending node within the rectangle.
         bottom_right : list
-            x, y coordinates of the rectangle's bottom right corner.
+            [x, y] coordinates of the bottom-right corner (in µm).
         pixel_resolution_xy : list
-            x, y dimensions in pixels.
+            [x, y] dimensions in pixels.
         pix_um_ratio : list
-            ratio between pixel and micrometer.
+            Pixel-to-micrometer conversion ratios for x and y.
+        acquisition_line_period : float
+            Period of acquisition for a single line (in seconds).
+        line_scan_period : float
+            Time taken to scan one line (in seconds).
+        rectangle_period : float
+            Time taken to scan the rectangle (in seconds).
         pixel_to_ref : np.ndarray, optional
-            transformation matrix. The default is None.
+            Transformation matrix for pixel-to-reference coordinate conversion.
+            Default is None.
         affine : np.ndarray, optional
-            affine matrix. The default is None.
+            Affine transformation matrix. Default is None.
 
         Returns
         -------
         None
-
         """
 
-        self.roi_uuid = self.generate_roi_uuid()[0]
-        self.roi_uuid_uint64 = self.generate_roi_uuid()[1]
+        self.roi_uuid, self.roi_uuid_uint64 = self.generate_roi_uuid()
+
         self.compartment = start[4]
         self.center_xy = center
         self.rotation_degrees = rotation
@@ -270,26 +334,32 @@ class Roi:
         self.dim_ratio = size[0] / size[1]
         self.z = z
         self.z_ind = zs.index(z)
-        self.center_deg = [(i / obj_res) for i in center]
-        self.size_deg = [(i / obj_res) for i in size]
-        self.pixel_resolution_xy = pixel_resolution_xy
-        self.pix_um_ratio = pix_um_ratio
+
+        self.center_deg = [coord / obj_res for coord in center]
+        self.size_deg = [dim / obj_res for dim in size]
+
         self.start_node = start[:2]
         self.end_node = end[:2]
-        self.start_node_deg = [(i / obj_res) for i in start[:2]]
-        self.end_node_deg = [(i / obj_res) for i in end[:2]]
+        self.start_node_deg = [coord / obj_res for coord in start[:2]]
+        self.end_node_deg = [coord / obj_res for coord in end[:2]]
         self.start_node_id = start[3]
         self.end_node_id = end[3]
+
         self.bottom_right = bottom_right or self.find_corners()[3]
-        self.bottom_right_deg = [(i / obj_res) for i in bottom_right]
+        self.bottom_right_deg = [
+            coord / obj_res for coord in self.bottom_right]
         self.bottom_left = self.find_corners()[2]
-        self.bottom_left_deg = [(i / obj_res) for i in self.bottom_left]
+        self.bottom_left_deg = [coord / obj_res for coord in self.bottom_left]
         self.top_right = self.find_corners()[1]
-        self.top_right_deg = [(i / obj_res) for i in self.top_right]
+        self.top_right_deg = [coord / obj_res for coord in self.top_right]
         self.top_left = self.find_corners()[0]
-        self.top_left_deg = [(i / obj_res) for i in self.top_left]
+        self.top_left_deg = [coord / obj_res for coord in self.top_left]
+
+        self.pixel_resolution_xy = pixel_resolution_xy
+        self.pix_um_ratio = pix_um_ratio
         self.pixel_to_ref_transform = np.array(pixel_to_ref)
         self.affine = np.array(affine)
+
         self.acquisition_line_period = acquisition_line_period
         self.line_scan_period = line_scan_period
         self.rectangle_period = rectangle_period
@@ -307,8 +377,12 @@ class Roi:
 
     def generate_roi_uuid(self) -> list:
         """
-        Generate a unique random hexadecimal string
-        and assign it to each rectangle
+        Generate a unique identifier for the ROI compatible with Scanimage.
+
+        Returns
+        -------
+        tuple
+            A tuple containing a hexadecimal UUID and its scientific notation.
         """
         roi_uuid_hex = ''.join(random.choices('0123456789ABCDEF', k=16))
         roi_uuid_uint64 = int(roi_uuid_hex, 16)
@@ -317,8 +391,14 @@ class Roi:
 
     def find_corners(self) -> tuple:
         """
-        Calculate rect's corners x, y position
+        Calculate the coordinates of the rectangle's corners.
+
+        Returns
+        -------
+        tuple
+            A tuple containing the [top_left, top_right, bottom_left, bottom_right] corners.
         """
+
         deg_rad = math.radians(self.rotation_degrees + 90)
         half_height = self.size_xy[1] / 2
         half_width = self.size_xy[0] / 2
@@ -329,40 +409,76 @@ class Roi:
         x_sin = half_width * math.sin(deg_rad)
         y_cos = half_height * math.cos(deg_rad)
 
-        x_bottom_right, y_bottom_right = (x_center + (y_cos + x_sin),
-                                          y_center - (y_sin - x_cos))
-        x_bottom_left, y_bottom_left = (x_center - (y_sin - x_cos),
-                                        y_center + (x_sin + y_cos))
-        x_top_right, y_top_right = (x_center + (y_sin - x_cos),
-                                    y_center - (x_sin + y_cos))
+        x_bottom_right, y_bottom_right = (
+            x_center + (y_cos + x_sin),
+            y_center - (y_sin - x_cos))
+        x_bottom_left, y_bottom_left = (
+            x_center - (y_sin - x_cos),
+            y_center + (x_sin + y_cos))
+        x_top_right, y_top_right = (
+            x_center + (y_sin - x_cos),
+            y_center - (x_sin + y_cos))
         x_top_left, y_top_left = (x_center + (x_cos + y_sin),
                                   y_center + (x_sin - y_cos))
 
-        return ([x_top_left, y_top_left],
-                [x_top_right, y_top_right],
-                [x_bottom_left, y_bottom_left],
-                [x_bottom_right, y_bottom_right])
+        return (
+            [x_top_left, y_top_left],
+            [x_top_right, y_top_right],
+            [x_bottom_left, y_bottom_left],
+            [x_bottom_right, y_bottom_right])
 
     def __repr__(self):
+        """
+        Return a custom string representation of the ROI instance.
+
+        Returns
+        -------
+        str
+            String representation of the ROI instance.
+        """
+
         repr_strings = []
 
         for key, value in self.__dict__.items():
-            if key.startswith('_'):
-                key = key.lstrip('_')
+            key = key.lstrip('_') if key.startswith('_') else key
             repr_strings.append(f"{key} = {value}")
 
         return "\n(" + "\n".join(repr_strings) + ")\n"
 
     def to_dict(self) -> dict:
+        """
+        Serialize the ROI instance to a dictionary.
+
+        Returns
+        -------
+        dict
+            Dictionary representation of the ROI instance.
+        """
+
         return {
             key: value
             for key, value in self.__dict__.items()}
 
     @classmethod
     def from_dict(cls, data: dict):
+        """
+        Create an ROI instance from a dictionary.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary containing ROI attributes.
+
+        Returns
+        -------
+        Roi
+            ROI instance created from the dictionary.
+        """
+
         obj = cls.__new__(cls)
+
         for key, value in data.items():
-            if key.startswith('_'):
-                key = key.lstrip('_')
+            key = key.lstrip('_') if key.startswith('_') else key
             setattr(obj, key, value)
+
         return obj
