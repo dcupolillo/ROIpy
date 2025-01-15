@@ -239,81 +239,87 @@ def sholl_analysis(
     return np.array(counts_apical), np.array(counts_basal), radii
 
 
-def hull_area(
-        input_data: list,
-        show_plot: bool = True,
-        ax: plt.Axes = None,
-        terminal_point_color: str = 'red',
-        linecolor: str = 'blue',
-        facecolor: str = 'none',
-        linewidth: int or float = 1,
-        linestyle: str = '-',
-        **kwargs
+def hull_volume(
+    input_data: list,
+    show_plot: bool,
+    ax: plt.Axes,
+    terminal_point_color: str,
+    linecolor: str,
+    facecolor: str,
+    linewidth: int or float,
+    linestyle: str,
+    **kwargs,
 ) -> float:
     """
-    Calculate the area of the convex hull formed by a set of points.
+    Calculate and optionally plot the convex hull volume formed by terminal points.
 
     Parameters
     ----------
     input_data : list
-        A list of nodes or points.
-    plot : bool, optional
-        If True, plot the convex hull. Default is True. The default is True.
-    ax : plt.Axes.ax, optional
-        The axes to plot the convex hull.
-        If not provided, a new plot will be created. The default is None.
+        List of nodes representing the neuronal structure.
+    show_plot : bool, optional
+        If True, plots the convex hull. Default is True.
+    ax : plt.Axes, optional
+        Matplotlib axes to plot on. If None, a new plot is created.
+    terminal_point_color : str, optional
+        Color of terminal points in the plot. Default is 'red'.
+    linecolor : str, optional
+        Color of the convex hull edges. Default is 'blue'.
+    facecolor : str, optional
+        Color of the convex hull area. Default is 'none'.
+    linewidth : int | float, optional
+        Line width of the convex hull edges. Default is 1.
+    linestyle : str, optional
+        Line style of the convex hull edges. Default is '-'.
 
     Returns
     -------
     float
-        The area of the convex hull.
+        The volume of the convex hull.
 
+    Example
+    -------
+    >>> volume = hull_volume(nodes, show_plot=True)
+    >>> print(f"Convex Hull Volume: {volume:.2f} µm³")
     """
-
+    # Build parent-to-children mapping
     parent_to_children = {}
-
-    # Populate the parent_to_children dictionary
     for node in input_data:
-        parent_id = node.parent_id
-        if parent_id is not None:
-            if parent_id not in parent_to_children:
-                parent_to_children[parent_id] = []
-            parent_to_children[parent_id].append(node.id)
+        if node.parent_id is not None:
+            parent_to_children.setdefault(node.parent_id, []).append(node.id)
 
-    # Identify terminal nodes (nodes that are parents to no other nodes)
+    # Identify terminal nodes (no children)
     terminal_nodes = [
-        node for node in input_data
-        if node.id not in parent_to_children]
+        node for node in input_data if node.id not in parent_to_children]
 
-    # Extract x and y coordinates of terminal nodes
+    # Extract x, y, and z coordinates of terminal nodes
     x_terminal = np.array([node.x for node in terminal_nodes])
     y_terminal = np.array([node.y for node in terminal_nodes])
+    z_terminal = np.array([node.z for node in terminal_nodes])
 
-    # Create points for the ConvexHull
-    points = np.column_stack((x_terminal, y_terminal))
-
-    # Calculate the ConvexHull
+    # Points for convex hull
+    points = np.column_stack((x_terminal, y_terminal, z_terminal))
     hull = ConvexHull(points)
 
-    # Get the vertices of the convex hull
-    hull_vertices = hull.vertices
-    hull_points = points[hull_vertices]
-
-    # Plot the neuron and terminal nodes and the convex hull polygon
+    # Plotting (optional, 2D projection in XY plane)
     if show_plot:
-        if not ax:
+        if ax is None:
             fig, ax = plt.subplots()
         ax.set_aspect('equal')
 
-        for point in hull_points:
-            ax.scatter(point[0], point[1], color=terminal_point_color)
+        # Scatter terminal points (projected to XY plane)
+        ax.scatter(points[:, 0], points[:, 1],
+                   color=terminal_point_color, **kwargs)
 
+        # Draw the convex hull edges in 2D (projected to XY plane)
         hull_polygon = plt.Polygon(
-            hull_points,
+            points[hull.vertices, :2],  # Use only x, y for 2D polygon
             edgecolor=linecolor,
             facecolor=facecolor,
             linewidth=linewidth,
-            linestyle=linestyle)
+            linestyle=linestyle,
+        )
         ax.add_patch(hull_polygon)
 
+    # Return the 3D volume of the convex hull
     return hull.volume

@@ -789,8 +789,9 @@ def convert_to_polygon(
 
     """
 
-    return Polygon([rectangle.bottom_right, rectangle.bottom_left,
-                    rectangle.top_left, rectangle.top_right])
+    return Polygon(
+        [rectangle.bottom_right, rectangle.bottom_left,
+         rectangle.top_left, rectangle.top_right])
 
 
 def calculate_overlap_matrix(

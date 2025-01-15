@@ -195,20 +195,27 @@ def split_neurite(
         input_data
 ) -> list:
     """
-    Divide an input in sections, where a section is delimited by either:
-        - soma point, end point
-        - forking point, end point
+    Divide a neuronal structure into sections (neurites).
+
+    A neurite is defined as a section delimited by:
+    - Soma and an end point
+    - Forking point and an end point
 
     Parameters
     ----------
     input_data : NodeBundle
-        Morphology Structure.
+        Morphology structure containing nodes to split into neurites.
 
     Returns
     -------
     list
-        list of split segments of nodes.
+        A list of lists, where each inner list contains nodes representing
+        a single neurite section.
 
+    Example
+    -------
+    >>> neurite_sections = split_neurite(node_bundle)
+    >>> print(f"Number of neurites: {len(neurite_sections)}")
     """
 
     sections = []

@@ -10,6 +10,7 @@ from ROIpy.analysis.stats import (
 from ROIpy.analysis.savejson import save_to_json
 from ROIpy.core.utils.utils import split_neurite
 from ROIpy.core.components import Node, Roi
+from ROIpy.core.makeroi.make_roi import convert_to_polygon
 
 
 class NodeBundle():
@@ -69,9 +70,10 @@ class NodeBundle():
         fl.save(filename, {'nodes': data})
 
     @classmethod
-    def load_from_h5(cls, filename: str) -> 'NodeBundle':
+    def load_from_h5(cls, filename: str) -> object:
         """
         Load a NodeBundle from an HDF5 file.
+        Prevents from computing again for every new instance.
 
         Parameters
         ----------
@@ -80,7 +82,7 @@ class NodeBundle():
 
         Returns
         -------
-        NodeBundle
+        object: NodeBundle
             A NodeBundle instance loaded from the file.
         """
         data = fl.load(filename)['nodes']
@@ -89,7 +91,7 @@ class NodeBundle():
         return cls(nodes)
 
     @property
-    def neurite(self) -> object:
+    def neurites(self) -> object:
         """
         Split the structure into a Neurite object.
 
@@ -188,80 +190,112 @@ class NodeBundle():
         )
 
     def hull(
-            self,
-            show_plot: bool = True,
-            ax: plt.Axes = None,
-            terminal_point_color: str = None,
-            linecolor: str = None,
-            facecolor: str = None,
-            linewidth: int or float = None,
-            linestyle: str = None
-    ) -> plt.Axes:
+        self,
+        show_plot: bool = True,
+        ax: plt.Axes = None,
+        terminal_point_color: str = 'red',
+        linecolor: str = 'blue',
+        facecolor: str = 'none',
+        linewidth: int | float = 1,
+        linestyle: str = '-',
+    ) -> float:
         """
-        Plots the hull area.
+        Calculate and optionally plot the convex hull volume of terminal points.
+
+        This method wraps the `hull_volume` function, calculating the 3D volume
+        of the convex hull formed by terminal points of the neuronal structure.
+        A 2D projection of the convex hull can also be plotted.
 
         Parameters
         ----------
-        ax : plt.Axes.ax, optional
-            If specified, plots within it. The default is None.
+        show_plot : bool, optional
+            If True, plots the 2D projection of the convex hull. Default is True.
+        ax : plt.Axes, optional
+            Matplotlib axes to plot on. If None, a new plot is created.
+        terminal_point_color : str, optional
+            Color of terminal points in the plot. Default is 'red'.
+        linecolor : str, optional
+            Color of the convex hull edges. Default is 'blue'.
+        facecolor : str, optional
+            Color of the convex hull area. Default is 'none'.
+        linewidth : int | float, optional
+            Line width of the convex hull edges. Default is 1.
+        linestyle : str, optional
+            Line style of the convex hull edges. Default is '-'.
 
         Returns
         -------
-        plt.Axes.ax
-            Plot of the hull area.
+        float
+            The volume of the convex hull (in µm³).
 
+        Example
+        -------
+        >>> fig, ax = plt.subplots()
+        >>> volume = node_bundle.hull(show_plot=True, ax=ax)
+        >>> print(f"Convex Hull Volume: {volume:.2f} µm³")
         """
-
-        return hull_area(
-            self.nodes,
+        return hull_volume(
+            input_data=self.nodes,
             show_plot=show_plot,
             ax=ax,
             terminal_point_color=terminal_point_color,
             linecolor=linecolor,
             facecolor=facecolor,
             linewidth=linewidth,
-            linestyle=linestyle)
+            linestyle=linestyle,
+        )
 
     def save(
-            self,
-            json_name: str
+        self,
+        json_filename: str,
     ) -> None:
         """
-        Save data in a json-formatted file
+        Save the NodeBundle data to a JSON-formatted file.
+
+        This method serializes the NodeBundle into a JSON file for external storage
+        or sharing. The JSON file contains the information of all nodes within the
+        bundle.
 
         Parameters
         ----------
-        json_name : str
-            Path to file.
+        json_filename : str
+            Path to the JSON file where data will be saved.
 
         Returns
         -------
         None
-        """
 
-        return save_to_json(self,
-                            json_name=json_name)
+        Example
+        -------
+        >>> node_bundle.save('output/nodes.json')
+        """
+        return save_to_json(self, json_filename=json_filename)
 
 
 class Neurites():
+    """
+    Representation of a neuronal structure divided into neurites.
+
+    This class provides a wrapper for a `NodeBundle` that organizes its
+    contents into distinct neurites, allowing for simplified indexing and
+    length retrieval.
+    """
 
     def __init__(
             self,
             neurites: NodeBundle
     ) -> None:
         """
-        Representation of a NodeBundle class
-        divided in neurites
+        Initialize a Neurite instance.
 
         Parameters
         ----------
         neurites : NodeBundle
-            Input structure.
+            A NodeBundle containing the structure to be divided into neurites.
 
         Returns
         -------
         None
-
         """
 
         self.neurites = neurites
@@ -296,24 +330,34 @@ class Neurites():
 
 
 class ScanfieldBundle():
+    """
+    A helper class to wrap a collection of ROI (Region of Interest) objects.
+
+    This class organizes a list of lists of `Roi` objects, typically representing
+    scanfields across multiple Z-planes, and provides utility methods for
+    saving, loading, and calculating properties of the scanfields.
+
+    Attributes
+    ----------
+    scanfield : list
+        A list of lists containing `Roi` objects for each Z-plane.
+    """
 
     def __init__(
             self,
             scanfield: list
     ) -> None:
         """
-        Helper class to wrap a list of Rois and provide additional methods.
-        Collection of lists of Roi objects.
+        Initialize a ScanfieldBundle instance.
 
         Parameters
         ----------
         scanfield : list
-            DESCRIPTION.
+            A list of lists containing `Roi` objects for each Z-plane.
 
         Returns
         -------
         None
-
         """
 
         self.scanfield = scanfield
@@ -333,12 +377,40 @@ class ScanfieldBundle():
         return len(self.scanfield)
 
     def save_to_h5(self, filename: str) -> None:
-        data = [[roi.to_dict() for roi in z_plane]
-                for z_plane in self.scanfield]
+        """
+        Save the ScanfieldBundle to an HDF5 file.
+
+        Parameters
+        ----------
+        filename : str
+            The path to the HDF5 file where the scanfields will be saved.
+
+        Returns
+        -------
+        None
+        """
+
+        data = [
+            [roi.to_dict() for roi in z_plane]
+            for z_plane in self.scanfield]
         fl.save(filename, {'scanfields': data})
 
     @classmethod
-    def load_from_h5(cls, filename: str) -> 'ScanfieldBundle':
+    def load_from_h5(cls, filename: str) -> object:
+        """
+        Load a ScanfieldBundle from an HDF5 file.
+        Prevents from computing again for every new instance.
+
+        Parameters
+        ----------
+        filename : str
+            The path to the HDF5 file containing the scanfields.
+
+        Returns
+        -------
+        object: ScanfieldBundle
+            An instance of the ScanfieldBundle loaded from the file.
+        """
         data = fl.load(filename)['scanfields']
         scanfield = [[Roi.from_dict(roi) for roi in z_plane]
                      for z_plane in data]
@@ -347,8 +419,13 @@ class ScanfieldBundle():
     @property
     def shape(self):
         """
-        Returns the shape of the scanfields as in:
-            [n of scanfield, (list of n of Rois)].
+        Get the shape of the ScanfieldBundle.
+
+        Returns
+        -------
+        tuple
+            A tuple containing the number of Z-planes and a list of the number
+            of ROIs in each Z-plane.
         """
 
         return len(self.scanfield), [len(row) for row in self.scanfield]
@@ -356,7 +433,34 @@ class ScanfieldBundle():
     @property
     def area(self) -> float:
         """
-        Returns the total area included by multiple Rois
-        """
+        Calculate the total area covered by all ROIs in the ScanfieldBundle.
 
-        return sum(rect.area for z in self.scanfield for rect in z)
+        This method converts ROIs to polygons and accounts for overlapping portions
+        by subtracting intersection areas, ensuring non-overlapping area calculation.
+
+        Returns
+        -------
+        float
+            The total non-overlapping area covered by the ROIs.
+        """
+        total_area = 0
+        processed_polygons = []
+
+        for z_plane in self.scanfield:
+            for roi in z_plane:
+                # Convert the ROI to a polygon
+                current_polygon = convert_to_polygon(roi)
+
+                # Add the current polygon's area
+                total_area += current_polygon.area
+
+                # Subtract overlapping areas with previously processed polygons
+                for processed_polygon in processed_polygons:
+                    overlap_area = current_polygon.intersection(
+                        processed_polygon).area
+                    total_area -= overlap_area
+
+                # Add the current polygon to the processed list
+                processed_polygons.append(current_polygon)
+
+        return total_area
