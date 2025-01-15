@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from ROIpy.analysis.stats import (
     calculate_total_length,
-    sholl_analysis, hull_area)
+    sholl_analysis, hull_volume)
 from ROIpy.analysis.savejson import save_to_json
 from ROIpy.core.utils.utils import split_neurite
 from ROIpy.core.components import Node, Roi
