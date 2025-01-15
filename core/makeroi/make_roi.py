@@ -173,7 +173,7 @@ def split_consecutive(
 def distance_node(
         class_var: object,
         input_data: list
-) -> (list, list):
+) -> tuple:
     """
     Calculate the closest and farthest points
     within each segment of consecutive nodes
@@ -321,7 +321,7 @@ def find_rectangles(
 def remove_short_rectangles(
         class_var: object,
         rectangles: list
-) -> (list, list):
+) -> tuple:
     """
     Removes rectangles based on the width-to-height ratio.
 

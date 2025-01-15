@@ -81,8 +81,8 @@ def parse_stack_metadata(
     ch_available_list = np.arange(n_channel_available)
     ch_active = ([framedata['SI.hChannels.channelsActive']]
                  if isinstance(
-                         framedata['SI.hChannels.channelsActive'], int)
-                 else framedata['SI.hChannels.channelsActive'])
+        framedata['SI.hChannels.channelsActive'], int)
+        else framedata['SI.hChannels.channelsActive'])
 
     ch_active_list = [True if (n+1) in ch_active else False
                       for i, n in enumerate(ch_available_list)]
@@ -182,7 +182,7 @@ def parse_swc(
         parent_id = node.parent_id
         if parent_id != -1:  # Skip root node
             parent_node = next(n for n in nodes if n._id == parent_id)
-            parent_node.children.append(node._id)    
+            parent_node.children.append(node._id)
 
     # Update is_fork attribute for each node based on children count
     for node in nodes:
