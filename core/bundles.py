@@ -196,7 +196,7 @@ class NodeBundle():
         terminal_point_color: str = 'red',
         linecolor: str = 'blue',
         facecolor: str = 'none',
-        linewidth: int | float = 1,
+        linewidth: int or float = 1,
         linestyle: str = '-',
     ) -> float:
         """

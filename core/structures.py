@@ -10,8 +10,7 @@ from ROIpy.plot.plot import (
     plot_image, plot_morph,
     plot_morph_3d, animate_morph_3d,
     plot_scanfield, plot_scanfields_3d,
-    animate_scanfields_3d,
-    plot_morph_scanned_highlight)
+    animate_scanfields_3d)
 
 from ROIpy.core.utils.utils import (
     parse_swc, parse_stack_metadata, assign_branch_degree)
@@ -100,7 +99,7 @@ class Stack():
             scan_angle: bool = False,
             ax: plt.Axes = None,
             norm: list or tuple = None,
-            cmap: str = None,
+            cmap: str = 'binary_r',
             z: int = None
     ) -> plt.Axes:
         """
@@ -230,7 +229,7 @@ class Morphology(Stack):
             z: int = None,
             ax: plt.Axes = None,
             axis_lims: list = None,
-            cmap: str = None,
+            cmap: str = 'viridis',
             scan_angle: bool = False,
             color: str = "black",
             linewidth: int = 1
@@ -257,7 +256,7 @@ class Morphology(Stack):
         scan_angle : bool, optional
             Plot using angle units (default is False).
         color : str, optional
-            Line color (default is `dim.black.hex`).
+            Line color (default is black).
         linewidth : int, optional
             Line width for connecting segments (default is 1).
 
@@ -283,12 +282,11 @@ class Morphology(Stack):
     def plot_3d(
             self,
             input_data,
-            show_segments: bool = True,
             show_nodes: bool = False,
             z: int = None,
             ax: plt.Axes = None,
             axis_lims: list = None,
-            cmap: str = None,
+            cmap: str = "vridis",
             scan_angle: bool = False,
             color: str = "black",
             linewidth: int = 1,
@@ -329,9 +327,9 @@ class Morphology(Stack):
             input_data,
             show_nodes: bool = False,
             axis_lims: list = None,
-            cmap: str = None,
+            cmap: str = "viridis",
             scan_angle: bool = False,
-            color: str = dim.black.hex,
+            color: str = "black",
             linewidth: int = 1,
             elev_start: float = 30,
             elev_end: float = 30,
@@ -546,7 +544,7 @@ class Scanfields(Morphology):
             axis_lims: list = None,
             cmap: str = None,
             scan_angle: bool = False,
-            edgecolor: str = dim.black.hex,
+            edgecolor: str = "black",
             linewidth: int = 1
     ) -> plt.Axes:
         """
@@ -567,7 +565,7 @@ class Scanfields(Morphology):
         scan_angle : bool, optional
             if True, plots in units of angle degrees. The default is False.
         edgecolor : str, optional
-            color of rectangles edge. The default is dim.black.hex.
+            color of rectangles edge. The default is black.
         linewidth : int, optional
             specifies the width of rectangles edge. The default is 1.
 
@@ -598,7 +596,7 @@ class Scanfields(Morphology):
             ax: plt.Axes = None,
             cmap: str = None,
             scan_angle: bool = False,
-            edgecolor: str = dim.black.hex,
+            edgecolor: str = "black",
             linewidth: int = 1,
             elev: int or float = None,
             azim: int or float = None,
@@ -629,16 +627,16 @@ class Scanfields(Morphology):
         """
 
         return plot_scanfields_3d(
-                self,
-                input_roi,
-                ax=ax,
-                cmap=cmap,
-                edgecolor=edgecolor,
-                linewidth=linewidth,
-                scan_angle=scan_angle,
-                elev=elev,
-                azim=azim,
-                zoom=zoom)
+            self,
+            input_roi,
+            ax=ax,
+            cmap=cmap,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
+            scan_angle=scan_angle,
+            elev=elev,
+            azim=azim,
+            zoom=zoom)
 
     def animate_3d_scanfields(
             self,
@@ -650,7 +648,7 @@ class Scanfields(Morphology):
             frames: int = 360,
             interval: float = 50,
             cmap: str = None,
-            edgecolor: str = dim.black.hex,
+            edgecolor: str = "black",
             linewidth: int = 1,
             alpha: float = 1.,
             scan_angle: bool = False,
@@ -701,27 +699,6 @@ class Scanfields(Morphology):
             zoom=zoom,
             axis_label=axis_label
         )
-
-    def plot_scanned(
-            self,
-            input_data: NodeBundle,
-            z: int = None,
-            scan_angle: bool = False,
-            ax: plt.Axes = None,
-            axis_lims: list = None,
-            color: str = dim.magenta.hex,
-            linewidth: float = None):
-
-        return plot_morph_scanned_highlight(
-                self,
-                input_data=input_data,
-                rectangles=self.neuComp,
-                z=z,
-                scan_angle=scan_angle,
-                ax=ax,
-                axis_lims=axis_lims,
-                color=color,
-                linewidth=linewidth)
 
     def save(
             self,
