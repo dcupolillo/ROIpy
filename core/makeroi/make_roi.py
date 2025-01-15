@@ -10,7 +10,7 @@ from ROIpy.core.components import Roi
 
 
 def make_roi(
-        class_var: object,
+        class_instance: object,
         input_data: list
 ) -> list:
     """
@@ -18,7 +18,7 @@ def make_roi(
 
     Parameters
     ----------
-    class_var : Scanfield
+    class_instance : Scanfield
         class itself.
     input_data : list
         the compartment to be subdivided in Rois.
@@ -35,37 +35,37 @@ def make_roi(
     segments = split_consecutive(grouped_z)
 
     # Calculates segments start nodes and end nodes
-    close, far = distance_node(class_var, segments)
+    close, far = distance_node(class_instance, segments)
 
     # Finds initial group of rectangles
-    rectangles = find_rectangles(class_var, close, far)
+    rectangles = find_rectangles(class_instance, close, far)
 
     # Threshold them based on dimension ratio
-    included, excluded = remove_short_rectangles(class_var, rectangles)
+    included, excluded = remove_short_rectangles(class_instance, rectangles)
 
     # Merge the excluded ones to make bigger rectangles
-    excluded_merged = merge_neighbors(class_var, input_data, excluded)
-    reintegrated_rectangles = reintegrate(
-        class_var, included, excluded_merged)
+    excluded_merged = merge_neighbors(class_instance, input_data, excluded)
+    reintegrated_rectangles = reintegrate(included, excluded_merged)
 
     # Widens and elongates rectangles
     widened_rectangles = correct_curvatures(
-        class_var, input_data, reintegrated_rectangles)
-    elongated_rectangles = elongate_rectangles(class_var, widened_rectangles)
+        class_instance, input_data, reintegrated_rectangles)
+    elongated_rectangles = elongate_rectangles(
+        class_instance, widened_rectangles)
 
     # Remove rectangles whose area is covered by other rectangles
     non_overlapped_rectangles = remove_overlapping(
-        class_var, elongated_rectangles)
+        class_instance, elongated_rectangles)
 
     # Remove rectangles within a certain radius from soma
     filtered_rectangles = remove_rect_within_radius(
-        class_var, non_overlapped_rectangles)
+        class_instance, non_overlapped_rectangles)
 
     # Populate the rectangles with pixels giving them a certain dimension
-    roi_pixel = roi_populate_pixels(class_var, filtered_rectangles)
+    roi_pixel = roi_populate_pixels(class_instance, filtered_rectangles)
 
     # Add transformation matrices
-    transform_added_rectangles = calculate_transform(class_var, roi_pixel)
+    transform_added_rectangles = calculate_transform(class_instance, roi_pixel)
 
     return transform_added_rectangles
 
@@ -101,9 +101,10 @@ def group_z(
 
     # Sort the groups based on the z plane values
     # in descending order (Z planes are negative)
-    sorted_grouped_nodes = sorted(grouped_nodes.items(),
-                                  key=lambda x: x[0],
-                                  reverse=True)
+    sorted_grouped_nodes = sorted(
+        grouped_nodes.items(),
+        key=lambda x: x[0],
+        reverse=True)
 
     return [group for _, group in sorted_grouped_nodes]
 
@@ -171,7 +172,7 @@ def split_consecutive(
 
 
 def distance_node(
-        class_var: object,
+        class_instance: object,
         input_data: list
 ) -> tuple:
     """
@@ -181,7 +182,7 @@ def distance_node(
 
     Parameters
     ----------
-    class_var : TYPE
+    class_instance : TYPE
         The class object containing relevant parameters..
     input_data : list
         Nested list of z-sorted consecutive segments.
@@ -195,11 +196,11 @@ def distance_node(
 
     """
 
-    soma = class_var.soma
+    soma = class_instance.soma
 
     # Pre-allocate empty list
-    closest_points = [None] * len(class_var.zs)
-    farthest_points = [None] * len(class_var.zs)
+    closest_points = [None] * len(class_instance.zs)
+    farthest_points = [None] * len(class_instance.zs)
 
     for z, z_plane_segments in enumerate(input_data):
         z_closest_list = []
@@ -212,17 +213,22 @@ def distance_node(
             farthest_dist = 0
 
             for node in segment:
+
                 dist = np.sqrt((node.x - soma.x) ** 2 + (node.y - soma.y) ** 2)
+
                 if dist < closest_dist:
                     closest_dist = dist
-                    closest_node = [node.x, node.y,
-                                    node.z, node.id,
-                                    node.type]
+                    closest_node = [
+                        node.x, node.y,
+                        node.z, node.id,
+                        node.type]
+
                 if dist > farthest_dist:
                     farthest_dist = dist
-                    farthest_node = [node.x, node.y,
-                                     node.z, node.id,
-                                     node.type]
+                    farthest_node = [
+                        node.x, node.y,
+                        node.z, node.id,
+                        node.type]
 
             if closest_node is not None:
                 z_closest_list.append(closest_node)
@@ -234,16 +240,18 @@ def distance_node(
         farthest_points[z] = z_farthest_list
 
     # In case z planes are empty of nodes
-    closest_points = [points for points in closest_points
-                      if points is not None]
-    farthest_points = [points for points in farthest_points
-                       if points is not None]
+    closest_points = [
+        points for points in closest_points
+        if points is not None]
+    farthest_points = [
+        points for points in farthest_points
+        if points is not None]
 
     return closest_points, farthest_points
 
 
 def find_rectangles(
-        class_var: object,
+        class_instance: object,
         close: list,
         far: list
 ) -> list:
@@ -252,7 +260,7 @@ def find_rectangles(
 
     Parameters
     ----------
-    class_var : TYPE
+    class_instance : TYPE
         Class containing objective resolution and zs.
     close : list
         Nested list of closest points.
@@ -266,8 +274,8 @@ def find_rectangles(
 
     """
 
-    objective_resolution = class_var.objective_resolution
-    zs = class_var.zs
+    objective_resolution = class_instance.objective_resolution
+    zs = class_instance.zs
 
     # Pre-allocate empty list of rectangles
     rectangles = [None] * len(close)
@@ -294,7 +302,7 @@ def find_rectangles(
             bottom_right = [x, y]
             z = close_node[2]
 
-            # Create a Roi object
+            # Create a Roi instance
             rectangle = Roi(
                 objective_resolution,
                 zs,
@@ -319,7 +327,7 @@ def find_rectangles(
 
 
 def remove_short_rectangles(
-        class_var: object,
+        class_instance: object,
         rectangles: list
 ) -> tuple:
     """
@@ -327,7 +335,7 @@ def remove_short_rectangles(
 
     Parameters
     ----------
-    class_var : TYPE
+    class_instance : TYPE
         The class object containing relevant parameters.
     rectangles : list
         List of rectangles grouped by z-plane.
@@ -341,7 +349,7 @@ def remove_short_rectangles(
 
     """
 
-    dim_ratio_threshold = class_var.dim_ratio_threshold
+    dim_ratio_threshold = class_instance.dim_ratio_threshold
 
     included_rectangles = []
     excluded_rectangles = []
@@ -364,7 +372,7 @@ def remove_short_rectangles(
 
 
 def merge_neighbors(
-        class_var: object,
+        class_instance: object,
         input_data: list,
         excluded_rectangles: list
 ) -> list:
@@ -373,7 +381,7 @@ def merge_neighbors(
 
     Parameters
     ----------
-    class_var : TYPE
+    class_instance : TYPE
         The class object containing relevant parameters.
     input_data : list
         List of Node objects.
@@ -387,12 +395,13 @@ def merge_neighbors(
 
     """
 
-    objective_resolution = class_var.objective_resolution
-    zs = class_var.zs
+    objective_resolution = class_instance.objective_resolution
+    zs = class_instance.zs
 
     # Sort excluded roi based on start node
-    sorted_roi = sorted([rect for z in excluded_rectangles for rect in z],
-                        key=lambda x: x.start_node_id)
+    sorted_roi = sorted(
+        [rect for z in excluded_rectangles for rect in z],
+        key=lambda x: x.start_node_id)
 
     children_dict = {node.id: node.children for node in input_data}
 
@@ -442,8 +451,9 @@ def merge_neighbors(
         height = np.sqrt(dx ** 2 + dy ** 2)
         width = 10
         size = [width, height]
-        center = [(close_node[0] + far_node[0]) / 2,
-                  (close_node[1] + far_node[1]) / 2]
+        center = [
+            (close_node[0] + far_node[0]) / 2,
+            (close_node[1] + far_node[1]) / 2]
         x = close_node[0] + width / 2 * np.sin(np.radians(rotation))
         y = close_node[1] - width / 2 * np.cos(np.radians(rotation))
         bottom_right = [x, y]
@@ -476,7 +486,6 @@ def merge_neighbors(
 
 
 def reintegrate(
-        class_var: object,
         previously_included: list,
         rects_to_reintegrate: list
 ) -> list:
@@ -486,7 +495,7 @@ def reintegrate(
 
     Parameters
     ----------
-    class_var : TYPE
+    class_instance : TYPE
         The class object containing relevant parameters.
     previously_included : list
         List of included rectangles grouped by z-plane.
@@ -562,12 +571,15 @@ def nodes_outside(
     half_height = height / 2
     cos = np.cos(rotation)
     sin = np.sin(rotation)
-    top_right = [cx + half_height * cos - half_width * sin,
-                 cy + half_height * sin + half_width * cos]
-    top_left = [cx - half_height * cos - half_width * sin,
-                cy - half_height * sin + half_width * cos]
-    bottom_left = [cx + half_height * cos + half_width * sin,
-                   cy + half_height * sin - half_width * cos]
+    top_right = [
+        cx + half_height * cos - half_width * sin,
+        cy + half_height * sin + half_width * cos]
+    top_left = [
+        cx - half_height * cos - half_width * sin,
+        cy - half_height * sin + half_width * cos]
+    bottom_left = [
+        cx + half_height * cos + half_width * sin,
+        cy + half_height * sin - half_width * cos]
     bottom_right = rect.bottom_right
     corners = [bottom_left, bottom_right, top_left, top_right]  # order matters
     path = mpath.Path(corners)
@@ -583,7 +595,7 @@ def nodes_outside(
 
 
 def correct_curvatures(
-        class_var: object,
+        class_instance: object,
         input_data: list,
         rectangles: list
 ) -> list:
@@ -593,7 +605,7 @@ def correct_curvatures(
 
     Parameters
     ----------
-    class_var : TYPE
+    class_instance : TYPE
         The class object containing relevant parameters.
     input_data : list
         List of all nodes in the input structure.
@@ -607,8 +619,8 @@ def correct_curvatures(
 
     """
 
-    objective_resolution = class_var.objective_resolution
-    zs = class_var.zs
+    objective_resolution = class_instance.objective_resolution
+    zs = class_instance.zs
 
     # Pre-allocate empty list of z planes
     new_rectangles = [None] * len(rectangles)
@@ -628,8 +640,9 @@ def correct_curvatures(
         for rect in z_plane:
             start = rect.start_node_id
             end = rect.end_node_id
-            included_segment = [node for node in z_nodes
-                                if node.id >= start and node.id <= end]
+            included_segment = [
+                node for node in z_nodes
+                if node.id >= start and node.id <= end]
             outside_nodes = nodes_outside(included_segment, rect)
 
             if outside_nodes:
@@ -690,7 +703,7 @@ def correct_curvatures(
 
 
 def elongate_rectangles(
-        class_var: object,
+        class_instance: object,
         rectangles: list
 ) -> list:
     """
@@ -699,7 +712,7 @@ def elongate_rectangles(
 
     Parameters
     ----------
-    class_var : TYPE
+    class_instance : TYPE
         The class object containing relevant parameters.
     rectangles : list
         Rectangles to elongate.
@@ -711,9 +724,9 @@ def elongate_rectangles(
 
     """
 
-    objective_resolution = class_var.objective_resolution
-    zs = class_var.zs
-    elongating_factor = class_var.elongating_factor
+    objective_resolution = class_instance.objective_resolution
+    zs = class_instance.zs
+    elongating_factor = class_instance.elongating_factor
 
     # Pre-allocate empty list of z planes
     elongated_rectangles = [None] * len(rectangles)
@@ -795,7 +808,7 @@ def convert_to_polygon(
 
 
 def calculate_overlap_matrix(
-        class_var: object,
+        class_instance: object,
         rectangles: list
 ) -> list:
     """
@@ -810,7 +823,7 @@ def calculate_overlap_matrix(
 
     Parameters
     ----------
-    class_var : TYPE
+    class_instance : TYPE
         The class object containing relevant parameters.
     rectangles : list
         list of custom Roi objects.
@@ -840,20 +853,21 @@ def calculate_overlap_matrix(
 
     # For every rectangle that fits the overlap criteria, set mask to True
     for i in range(n):
-        percentage_overlap = ((convert_to_polygon(rectangles[i]).area * 100)
-                              / rectangles[i].area)
+        percentage_overlap = (
+            (convert_to_polygon(rectangles[i]).area * 100)
+            / rectangles[i].area)
         overlap_matrix[i, :] /= percentage_overlap
 
         # 1.0 is full overlap with itself
         global_overlap = sum(overlap_matrix[i, :]) - 1.0
-        if global_overlap > class_var.overlap_threshold:
+        if global_overlap > class_instance.overlap_threshold:
             overlap_mask[i] = True
 
     return overlap_mask
 
 
 def remove_overlapping(
-        class_var: object,
+        class_instance: object,
         rectangles: list
 ) -> list:
     """
@@ -863,10 +877,10 @@ def remove_overlapping(
 
     Parameters
     ----------
-    class_var : TYPE
+    class_instance : TYPE
         list of custom Roi objects.
     rectangles : list
-        DESCRIPTION.
+        list of custom Roi objects.
 
     Returns
     -------
@@ -881,7 +895,7 @@ def remove_overlapping(
     for n, z_plane in enumerate(rectangles):
 
         if len(z_plane) > 1:
-            overlap_mask = calculate_overlap_matrix(class_var, z_plane)
+            overlap_mask = calculate_overlap_matrix(class_instance, z_plane)
 
             if any(overlap_mask):
                 removing_indices = [i for i in range(len(overlap_mask))
@@ -898,17 +912,55 @@ def euclidean_distance(
         point1: object,
         point2: object
 ) -> float:
+    """
+    Calculate the Euclidean distance between two nodes in 2D space.
+
+    Parameters
+    ----------
+    point1 : object
+        The first node, represented as xy coordinates.
+    point2 : object
+        The second node, represented as xy coordinates.
+
+    Returns
+    -------
+    float
+        The Euclidean distance between `point1` and `point2`.
+    """
 
     return math.sqrt(
         (point1[0] - point2[0]) ** 2 + (point1[1] - point2[1]) ** 2)
 
 
 def remove_rect_within_radius(
-        class_var: object,
+        class_instance: object,
         rectangles: list
 ) -> list:
+    """
+    Remove rectangles (ROIs) located too close to the soma.
 
-    radius_apical, radius_basal = class_var.filtering_radius
+    This function filters out rectangular ROIs that are within a specified
+    radius of the soma, as analysis is not expected to be performed near the soma.
+
+    Parameters
+    ----------
+    class_instance : object
+        The instance of the class containing attributes:
+        - `soma`: The central node representing the soma, with `x` and `y` coordinates.
+        - `filtering_radius`: A tuple containing two float values:
+            - `radius_apical`: The minimum distance for apical dendrite ROIs.
+            - `radius_basal`: The minimum distance for basal dendrite ROIs.
+    rectangles : list
+        A list of lists, where each inner list contains `Roi` objects for a single Z-plane.
+
+    Returns
+    -------
+    list
+        A filtered list of lists, where rectangles within the specified radius
+        from the soma are removed.
+    """
+
+    radius_apical, radius_basal = class_instance.filtering_radius
 
     filtered_rectangles = []
 
@@ -933,8 +985,8 @@ def remove_rect_within_radius(
                 rect.top_right]
 
             max_distance = max(
-                euclidean_distance(corner, (class_var.soma.x,
-                                            class_var.soma.y))
+                euclidean_distance(corner, (class_instance.soma.x,
+                                            class_instance.soma.y))
                 for corner in corners)
 
             if max_distance > radius:
@@ -1037,7 +1089,7 @@ def pixel_to_ref_transformation(
 
 
 def calculate_transform(
-        class_var: object,
+        class_instance: object,
         rectangles: list
 ) -> list:
     """
@@ -1045,7 +1097,7 @@ def calculate_transform(
 
     Parameters
     ----------
-    class_var : TYPE
+    class_instance : TYPE
         The class object containing relevant parameters.
     rectangles : list
         List of lists of Roi objects.
@@ -1057,8 +1109,8 @@ def calculate_transform(
 
     """
 
-    objective_resolution = class_var.objective_resolution
-    zs = class_var.zs
+    objective_resolution = class_instance.objective_resolution
+    zs = class_instance.zs
 
     new_rectangles = []
 
@@ -1105,7 +1157,7 @@ def calculate_transform(
 
 
 def roi_populate_pixels(
-        class_var: object,
+        class_instance: object,
         rectangles: list,
         max_iterations: int = 100,
 ) -> list:
@@ -1120,7 +1172,7 @@ def roi_populate_pixels(
 
     Parameters
     ----------
-    class_var : object
+    class_instance : object
        The class object containing relevant parameters.
     rectangles : list
         List of rectangles grouped by Z-plane.
@@ -1134,16 +1186,16 @@ def roi_populate_pixels(
         Updated list of rectangles with modified properties.
     """
 
-    objective_resolution = class_var.objective_resolution
-    frame_flyback = class_var.frame_flyback
-    fly_to_line = class_var.fly_to_line
-    dwell_time = class_var.dwell_time
-    fill_fraction = class_var.fill_fraction
-    optimal_pix_um_ratio = class_var.optimal_pix_um_ratio
-    sampling_rate_ctl = class_var.sampling_rate_ctl
-    framerate_delta_threshold = class_var.framerate_delta_threshold
+    objective_resolution = class_instance.objective_resolution
+    frame_flyback = class_instance.frame_flyback
+    fly_to_line = class_instance.fly_to_line
+    dwell_time = class_instance.dwell_time
+    fill_fraction = class_instance.fill_fraction
+    optimal_pix_um_ratio = class_instance.optimal_pix_um_ratio
+    sampling_rate_ctl = class_instance.sampling_rate_ctl
+    framerate_delta_threshold = class_instance.framerate_delta_threshold
 
-    desired_framerate = class_var.desired_framerate
+    desired_framerate = class_instance.desired_framerate
     desired_scanperiod = 1 / desired_framerate
 
     # Create empty list for dynamic appending
@@ -1245,7 +1297,7 @@ def roi_populate_pixels(
                 # Create a new rectangle instance with updated properties
                 new_rect = Roi(
                     objective_resolution,
-                    class_var.zs,
+                    class_instance.zs,
                     center=rect.center_xy,
                     rotation=rect.rotation_degrees,
                     size=[width_recalculated, height_recalculated],
@@ -1267,7 +1319,7 @@ def roi_populate_pixels(
 
             # Calculate the frame rate for the z-plane
             z_framerate = calculate_z_framerate(
-                class_var, new_rects)
+                class_instance, new_rects)
 
             # Update best configuration if criteria are met
             if z_framerate > best_framerate:
@@ -1305,7 +1357,7 @@ def roi_populate_pixels(
     indices_to_refine = get_split_index(split_occurred)
 
     all_refined = refine_split_layers(
-        class_var, new_z_planes, indices_to_refine)
+        class_instance, new_z_planes, indices_to_refine)
 
     return all_refined
 
@@ -1325,21 +1377,21 @@ def get_split_index(split_indices_list):
 
 
 def refine_split_layers(
-        class_var,
+        class_instance,
         rectangles,
         indices_to_refine,
 ) -> None:
 
-    objective_resolution = class_var.objective_resolution
-    frame_flyback = class_var.frame_flyback
-    fly_to_line = class_var.fly_to_line
-    dwell_time = class_var.dwell_time
-    fill_fraction = class_var.fill_fraction
-    optimal_pix_um_ratio = class_var.optimal_pix_um_ratio
-    sampling_rate_ctl = class_var.sampling_rate_ctl
-    framerate_delta_threshold = class_var.framerate_delta_threshold
+    objective_resolution = class_instance.objective_resolution
+    frame_flyback = class_instance.frame_flyback
+    fly_to_line = class_instance.fly_to_line
+    dwell_time = class_instance.dwell_time
+    fill_fraction = class_instance.fill_fraction
+    optimal_pix_um_ratio = class_instance.optimal_pix_um_ratio
+    sampling_rate_ctl = class_instance.sampling_rate_ctl
+    framerate_delta_threshold = class_instance.framerate_delta_threshold
 
-    desired_framerate = class_var.desired_framerate
+    desired_framerate = class_instance.desired_framerate
     desired_scanperiod = 1 / desired_framerate
 
     new_z_planes = [None] * len(rectangles)
@@ -1435,7 +1487,7 @@ def refine_split_layers(
                     # Create a new rectangle instance with updated properties
                     new_rect = Roi(
                         objective_resolution,
-                        class_var.zs,
+                        class_instance.zs,
                         center=rect.center_xy,
                         rotation=rect.rotation_degrees,
                         size=[width_recalculated, height_recalculated],
@@ -1458,7 +1510,7 @@ def refine_split_layers(
 
                 # Calculate the frame rate for the z-plane
                 z_framerate = calculate_z_framerate(
-                    class_var, new_rects)
+                    class_instance, new_rects)
 
                 # Check if adjustment is needed
                 framerate_delta = abs(z_framerate - desired_framerate)
@@ -1481,13 +1533,13 @@ def refine_split_layers(
             new_z_planes[z] = z_plane
 
     # # Calculate the resulting frame rates for each z-plane
-    # frame_rates = calculate_all_framerates(class_var, new_z_planes)
+    # frame_rates = calculate_all_framerates(class_instance, new_z_planes)
 
     # # Print frame rates for verification
     # for z, rate in enumerate(frame_rates):
     #     period = 1 / rate
     #     difference = (period - desired_scanperiod)
-    #     new_flyback = (class_var.frame_flyback - difference) * 1e3
+    #     new_flyback = (class_instance.frame_flyback - difference) * 1e3
 
     #     print(f"Z-plane {z:02}: {rate:.3f} Hz, flyback: {new_flyback:.3f}")
 
@@ -1530,7 +1582,7 @@ def calculate_pixel_size(
 
 
 def calculate_all_framerates(
-        class_var: object,
+        class_instance: object,
         rectangles: list,
 ) -> list:
     """
@@ -1549,8 +1601,8 @@ def calculate_all_framerates(
 
     """
 
-    frame_flyback = class_var.frame_flyback
-    fly_to_line = class_var.fly_to_line
+    frame_flyback = class_instance.frame_flyback
+    fly_to_line = class_instance.fly_to_line
 
     scan_period = []
     for z, z_plane in enumerate(rectangles):
@@ -1571,7 +1623,7 @@ def calculate_all_framerates(
 
 
 def calculate_z_framerate(
-        class_var: object,
+        class_instance: object,
         z_plane: list
 ) -> float:
     """
@@ -1593,8 +1645,8 @@ def calculate_z_framerate(
         Frame rate for the z-plane.
     """
 
-    frame_flyback = class_var.frame_flyback
-    fly_to_line = class_var.fly_to_line
+    frame_flyback = class_instance.frame_flyback
+    fly_to_line = class_instance.fly_to_line
 
     scan_period_z = 0
 
