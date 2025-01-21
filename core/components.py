@@ -10,14 +10,16 @@ class Node:
     """
     Representation of an individual node in a neuronal morphology.
 
-    This class encapsulates the attributes and transformations associated with
-    a single node within a neuronal structure, including positional information,
-    type classification, and connections to parent/child nodes.
+    This class encapsulates the attributes and transformations
+    associated with a single node within a neuronal structure,
+    including positional information, type classification
+    and connections to parent/child nodes.
 
     Attributes
     ----------
     TYPE_MAPPING : dict
-        Maps integer type codes (from .swc files) to descriptive compartment names.
+        Maps integer type codes (from .swc files)
+        to descriptive compartment names.
     """
 
     TYPE_MAPPING = {
@@ -51,7 +53,10 @@ class Node:
             x_pix: int = None,
             y_pix: int = None,
             z: float = None,
-            branch_degree: int = None
+            branch_degree: int = None,
+            branch_id: int = None,
+            has_spine: bool = None,
+            spine_id: int = None,
     ) -> None:
         """
         Initialize a Node instance.
@@ -96,6 +101,15 @@ class Node:
             Y-coordinate in pixels. Default is None.
         z : float, optional
             Z-coordinate in micrometers. Default is None.
+        branch_degree : int
+            Degree of the branch the node belongs to. Default is None.
+        branch_id : int
+            ID of the branch the node belongs to, Default is None.
+        has_spine : bool
+            Indicate whether the node i the closest to a spine.
+            Default is None.
+        spine_id : int
+            In case node has a spine, the ID od the spine. Default is None.
 
         Returns
         -------
@@ -113,11 +127,8 @@ class Node:
         self.voxel_separation_x = voxel_separation_x
         self.voxel_separation_y = voxel_separation_y
 
-        self._id = int(_id)
-        self._type = (
-            self.get_type(int(_type))
-            if isinstance(_type, int)
-            else _type)
+        self.id = int(_id)
+        self.type = self.get_type(int(_type))
         self.x = transformed_pixel_to_ref[0] * obj_res
         self.y = transformed_pixel_to_ref[1] * obj_res
         self.z = float(zs[int(float(z_ind))])
@@ -129,8 +140,11 @@ class Node:
         self.radius = float(radius)
         self.parent_id = int(parent_id)
         self.is_fork = is_fork
-        self.children = []
+        self.children = children
         self.branch_degree = branch_degree
+        self.branch_id = branch_id
+        self.has_spine = has_spine
+        self.spine_id = spine_id
 
     def __getattr__(
             self,
@@ -202,7 +216,9 @@ class Node:
             '_id', '_type',
             'x', 'y', 'z',
             'radius', 'parent_id',
-            'is_fork', 'children', 'branch_degree']
+            'is_fork', 'children',
+            'branch_degree', 'branch_id',
+            'has_spine', 'spine_id']
 
         repr_strings = [None] * len(attributes_to_display)
 
@@ -279,6 +295,8 @@ class Roi:
             rectangle_period: float,
             pixel_to_ref: np.ndarray = None,
             affine: np.ndarray = None,
+            branch_degree: int = None,
+            branch_id: int = None,
     ) -> None:
         """
         Initialize a rectangular ROI.
@@ -318,6 +336,10 @@ class Roi:
             Default is None.
         affine : np.ndarray, optional
             Affine transformation matrix. Default is None.
+        branch_degree : int
+            The branch degree the ROI is drawn on. Default is None.
+        branch_id : int
+            The branch id the ROI is drawn on. Default is None.
 
         Returns
         -------
@@ -364,6 +386,9 @@ class Roi:
         self.line_scan_period = line_scan_period
         self.rectangle_period = rectangle_period
 
+        self.branch_degree = branch_degree
+        self.branch_id = branch_id
+
     def __getattr__(
             self,
             name: str):
@@ -396,7 +421,8 @@ class Roi:
         Returns
         -------
         tuple
-            A tuple containing the [top_left, top_right, bottom_left, bottom_right] corners.
+            A tuple containing the corners in the following order:
+            [top_left, top_right, bottom_left, bottom_right]
         """
 
         deg_rad = math.radians(self.rotation_degrees + 90)

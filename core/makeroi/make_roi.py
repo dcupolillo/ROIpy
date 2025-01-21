@@ -21,7 +21,7 @@ def make_roi(
     class_instance : Scanfield
         class itself.
     input_data : list
-        the compartment to be subdivided in Rois.
+        the morphology object to be subdivided in Rois.
 
     Returns
     -------
@@ -67,7 +67,10 @@ def make_roi(
     # Add transformation matrices
     transform_added_rectangles = calculate_transform(class_instance, roi_pixel)
 
-    return transform_added_rectangles
+    rectangles_with_branch_info = assign_branch_attributes(
+        transform_added_rectangles, input_data)
+
+    return rectangles_with_branch_info
 
 
 def group_z(
@@ -214,7 +217,8 @@ def distance_node(
 
             for node in segment:
 
-                dist = np.sqrt((node.x - soma.x) ** 2 + (node.y - soma.y) ** 2)
+                dist = np.sqrt(
+                    (node.x - soma.x) ** 2 + (node.y - soma.y) ** 2)
 
                 if dist < closest_dist:
                     closest_dist = dist
@@ -289,8 +293,9 @@ def find_rectangles(
             if not close_node and far_node:
                 continue
 
-            center = [(close_node[0] + far_node[0]) / 2,
-                      (close_node[1] + far_node[1]) / 2]
+            center = [
+                (close_node[0] + far_node[0]) / 2,
+                (close_node[1] + far_node[1]) / 2]
             dx = far_node[0] - close_node[0]
             dy = far_node[1] - close_node[1]
             rotation = np.degrees(np.arctan2(dy, dx))
@@ -1360,6 +1365,84 @@ def roi_populate_pixels(
         class_instance, new_z_planes, indices_to_refine)
 
     return all_refined
+
+
+def assign_branch_attributes(
+        rois: list,
+        nodes: list) -> list:
+    """
+    Assign branch degree and branch ID to each ROI
+    based on its start and end nodes.
+
+    Parameters
+    ----------
+    rois : list
+        List of Roi objects to which branch attributes will be assigned.
+    nodes : list
+        List of Node objects representing the neuronal morphology.
+
+    Returns
+    -------
+    list
+        Updated list of Roi objects with assigned branch attributes.
+    """
+    # Create a dictionary for efficient node lookup
+    node_dict = {node.id: node for node in nodes}
+
+    for z, z_plane in enumerate(rois):
+
+        for roi in z_plane:
+
+            if roi.branch_id and roi.branch_degree:
+                print("check")
+                continue
+
+            start_node = roi.start_node_id
+            end_node = roi.end_node_id
+
+            if start_node is None or end_node is None:
+                continue
+
+            # Flip segmentes in case they run backwards
+            if start_node > end_node:
+                start_node, end_node = end_node, start_node
+
+            # Gather nodes included in the ROI
+            included_nodes = []
+            current_node_id = start_node
+
+            while current_node_id is not None:
+                node = node_dict.get(current_node_id)
+
+                if not node:
+                    break
+                included_nodes.append(node)
+
+                if current_node_id == end_node:
+                    break
+
+                # Move to the next node (assumes linear traversal)
+                current_node_id = node.children[0] if node.children else None
+
+            if not included_nodes:
+                continue
+
+            # Extract branch attributes
+            branch_degrees = {node.branch_degree for node in included_nodes}
+            branch_ids = {node.branch_id for node in included_nodes}
+
+            # Assign attributes if consistent
+            if len(branch_degrees) == 1:
+                roi.branch_degree = branch_degrees.pop()
+            else:
+                roi.branch_degree = None  # Inconsistent branch degrees
+
+            if len(branch_ids) == 1:
+                roi.branch_id = branch_ids.pop()
+            else:
+                roi.branch_id = None  # Inconsistent branch IDs
+
+    return rois
 
 
 def get_split_index(split_indices_list):

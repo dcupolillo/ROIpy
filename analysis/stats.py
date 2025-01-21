@@ -85,7 +85,7 @@ def calculate_total_length(
     for node in input_data:
         if node.parent_id is not None:
             parent_node = next((n for n in input_data
-                                if n.id == node.parent_id), None)
+                                if n._id == node.parent_id), None)
             if parent_node is not None:
                 distance = internode_distance(parent_node, node)
                 total_length += distance

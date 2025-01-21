@@ -123,7 +123,7 @@ def skeleton(
 
     axes = ax if isinstance(ax, list) else [ax]
 
-    node_dict = {node.id: node for node in input_data} if input_data else {}
+    node_dict = {node._id: node for node in input_data} if input_data else {}
 
     for n, node in enumerate(input_data if input_data else []):
         if node.parent_id in (-1, 1):

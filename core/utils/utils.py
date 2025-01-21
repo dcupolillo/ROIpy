@@ -7,27 +7,6 @@ import tifffile
 from ROIpy.core.components import Node
 
 
-def get_filename(
-        main_folder: str,
-        date: str,
-        cell_number: str,
-        file_type: str
-) -> str:
-
-    if file_type == 'swc' or file_type == 'tif':
-        return Path(main_folder,
-                    date,
-                    f'cell_{cell_number}',
-                    f'{date}_cell{cell_number}_stack_00001.{file_type}')
-    elif file_type == 'abf':
-        return Path(main_folder,
-                    date,
-                    f'cell_{cell_number}',
-                    f'20{date[:2]}_{date[2:4]}_{date[4:]}_0001.{file_type}')
-    else:
-        raise ValueError('f{file_type} not a valid input.')
-
-
 def parse_stack_metadata(
         image_name: str
 ) -> dict:
@@ -223,7 +202,7 @@ def split_neurite(
 
     for i, node in enumerate(input_data):
 
-        if node._type == 'soma':
+        if node._type == 1:  # soma
             if current_section:
                 sections.append(current_section)
             current_section = []
@@ -244,25 +223,54 @@ def split_neurite(
     return sections
 
 
-def assign_branch_degree(input_data):
+def assign_branch_degree_and_id(input_data):
+    """
+    Assign branch degrees and unique branch IDs to nodes
+    in the neuronal morphology.
+
+    Parameters
+    ----------
+    input_data : NodeBundle
+        Morphology structure containing nodes.
+
+    Returns
+    -------
+    NodeBundle
+        The input NodeBundle with updated `branch_degree` and `branch_id`.
+
+    Updates
+    -------
+    - Each node's `branch_degree` is updated to reflect its hierarchical level.
+    - Each node's `branch_id` is updated to uniquely identify its neurite.
+    """
 
     neurites = split_neurite(input_data)
 
     branch_degree = 1
+    branch_id_counter = 1
+
+    soma_node_id = input_data[0]._id
 
     already_classified_nodes = set()
 
     # Start with the first-degree branches
+    # Group all neurites whose first node's parent is the soma or soma itself
+    # Get their indices
     current_degree_branches = [
         n for n, neurite in enumerate(neurites)
-        if neurite[0].parent_id == 1]
+        if neurite[0].parent_id == soma_node_id
+        or neurite[0]._id == soma_node_id]
 
-    # Loop to assign branch degrees iteratively
+    # Loop to assign in-place branch degrees and IDs iteratively
     while current_degree_branches:
 
         for i in current_degree_branches:
+
             for node in neurites[i]:
                 node.branch_degree = branch_degree
+                node.branch_id = branch_id_counter
+
+            branch_id_counter += 1
 
         already_classified_nodes.update({
             node._id for i in current_degree_branches

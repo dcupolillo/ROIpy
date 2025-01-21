@@ -13,7 +13,7 @@ from ROIpy.plot.plot import (
     animate_scanfields_3d)
 
 from ROIpy.core.utils.utils import (
-    parse_swc, parse_stack_metadata, assign_branch_degree)
+    parse_swc, parse_stack_metadata, assign_branch_degree_and_id)
 from ROIpy.core.makeroi import make_roi, roi_file
 from ROIpy.assets.palette import dim
 
@@ -60,6 +60,11 @@ class Stack():
         -------
         None
         """
+
+        assert paths
+
+        if not isinstance(paths, NeuronPath):
+            raise TypeError("'paths' must be a neuronpath.path.NeuronPath")
 
         if not (isinstance(paths.stackpath, Path)
                 and paths.stackpath.suffix.lower() in ('.tif', '.tiff')):
@@ -201,13 +206,15 @@ class Morphology(Stack):
 
         if paths.morphology.exists():
             self.neuron = NodeBundle.load_from_h5(paths.morphology)
+
         else:
             self.neuron = NodeBundle(parse_swc(
                 self.tracename,
                 self.objective_resolution,
                 self.zs,
                 self.pixel_to_ref_transform))
-            assign_branch_degree(self.neuron)
+
+            assign_branch_degree_and_id(self.neuron)
             self.neuron.save_to_h5(paths.morphology)
 
         self.apical = NodeBundle(
@@ -218,8 +225,9 @@ class Morphology(Stack):
             [node for node in self.neuron
              if node._type == 'basal dendrite'])
 
-        self.soma = next(
-            (node for node in self.neuron if node._type == 'soma'), None)
+        self.soma = [
+            node for node in self.neuron
+            if node._type == 'soma'][0]  # so it's not a list
 
     def plot(
             self,

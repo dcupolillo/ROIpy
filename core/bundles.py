@@ -39,6 +39,39 @@ class NodeBundle():
         """
         self.nodes = nodes
 
+        # not necessary since already given to individual nodes
+        # self.neurites = self._neurites()
+
+        # max_branch_id = max(
+        #     node.branch_id for node in nodes if node.branch_id is not None)
+
+        # # Create a list of empty lists, one for each branch_id
+        # branches = [[] for _ in range(max_branch_id)]
+
+        # # Append each node to its corresponding branch list
+        # for node in nodes:
+        #     if node.branch_id is not None:
+        #         branches[node.branch_id - 1].append(node)
+
+        # self.branches = branches
+
+        # branches_degrees = [None] * len(self.neurites)
+        # branches_ids = [None] * len(self.neurites)
+        # branches_lengths = [None] * len(self.neurites)
+
+        # for n, neurite in enumerate(self.neurites):
+
+        #     branches_degrees[n] = (
+        #         list(set([node.branch_degree for node in neurite]))[0])
+        #     branches_ids[n] = (
+        #         list(set([node.branch_id for node in neurite]))[0])
+
+        #     branches_lengths[n] = calculate_total_length(neurite)
+
+        # self.branches_degrees = branches_degrees
+        # self.branches_ids = branches_ids
+        # self.branches_lengths = branches_lengths
+
     def __repr__(self):
         return repr(self.nodes)
 
@@ -90,21 +123,20 @@ class NodeBundle():
 
         return cls(nodes)
 
-    @property
-    def neurites(self) -> object:
-        """
-        Split the structure into a Neurite object.
+    def get_neurite(self, neurite_index):
 
-        A neurite is a portion of the dendrite included between:
-        - Soma and end-point
-        - Fork-point and end-point
+        branch = [
+            node for node in self.nodes
+            if node.branch_id == neurite_index]
+        branch_degree = set(node.branch_degree for node in branch).pop()
+        branch_id = set(node.branch_id for node in branch).pop()
 
-        Returns
-        -------
-        object: Neurites
-            A Neurite object with additional functionalities.
-        """
-        return Neurites(split_neurite(self.nodes))
+        return Neurite(
+            nodes=branch,
+            neurite_index=neurite_index,
+            branch_degree=branch_degree,
+            branch_id=branch_id,
+        )
 
     def totlen(self) -> float:
         """
@@ -133,8 +165,9 @@ class NodeBundle():
         """
         Perform 3D Sholl analysis with 2D visualization.
 
-        This method calculates intersections of neurites with concentric spheres
-        in 3D space and visualizes the results using 2D plots.
+        This method calculates intersections of neurites
+        with concentric spheres in 3D space and
+        visualizes the results using 2D plots.
 
         Parameters
         ----------
@@ -200,7 +233,8 @@ class NodeBundle():
         linestyle: str = '-',
     ) -> float:
         """
-        Calculate and optionally plot the convex hull volume of terminal points.
+        Calculate and optionally plot the convex hull volume
+        of terminal points.
 
         This method wraps the `hull_volume` function, calculating the 3D volume
         of the convex hull formed by terminal points of the neuronal structure.
@@ -209,7 +243,8 @@ class NodeBundle():
         Parameters
         ----------
         show_plot : bool, optional
-            If True, plots the 2D projection of the convex hull. Default is True.
+            If True, plots the 2D projection of the convex hull.
+            Default is True.
         ax : plt.Axes, optional
             Matplotlib axes to plot on. If None, a new plot is created.
         terminal_point_color : str, optional
@@ -252,8 +287,9 @@ class NodeBundle():
         """
         Save the NodeBundle data to a JSON-formatted file.
 
-        This method serializes the NodeBundle into a JSON file for external storage
-        or sharing. The JSON file contains the information of all nodes within the
+        This method serializes the NodeBundle into a JSON file
+        for external storage for sharing.
+        The JSON file contains the information of all nodes within the
         bundle.
 
         Parameters
@@ -272,68 +308,56 @@ class NodeBundle():
         return save_to_json(self, json_filename=json_filename)
 
 
-class Neurites():
+class Neurite:
     """
-    Representation of a neuronal structure divided into neurites.
+    Representation of a single neurite.
 
-    This class provides a wrapper for a `NodeBundle` that organizes its
-    contents into distinct neurites, allowing for simplified indexing and
-    length retrieval.
+    This class encapsulates the properties and nodes of a single neurite,
+    including branch degree, ID, and total length.
     """
 
     def __init__(
             self,
-            neurites: NodeBundle
+            nodes: list,
+            neurite_index: int,
+            branch_degree: int,
+            branch_id: int,
     ) -> None:
         """
         Initialize a Neurite instance.
 
         Parameters
         ----------
-        neurites : NodeBundle
-            A NodeBundle containing the structure to be divided into neurites.
-
-        Returns
-        -------
-        None
+        nodes : list
+            List of nodes comprising this neurite.
+        branch_degree : int
+            Degree of the branch to which the neurite belongs.
+        branch_id : int
+            Unique identifier for the neurite.
+        branch_length : float
+            Total length of the neurite.
         """
-
-        self.neurites = neurites
-
-        branches_degree = []
-        branches_length = []
-        for neurite in self.neurites:
-            branches_degree.append(
-                list(set([node.branch_degree for node in neurite]))[0])
-            branches_length.append(calculate_total_length(neurite))
-
-        self.branches_degree = branches_degree
-        self.branches_length = branches_length
-
-        unique_degrees = set(self.branches_degree)
-
-        self.cumulative_lengths = [
-            sum(length
-                for degree, length in zip(
-                    self.branches_degree, self.branches_length)
-                if degree == d)
-            for d in sorted(unique_degrees)
-        ]
-
-    def __getitem__(
-            self,
-            index):
-        return self.neurites[index]
+        self.nodes = nodes
+        self.neurite_index = neurite_index
+        self.branch_degree = branch_degree
+        self.branch_id = branch_id
 
     def __len__(self):
-        return len(self.neurites)
+        return len(self.nodes)
+
+    def __getitem__(self, index):
+        return self.nodes[index]
+
+    def __iter__(self):
+        return iter(self.nodes)
 
 
 class ScanfieldBundle():
     """
     A helper class to wrap a collection of ROI (Region of Interest) objects.
 
-    This class organizes a list of lists of `Roi` objects, typically representing
+    This class organizes a list of lists of `Roi` objects,
+    typically representing
     scanfields across multiple Z-planes, and provides utility methods for
     saving, loading, and calculating properties of the scanfields.
 
