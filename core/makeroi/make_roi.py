@@ -14,20 +14,76 @@ def make_roi(
         input_data: list
 ) -> list:
     """
-    Series of functions executed in order to generate the final Rois.
+    Generate a list of rectangular Regions of Interest (ROIs) from neuronal morphology data.
+
+    This function orchestrates a series of steps to process a morphology dataset, 
+    subdividing it into ROIs optimized for imaging and analysis.
+    The ROIs are generated, filtered, refined, and enriched with relevant metadata,
+    including geometric transformations and branch association details.
 
     Parameters
     ----------
-    class_instance : Scanfield
-        class itself.
+    class_instance : object
+        An instance of the Scanfield class containing key parameters and metadata for processing:
+        - `soma`: Coordinates of the soma.
+        - `objective_resolution`: Objective resolution of the imaging system.
+        - `zs`: List of Z-plane positions in micrometers.
+        - `dim_ratio_threshold`: Threshold for width-to-height ratio for rectangle filtering.
+        - `filtering_radius`: Tuple containing radii for filtering basal and apical dendrite ROIs.
+        - `overlap_threshold`: Threshold for removing overlapping rectangles.
+        - Various timing parameters for calculating frame rates and scanning periods.
     input_data : list
-        the morphology object to be subdivided in Rois.
+        A list of `Node` objects representing the neuronal morphology.
 
     Returns
     -------
     list
-        nested list of Roi objects.
+        A nested list of `Roi` objects organized by Z-planes. Each Z-plane contains a list of ROIs.
 
+    Notes
+    -----
+    The function follows these main steps associated to functions in the module:
+    1. **Group Nodes by Z-Plane**:
+       - Nodes are grouped into Z-planes using their Z-coordinates (`group_z`).
+       - Coplanar nodes are further divided into consecutive segments (`split_consecutive`).
+
+    2. **Calculate Segment Boundaries**:
+       - The closest and farthest points in each segment relative to the soma are identified (`distance_node`).
+
+    3. **Generate Initial Rectangles**:
+       - Rectangles are created based on segment boundaries (`find_rectangles`).
+
+    4. **Filter Rectangles by Dimension Ratio**:
+       - Rectangles with a width-to-height ratio exceeding a specified threshold are excluded 
+         (`remove_short_rectangles`).
+
+    5. **Merge Excluded Rectangles**:
+       - Consecutive excluded rectangles are merged into larger rectangles (`merge_neighbors`).
+
+    6. **Widen and Elongate Rectangles**:
+       - Rectangles are widened to include nearby outlier nodes (`correct_curvatures`).
+       - Rectangles are elongated to improve coverage (`elongate_rectangles`).
+
+    7. **Remove Overlapping Rectangles**:
+       - Rectangles with significant overlap are removed (`remove_overlapping`).
+
+    8. **Filter Rectangles Near Soma**:
+       - Rectangles within a specified radius of the soma are excluded (`remove_rect_within_radius`).
+
+    9. **Add Pixel Properties and Transformations**:
+       - Rectangles are populated with pixel resolution, dimensions, and transformation matrices 
+         (`roi_populate_pixels`, `calculate_transform`).
+
+    10. **Assign Branch Attributes**:
+        - ROIs are enriched with branch ID and degree information based on their associated nodes 
+          (`assign_branch_attributes`).
+
+    Examples
+    --------
+    >>> # Example usage of make_roi
+    >>> rois = make_roi(scanfield_instance, neuron_nodes)
+    >>> print(f"Generated {len(rois)} Z-planes of ROIs")
+    >>> print(f"First ROI in Z-plane 0: {rois[0][0]}")
     """
 
     # Split the nodes in consecutive coplanar groups

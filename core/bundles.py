@@ -15,13 +15,22 @@ from ROIpy.core.makeroi.make_roi import convert_to_polygon
 
 class NodeBundle():
     """
-    A helper class to wrap a list of nodes and provide additional methods
-    for analysis, visualization, and data manipulation.
+    A helper class to encapsulate a collection of nodes representing a neuronal
+    structure. This class provides methods for analysis, visualization, and 
+    data manipulation.
 
     Attributes
     ----------
     nodes : list
         A list of `Node` objects representing the neuronal structure.
+    _branches : list
+        A list of lists, where each sublist contains nodes belonging to a single branch.
+    _branches_ids : list
+        A list of unique branch IDs corresponding to each branch.
+    _branches_degrees : list
+        A list of branch degrees corresponding to each branch.
+    _branches_lengths : list
+        A list of total lengths (in micrometers) for each branch.
     """
 
     def __init__(self, nodes: list) -> None:
@@ -31,46 +40,28 @@ class NodeBundle():
         Parameters
         ----------
         nodes : list
-            A list of `Node` objects.
+            A list of `Node` objects representing the neuronal structure.
 
-        Returns
-        -------
-        None
+        Notes
+        -----
+        During initialization:
+        - The branches are automatically identified and grouped.
+        - Branch IDs, degrees, and lengths are computed for each branch.
         """
         self.nodes = nodes
 
-        # not necessary since already given to individual nodes
-        # self.neurites = self._neurites()
+        self._branches_ids = list(set([node.branch_id for node in nodes]))
 
-        # max_branch_id = max(
-        #     node.branch_id for node in nodes if node.branch_id is not None)
-
-        # # Create a list of empty lists, one for each branch_id
-        # branches = [[] for _ in range(max_branch_id)]
-
-        # # Append each node to its corresponding branch list
-        # for node in nodes:
-        #     if node.branch_id is not None:
-        #         branches[node.branch_id - 1].append(node)
-
-        # self.branches = branches
-
-        # branches_degrees = [None] * len(self.neurites)
-        # branches_ids = [None] * len(self.neurites)
-        # branches_lengths = [None] * len(self.neurites)
-
-        # for n, neurite in enumerate(self.neurites):
-
-        #     branches_degrees[n] = (
-        #         list(set([node.branch_degree for node in neurite]))[0])
-        #     branches_ids[n] = (
-        #         list(set([node.branch_id for node in neurite]))[0])
-
-        #     branches_lengths[n] = calculate_total_length(neurite)
-
-        # self.branches_degrees = branches_degrees
-        # self.branches_ids = branches_ids
-        # self.branches_lengths = branches_lengths
+        self._branches = [None] * len(self._branches_ids)
+        self._branches_degrees = [None] * len(self._branches_ids)
+        self._branches_lengths = [None] * len(self._branches_ids)
+        
+        for n, branch_id in enumerate(self._branches_ids):
+            branch = [node for node in nodes if node.branch_id == branch_id]
+            self._branches[n] = branch
+            self._branches_degrees[n] = set(node.branch_degree for node in branch).pop()
+            self._branches_ids[n] = set(node.branch_id for node in branch).pop()
+            self._branches_lengths[n] = calculate_total_length(branch)
 
     def __repr__(self):
         return repr(self.nodes)
@@ -123,19 +114,32 @@ class NodeBundle():
 
         return cls(nodes)
 
-    def get_neurite(self, neurite_index):
+    def get_neurite(self, neurite_index: int) -> object:
+        """
+        Retrieve a single neurite from the bundle.
 
-        branch = [
-            node for node in self.nodes
-            if node.branch_id == neurite_index]
-        branch_degree = set(node.branch_degree for node in branch).pop()
-        branch_id = set(node.branch_id for node in branch).pop()
+        Parameters
+        ----------
+        neurite_index : int
+            Index of the neurite (branch) to retrieve.
+
+        Returns
+        -------
+        Neurite
+            A `Neurite` object representing the specified branch.
+        """
+
+        branch = self._branches[neurite_index]
+        branch_degree = self._branches_degrees[neurite_index]
+        branch_id = self._branches_ids[neurite_index]
+        branch_length = self._branches_lengths[neurite_index]
 
         return Neurite(
             nodes=branch,
             neurite_index=neurite_index,
             branch_degree=branch_degree,
             branch_id=branch_id,
+            branch_length=branch_length,
         )
 
     def totlen(self) -> float:
@@ -308,6 +312,7 @@ class NodeBundle():
         return save_to_json(self, json_filename=json_filename)
 
 
+
 class Neurite:
     """
     Representation of a single neurite.
@@ -322,6 +327,7 @@ class Neurite:
             neurite_index: int,
             branch_degree: int,
             branch_id: int,
+            branch_length: float,
     ) -> None:
         """
         Initialize a Neurite instance.
@@ -341,6 +347,7 @@ class Neurite:
         self.neurite_index = neurite_index
         self.branch_degree = branch_degree
         self.branch_id = branch_id
+        self.branch_length = branch_length
 
     def __len__(self):
         return len(self.nodes)

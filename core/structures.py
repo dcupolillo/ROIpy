@@ -228,6 +228,9 @@ class Morphology(Stack):
         self.soma = [
             node for node in self.neuron
             if node._type == 'soma'][0]  # so it's not a list
+        
+        _branches_ids = list(set([node.branch_id for node in self.neuron]))
+        self.n_branches = len(_branches_ids)
 
     def plot(
             self,
