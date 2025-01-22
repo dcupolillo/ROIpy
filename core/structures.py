@@ -234,7 +234,7 @@ class Morphology(Stack):
 
     def plot(
             self,
-            input_data,
+            input_data: object,
             show_segments: bool = True,
             show_nodes: bool = False,
             z: int = None,
@@ -250,7 +250,7 @@ class Morphology(Stack):
 
         Parameters
         ----------
-        input_data : NodeBundle or Node
+        input_data : NodeBundle or list(Node)
             The data to plot (e.g., apical, basal, or full neuron structure).
         show_segments : bool, optional
             Plot lines connecting the nodes (default is True).
@@ -292,7 +292,7 @@ class Morphology(Stack):
 
     def plot_3d(
             self,
-            input_data,
+            input_data: object,
             show_nodes: bool = False,
             z: int = None,
             ax: plt.Axes = None,
@@ -335,7 +335,7 @@ class Morphology(Stack):
 
     def animate_3d(
             self,
-            input_data,
+            input_data: object,
             show_nodes: bool = False,
             axis_lims: list = None,
             cmap: str = "viridis",
