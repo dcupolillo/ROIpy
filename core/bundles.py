@@ -55,7 +55,7 @@ class NodeBundle():
         self._branches = [None] * len(self._branches_ids)
         self._branches_degrees = [None] * len(self._branches_ids)
         self._branches_lengths = [None] * len(self._branches_ids)
-        
+
         for n, branch_id in enumerate(self._branches_ids):
             branch = [node for node in nodes if node.branch_id == branch_id]
             self._branches[n] = branch
@@ -69,9 +69,7 @@ class NodeBundle():
     def __iter__(self):
         return iter(self.nodes)
 
-    def __getitem__(
-            self,
-            index: int):
+    def __getitem__(self, index: int):
         return self.nodes[index]
 
     def __len__(self):
@@ -376,7 +374,7 @@ class ScanfieldBundle():
 
     def __init__(
             self,
-            scanfield: list
+            scanfields: list
     ) -> None:
         """
         Initialize a ScanfieldBundle instance.
@@ -391,21 +389,41 @@ class ScanfieldBundle():
         None
         """
 
-        self.scanfield = scanfield
+        self.scanfields = scanfields
 
     def __repr__(self):
-        return repr(self.scanfield)
+        return repr(self.scanfields)
 
     def __iter__(self):
-        return iter(self.scanfield)
+        return iter(self.scanfields)
 
     def __getitem__(
             self,
             index: int):
-        return self.scanfield[index]
+        return self.scanfields[index]
 
     def __len__(self):
-        return len(self.scanfield)
+        return len(self.scanfields)
+    
+    def get_neurite(self, branch_id: int) -> list:
+        """
+        Retrieve scanfields for a specific branch ID.
+
+        Parameters
+        ----------
+        branch_id : int
+            The ID of the branch to retrieve.
+
+        Returns
+        -------
+        list
+            The scanfields for the specified branch ID.
+        """
+
+        return [
+            roi for z_plane in self.scanfields
+            for roi in z_plane
+            if roi.branch_id == branch_id]
 
     def save_to_h5(self, filename: str) -> None:
         """
@@ -423,7 +441,7 @@ class ScanfieldBundle():
 
         data = [
             [roi.to_dict() for roi in z_plane]
-            for z_plane in self.scanfield]
+            for z_plane in self.scanfields]
         fl.save(filename, {'scanfields': data})
 
     @classmethod
@@ -443,9 +461,9 @@ class ScanfieldBundle():
             An instance of the ScanfieldBundle loaded from the file.
         """
         data = fl.load(filename)['scanfields']
-        scanfield = [[Roi.from_dict(roi) for roi in z_plane]
+        scanfields = [[Roi.from_dict(roi) for roi in z_plane]
                      for z_plane in data]
-        return cls(scanfield)
+        return cls(scanfields)
 
     @property
     def shape(self):

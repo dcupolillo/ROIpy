@@ -46,17 +46,17 @@ class Node:
         matrix: np.ndarray,
         voxel_separation_x: float,
         voxel_separation_y: float,
-        is_fork: bool = False,
-        children: list = [],
-        x_deg: float = None,
-        y_deg: float = None,
-        x_pix: int = None,
-        y_pix: int = None,
-        z: float = None,
-        branch_degree: int = None,
-        branch_id: int = None,
-        has_spine: bool = None,
-        spine_id: int = None,
+        # is_fork: bool = False,
+        # children: list = [],
+        # x_deg: float = None,
+        # y_deg: float = None,
+        # x_pix: int = None,
+        # y_pix: int = None,
+        # z: float = None,
+        # branch_degree: int = None,
+        # branch_id: int = None,
+        # has_spine: bool = None,
+        # spine_id: int = None,
     ) -> None:
         """
         Initialize a Node instance.
@@ -139,12 +139,12 @@ class Node:
         self.y_pix = y_corrected
         self.radius = float(radius)
         self.parent_id = int(parent_id)
-        self.is_fork = is_fork
-        self.children = children
-        self.branch_degree = branch_degree
-        self.branch_id = branch_id
-        self.has_spine = has_spine
-        self.spine_id = spine_id
+        self.is_fork = None
+        self.children = []
+        self.branch_degree = None
+        self.branch_id = None
+        self.has_spine = None
+        self.spine_id = None
 
     def __getattr__(
             self,

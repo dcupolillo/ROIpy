@@ -1450,7 +1450,6 @@ def assign_branch_attributes(
         for roi in z_plane:
 
             if roi.branch_id and roi.branch_degree:
-                print("check")
                 continue
 
             start_node = roi.start_node_id
