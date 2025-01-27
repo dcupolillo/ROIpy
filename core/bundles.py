@@ -50,8 +50,9 @@ class NodeBundle():
         """
         self.nodes = nodes
 
-        self._branches_ids = list(set([node.branch_id for node in nodes]))
-
+        self._branches_ids = list(set([node.branch_id for node in self.nodes]))
+        self.n_branches = len(self._branches_ids)
+        
         self._branches = [None] * len(self._branches_ids)
         self._branches_degrees = [None] * len(self._branches_ids)
         self._branches_lengths = [None] * len(self._branches_ids)
@@ -112,29 +113,32 @@ class NodeBundle():
 
         return cls(nodes)
 
-    def get_neurite(self, neurite_index: int) -> object:
+    def get_neurite(self, branch_id: int) -> object: 
         """
-        Retrieve a single neurite from the bundle.
+        Retrieve a neurite for a specific branch ID.
 
         Parameters
         ----------
-        neurite_index : int
-            Index of the neurite (branch) to retrieve.
+        branch_id : int
+            The ID of the branch to retrieve.
 
         Returns
         -------
-        Neurite
-            A `Neurite` object representing the specified branch.
+        list
+            The scanfields for the specified branch ID.
         """
+        if not branch_id in self._branches_ids:
+            raise IndexError(
+                f"Specified branch not in {self._branches_ids}")
 
-        branch = self._branches[neurite_index]
-        branch_degree = self._branches_degrees[neurite_index]
-        branch_id = self._branches_ids[neurite_index]
-        branch_length = self._branches_lengths[neurite_index]
+        branch = self._branches[branch_id]
+        branch_degree = self._branches_degrees[branch_id]
+        branch_id = self._branches_ids[branch_id]
+        branch_length = self._branches_lengths[branch_id]
 
         return Neurite(
             nodes=branch,
-            neurite_index=neurite_index,
+            nbranch_id=branch_id,
             branch_degree=branch_degree,
             branch_id=branch_id,
             branch_length=branch_length,
@@ -322,7 +326,7 @@ class Neurite:
     def __init__(
             self,
             nodes: list,
-            neurite_index: int,
+            branch_id: int,
             branch_degree: int,
             branch_id: int,
             branch_length: float,
@@ -342,7 +346,7 @@ class Neurite:
             Total length of the neurite.
         """
         self.nodes = nodes
-        self.neurite_index = neurite_index
+        self.branch_id = branch_id
         self.branch_degree = branch_degree
         self.branch_id = branch_id
         self.branch_length = branch_length
@@ -419,6 +423,9 @@ class ScanfieldBundle():
         list
             The scanfields for the specified branch ID.
         """
+        if not branch_id in self._branches_ids:
+            raise IndexError(
+                f"Specified branch not in {self._branches_ids}")
 
         return [
             roi for z_plane in self.scanfields

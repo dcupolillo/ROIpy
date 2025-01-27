@@ -5,7 +5,7 @@ import ROIpy as rp
 import matplotlib.pyplot as plt
 from neuronpath.path import neuronpath
 
-paths = neuronpath('240813', 1)
+paths = neuronpath('240916', 1)
 
 # generate the structures Objects
 stack = rp.Stack(paths)
