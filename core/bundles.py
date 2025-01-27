@@ -2,13 +2,11 @@
     @author: dcupolillo """
 
 import flammkuchen as fl
-import numpy as np
 import matplotlib.pyplot as plt
 from ROIpy.analysis.stats import (
     calculate_total_length,
     sholl_analysis, hull_volume)
 from ROIpy.analysis.savejson import save_to_json
-from ROIpy.core.utils.utils import split_neurite
 from ROIpy.core.components import Node, Roi
 from ROIpy.core.makeroi.make_roi import convert_to_polygon
 
@@ -113,7 +111,7 @@ class NodeBundle():
 
         return cls(nodes)
 
-    def get_neurite(self, branch_id: int) -> object: 
+    def get_branch(self, branch_id: int) -> object: 
         """
         Retrieve a neurite for a specific branch ID.
 
@@ -133,12 +131,10 @@ class NodeBundle():
 
         branch = self._branches[branch_id]
         branch_degree = self._branches_degrees[branch_id]
-        branch_id = self._branches_ids[branch_id]
         branch_length = self._branches_lengths[branch_id]
 
         return Neurite(
             nodes=branch,
-            nbranch_id=branch_id,
             branch_degree=branch_degree,
             branch_id=branch_id,
             branch_length=branch_length,
@@ -326,7 +322,6 @@ class Neurite:
     def __init__(
             self,
             nodes: list,
-            branch_id: int,
             branch_degree: int,
             branch_id: int,
             branch_length: float,
@@ -348,7 +343,6 @@ class Neurite:
         self.nodes = nodes
         self.branch_id = branch_id
         self.branch_degree = branch_degree
-        self.branch_id = branch_id
         self.branch_length = branch_length
 
     def __len__(self):
@@ -409,7 +403,7 @@ class ScanfieldBundle():
     def __len__(self):
         return len(self.scanfields)
     
-    def get_neurite(self, branch_id: int) -> list:
+    def get_branch(self, branch_id: int) -> list:
         """
         Retrieve scanfields for a specific branch ID.
 
@@ -423,10 +417,6 @@ class ScanfieldBundle():
         list
             The scanfields for the specified branch ID.
         """
-        if not branch_id in self._branches_ids:
-            raise IndexError(
-                f"Specified branch not in {self._branches_ids}")
-
         return [
             roi for z_plane in self.scanfields
             for roi in z_plane
