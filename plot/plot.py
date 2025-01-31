@@ -51,7 +51,7 @@ def plot_image(
     """
 
     if ax is None:
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
         ax.set_aspect('equal')
         if isinstance(z, int):
             ax.set_title(f'{class_instance.stack_name}, z = {z}')
@@ -59,29 +59,37 @@ def plot_image(
             ax.set_title(f'{class_instance.stack_name}')
         ax.autoscale()
 
+        ax.set_xlim(min(corners[0]), max(corners[1]))
+        ax.set_ylim(max(corners[2]), min(corners[3]))
+
+        label = class_instance.units_um if not scan_angle else class_instance.units_deg
+        ax.set_xlabel(label)
+        ax.set_ylabel(label)
+
     img = (class_instance.image[z] if z is not None
            else np.max(class_instance.image, axis=0))
 
     # Define the field of view corners and set axis limit
-    corners = class_instance.corners_um if not scan_angle else class_instance.corners_deg
-    flat_corners = [[values for values in sublist] for sublist in corners]
+    corners = (
+        class_instance.corners_um
+        if not scan_angle
+        else class_instance.corners_deg)
+    
+    flat_corners = [
+        [values for values in sublist] for sublist in corners]
+    
     extent = [
         np.min(flat_corners), np.max(flat_corners),
         np.max(flat_corners), np.min(flat_corners)]
 
-    ax.set_xlim(min(corners[0]), max(corners[1]))
-    ax.set_ylim(max(corners[2]), min(corners[3]))
-
-    label = class_instance.units_um if not scan_angle else class_instance.units_deg
-    ax.set_xlabel(label)
-    ax.set_ylabel(label)
-
     if norm is None:
         ax.imshow(img, extent=extent, cmap=cmap)
+    
     elif isinstance(norm, (list, tuple)):
         min_value, max_value = norm
         norm = Normalize(vmin=min_value, vmax=max_value)
         ax.imshow(img, extent=extent, cmap=cmap, norm=norm)
+    
     else:
         raise KeyError("'norm' should be a list or a tuple")
 
@@ -140,6 +148,7 @@ def skeleton(
             x_values = (
                 [node.x, parent.x] if not scan_angle
                 else [node.x_deg, parent.x_deg])
+            
             y_values = (
                 [node.y, parent.y] if not scan_angle
                 else [node.y_deg, parent.y_deg])
@@ -580,47 +589,50 @@ def plot_scanfield(
     # this block is just for testing intermediate rectangles
     # in the method _create_roi of the class Scanfields
     elif isinstance(rectangles, list):
-        try:
-            rectangles = [rect for roiSet in rectangles for rect in roiSet]
-        except Exception:
-            rectangles = [rect for rect in rectangles]
+        rectangles = rectangles
 
     if not ax:
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
         ax.set_aspect('equal')
         ax.set_title(class_instance.stack_name)
         ax.autoscale()
 
-        corners = (class_instance.corners_deg if scan_angle
-                   else class_instance.corners_um)
-        units = (class_instance.units_deg if scan_angle
-                 else class_instance.units_um)
+    corners = (
+        class_instance.corners_deg if scan_angle
+        else class_instance.corners_um)
+    units = (
+        class_instance.units_deg if scan_angle
+        else class_instance.units_um)
 
+    if axis_lims:
+        ax.set_xlim(min(axis_lims[0]), max(axis_lims[1]))
+        ax.set_ylim(max(axis_lims[2]), min(axis_lims[3]))
+    
+    else:
         ax.set_xlim(min(corners[0]), max(corners[1]))
         ax.set_ylim(max(corners[2]), min(corners[3]))
         ax.set_xlabel(units)
         ax.set_ylabel(units)
-
-    if axis_lims is not None:
-        ax.set_xlim(min(axis_lims[0]), max(axis_lims[1]))
-        ax.set_ylim(max(axis_lims[2]), min(axis_lims[3]))
 
     for rect in rectangles:
 
         color = cmap(norm(rect.z)) if cmap else 'none'
 
         width, height = rect.size_deg if scan_angle else rect.size_xy
-        bottom_right = (rect.bottom_right_deg if scan_angle
-                        else rect.bottom_right)
+        bottom_right = (
+            rect.bottom_right_deg if scan_angle
+            else rect.bottom_right)
         rotation = rect.rotation_degrees
 
-        patch = patches.Rectangle(bottom_right,
-                                  height, width,
-                                  angle=rotation,
-                                  facecolor=color,
-                                  edgecolor=edgecolor,
-                                  linewidth=linewidth,
-                                  alpha=.5)
+        patch = patches.Rectangle(
+            bottom_right,
+            height, width,
+            angle=rotation,
+            facecolor=color,
+            edgecolor=edgecolor,
+            linewidth=linewidth,
+            alpha=.5)
+
         ax.add_patch(patch)
 
     if cmap:

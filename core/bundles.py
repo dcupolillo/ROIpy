@@ -2,6 +2,7 @@
     @author: dcupolillo """
 
 import flammkuchen as fl
+import numpy as np
 import matplotlib.pyplot as plt
 from ROIpy.analysis.stats import (
     calculate_total_length,
@@ -48,7 +49,9 @@ class NodeBundle():
         """
         self.nodes = nodes
 
-        self._branches_ids = list(set([node.branch_id for node in self.nodes]))
+        self._branches_ids = list(
+            set([node.branch_id for node in self.nodes]))
+        
         self.n_branches = len(self._branches_ids)
         
         self._branches = [None] * len(self._branches_ids)
@@ -59,7 +62,6 @@ class NodeBundle():
             branch = [node for node in nodes if node.branch_id == branch_id]
             self._branches[n] = branch
             self._branches_degrees[n] = set(node.branch_degree for node in branch).pop()
-            self._branches_ids[n] = set(node.branch_id for node in branch).pop()
             self._branches_lengths[n] = calculate_total_length(branch)
 
     def __repr__(self):
@@ -353,6 +355,54 @@ class Neurite:
 
     def __iter__(self):
         return iter(self.nodes)
+    
+    def flatten_branch(
+        self,
+        direction: str = "horizontal",
+    ) -> None:
+        """
+        Flatten a neurite such that the first node is at (0,0) and the last node is at (x,0) 
+        (if horizontal) or (0,y) (if vertical), while preserving inter-node distances along a straight line.
+
+        Parameters
+        ----------
+        neurite : list
+            List of Node objects representing a single neurite.
+        direction : str, optional
+            Direction of flattening. Options:
+            - "horizontal" (default): First and last nodes are placed at (0,0) and (x,0).
+            - "vertical": First and last nodes are placed at (0,0) and (0,y).
+
+        Returns
+        -------
+        list
+            Flattened list of (x, y) coordinates.
+        """
+
+        if direction not in ["horizontal", "vertical"]:
+            raise ValueError("Invalid direction. Choose 'horizontal' or 'vertical'.")
+
+        # Compute cumulative Euclidean distances along the original path
+        distances = [0]  # First node starts at (0,0)
+        
+        for i, node in enumerate(self.nodes):
+            dx = node.x - node.x
+            dy = node.y - node.y
+            dz = node.z - node.z
+            
+            distances.append(
+                distances[-1] + np.sqrt(dx**2 + dy**2 + dz**2))
+
+        # Normalize distances to position the last node correctly
+        max_distance = distances[-1]
+
+        if direction == "horizontal":
+            flattened_coords = [(x, 0) for x in distances]
+        else:  # "vertical"
+            flattened_coords = [(0, y) for y in distances]
+
+        return flattened_coords
+
 
 
 class ScanfieldBundle():
@@ -439,6 +489,7 @@ class ScanfieldBundle():
         data = [
             [roi.to_dict() for roi in z_plane]
             for z_plane in self.scanfields]
+
         fl.save(filename, {'scanfields': data})
 
     @classmethod

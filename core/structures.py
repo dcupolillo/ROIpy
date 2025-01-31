@@ -175,7 +175,6 @@ class Morphology(Stack):
     def __init__(
             self,
             paths: NeuronPath,
-
     ) -> None:
         """
         Initializes a neuronal object. Inherits attributes from Stack.
@@ -201,21 +200,9 @@ class Morphology(Stack):
                 "Expected .swc file.")
 
         super().__init__(paths)
+        self.paths = paths
 
-        self.tracename = paths.tracepath
-
-        if paths.morphology.exists():
-            self.neuron = NodeBundle.load_from_h5(paths.morphology)
-
-        else:
-            self.neuron = NodeBundle(parse_swc(
-                self.tracename,
-                self.objective_resolution,
-                self.zs,
-                self.pixel_to_ref_transform))
-
-            assign_branch_degree_and_id(self.neuron)
-            self.neuron.save_to_h5(paths.morphology)
+        self.neuron = self._make_nodebundle()
 
         self.apical = NodeBundle(
             [node for node in self.neuron
@@ -229,8 +216,33 @@ class Morphology(Stack):
             node for node in self.neuron
             if node._type == 'soma'][0]  # so it's not a list
         
-        _branches_ids = list(set([node.branch_id for node in self.neuron]))
-        self.n_branches = len(_branches_ids)
+        self._branches_ids = list(set([node.branch_id for node in self.neuron]))
+        self.n_branches = len(self._branches_ids)
+
+    def _make_nodebundle(self) -> list:
+        """
+        Loads a bundle if exists, otherwise creates it.
+
+        Returns
+        -------
+        neuron : NodeBundle
+            list of separated branches.
+        """
+
+        if self.paths.morphology.exists():
+            return NodeBundle.load_from_h5(self.paths.morphology)
+
+        else:
+            neuron = NodeBundle(parse_swc(
+                self.paths.tracepath,
+                self.objective_resolution,
+                self.zs,
+                self.pixel_to_ref_transform))
+
+            assign_branch_degree_and_id(neuron)
+            neuron.save_to_h5(self.paths.morphology)
+
+            return neuron
 
     def plot(
             self,
@@ -294,7 +306,6 @@ class Morphology(Stack):
             self,
             input_data: object,
             show_nodes: bool = False,
-            z: int = None,
             ax: plt.Axes = None,
             axis_lims: list = None,
             cmap: str = "vridis",
@@ -501,11 +512,7 @@ class Scanfields(Morphology):
             ((0.61 * self.wavelength / self.numerical_aperture)
              * 1e-3) / 2))
 
-        if paths.scanfields.exists():
-            self.neuComp = ScanfieldBundle.load_from_h5(paths.scanfields)
-        else:
-            self.neuComp = ScanfieldBundle(self.create_roi(self.neuron))
-            self.neuComp.save_to_h5(paths.scanfields)
+        self.neuComp = self._make_scanfieldbundle()
 
         self.apiComp = ScanfieldBundle(
             [[rect for rect in z if rect.compartment == 'apical dendrite']
@@ -517,6 +524,27 @@ class Scanfields(Morphology):
              for z in self.neuComp if any(
                 rect.compartment == 'basal dendrite' for rect in z)])
 
+    def _make_scanfieldbundle(self) -> list:
+
+        if self.paths.scanfields.exists():
+            return ScanfieldBundle.load_from_h5(self.paths.scanfields)
+        else:
+            neuComp = ScanfieldBundle(self.create_roi(self.neuron))
+
+            # Eventually sort the ROIs by layer index
+            sorted_neuComp = sorted(
+                neuComp,
+                key=lambda layer: layer[0].z_ind
+                if layer else float('inf'))
+            
+            for layer in sorted_neuComp:
+                layer.sort(key=lambda roi: roi.z_ind)
+            
+            neuComp = ScanfieldBundle(sorted_neuComp)
+            neuComp.save_to_h5(self.paths.scanfields)
+
+            return neuComp
+         
     def __getattr__(
             self,
             name: str):

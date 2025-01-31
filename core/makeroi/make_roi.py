@@ -1496,7 +1496,6 @@ def assign_branch_attributes(
                 roi.branch_id = branch_ids.pop()
             else:
                 roi.branch_id = None  # Inconsistent branch IDs
-
     return rois
 
 

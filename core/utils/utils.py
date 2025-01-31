@@ -192,7 +192,60 @@ def is_new_branch(
             node.parent_id is None)
 
 
-def assign_branch_degree_and_id(input_data):
+def split_neurite(
+        input_data
+) -> list:
+    """
+    Divide a neuronal structure into sections (neurites).
+
+    A neurite is defined as a section delimited by:
+    - Soma and an end point
+    - Forking point and an end point
+
+    Parameters
+    ----------
+    input_data : NodeBundle
+        Morphology structure containing nodes to split into neurites.
+
+    Returns
+    -------
+    list
+        A list of lists, where each inner list contains nodes representing
+        a single neurite section.
+
+    Example
+    -------
+    >>> neurite_sections = split_neurite(node_bundle)
+    >>> print(f"Number of neurites: {len(neurite_sections)}")
+    """
+
+    sections = []
+    current_section = []
+
+    for node_n, node in enumerate(input_data):
+
+        if node._type == 1:  # soma
+            if current_section:
+                sections.append(current_section)
+            current_section = []
+            continue  # skip soma
+
+        elif node_n == len(input_data) - 1:  # last node
+            current_section.append(node)
+            sections.append(current_section)
+
+        else:
+            if input_data[node_n + 1].parent_id == node._id:
+                current_section.append(node)
+            else:
+                current_section.append(node)
+                sections.append(current_section)
+                current_section = []
+
+    return sections
+
+
+def assign_branch_degree_and_id(input_data: object) -> None:
     """
     Assign branch degrees and unique branch IDs to nodes
     in the neuronal morphology.
@@ -205,47 +258,60 @@ def assign_branch_degree_and_id(input_data):
     Returns
     -------
     NodeBundle
-        The input NodeBundle with updated `branch_degree` and `branch_id`.
+        The input NodeBundle with updated branch_degree and branch_id.
 
     Updates
     -------
-    - Each node's `branch_degree` is updated to reflect its hierarchical level.
-    - Each node's `branch_id` is updated to uniquely identify its neurite.
+    - Each node's branch_degree is updated to reflect its hierarchical level.
+    - Each node's branch_id is updated to uniquely identify its neurite.
     """
-    branch_id_counter = 0
-    soma_node_id = input_data[0].id
-    already_classified_nodes = set()
+
+    neurites = split_neurite(input_data)
 
     branch_degree = 1
-    current_branch_nodes = []
 
-    for node in input_data:
-        if node._type == "soma":
-            # Assign branch ID and degree for the current section
-            if current_branch_nodes:
-                for branch_node in current_branch_nodes:
-                    branch_node.branch_id = branch_id_counter
-                    branch_node.branch_degree = branch_degree
-                branch_id_counter += 1
-                branch_degree += 1
-            current_branch_nodes = []
-        else:
-            # Add node to the current branch or start a new one
-            if not current_branch_nodes or is_new_branch(node, current_branch_nodes[-1]):
-                if current_branch_nodes:
-                    for branch_node in current_branch_nodes:
-                        branch_node.branch_id = branch_id_counter
-                        branch_node.branch_degree = branch_degree
-                    branch_id_counter += 1
-                current_branch_nodes = [node]
-            else:
-                current_branch_nodes.append(node)
+    soma_node_id = input_data[0].id
 
-    # Assign IDs for the last branch
-    if current_branch_nodes:
-        for branch_node in current_branch_nodes:
-            branch_node.branch_id = branch_id_counter
-            branch_node.branch_degree = branch_degree
+    already_classified_nodes = set()
 
-    return input_data
+    # Start with the first-degree branches
+    # Group all neurites whose first node's parent is the soma or soma itself
+    # Get their indices
+    current_degree_branches = [
+        n for n, neurite in enumerate(neurites)
+        if neurite[0].parent_id == soma_node_id
+        or neurite[0].id == soma_node_id]
 
+    # Loop to assign in-place branch degrees and IDs iteratively
+    while current_degree_branches:
+
+        for neurite_n in current_degree_branches:
+
+            for node in neurites[neurite_n]:
+                original_node = next(
+                    n for n in input_data if n.id == node.id)
+
+                original_node.branch_degree = branch_degree
+
+        already_classified_nodes.update({
+            node.id for neurite_n in current_degree_branches
+            for node in neurites[neurite_n]})
+
+        fork_nodes = {
+            node.id for neurite_n in current_degree_branches
+            for node in neurites[neurite_n] if node.is_fork}
+
+        next_degree_branches = [
+            n for n, neurite in enumerate(neurites)
+            if neurite[0].parent_id in fork_nodes
+            and neurite[0].id not in already_classified_nodes]
+
+        current_degree_branches = next_degree_branches
+        branch_degree += 1
+
+    # Assign branch IDs
+    for neurite_n, neurite in enumerate(neurites):
+        for node in neurite:
+            original_node = next(
+                n for n in input_data if n.id == node.id)
+            original_node.branch_id = neurite_n
