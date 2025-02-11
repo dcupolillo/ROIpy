@@ -17,12 +17,12 @@ class Node:
 
     Attributes
     ----------
-    TYPE_MAPPING : dict
+    type_mapping : dict
         Maps integer type codes (from .swc files)
         to descriptive compartment names.
     """
 
-    TYPE_MAPPING = {
+    type_mapping = {
         -1: 'root',
         0: 'undefined',
         1: 'soma',
@@ -146,9 +146,7 @@ class Node:
         self.has_spine = None
         self.spine_id = None
 
-    def __getattr__(
-            self,
-            name: str):
+    def __getattr__(self, name: str):
         return self.__dict__[f"_{name}"]
 
     def __setattr__(
@@ -183,10 +181,7 @@ class Node:
 
         return ref_coords[:-1]
 
-    def get_type(
-            self,
-            _type: int
-    ) -> str:
+    def get_type(self,  _type: int) -> str:
         """
         Retrieve the compartment type name for a given type code.
 
@@ -200,7 +195,7 @@ class Node:
         str
             Compartment name corresponding to the type code.
         """
-        return self.TYPE_MAPPING.get(_type, 'unknown')
+        return self.type_mapping.get(_type, 'unknown')
 
     def __repr__(self):
         """
@@ -367,7 +362,8 @@ class Roi:
         self.start_node_id = start[3]
         self.end_node_id = end[3]
 
-        self.bottom_right = bottom_right or self.find_corners()[3]
+        self.bottom_right = (
+            bottom_right if bottom_right else self.find_corners()[3])
         self.bottom_right_deg = [
             coord / obj_res for coord in self.bottom_right]
         self.bottom_left = self.find_corners()[2]
@@ -389,9 +385,7 @@ class Roi:
         self.branch_degree = branch_degree
         self.branch_id = branch_id
 
-    def __getattr__(
-            self,
-            name: str):
+    def __getattr__(self, name: str):
         return self.__dict__[f"_{name}"]
 
     def __setattr__(
@@ -430,22 +424,28 @@ class Roi:
         half_width = self.size_xy[0] / 2
         x_center, y_center = self.center_xy
 
-        x_cos = half_width * math.cos(deg_rad)
-        y_sin = half_height * math.sin(deg_rad)
-        x_sin = half_width * math.sin(deg_rad)
-        y_cos = half_height * math.cos(deg_rad)
+        # Rotation components
+        x_cos = half_width * math.cos(deg_rad)  # dx_w
+        y_sin = half_height * math.sin(deg_rad)  # dx_h
+        x_sin = half_width * math.sin(deg_rad)  # dy_w
+        y_cos = half_height * math.cos(deg_rad)  # dy_h
+
+        # Corners calculation
+        x_top_left, y_top_left = (
+            x_center + (x_cos + y_sin),
+            y_center + (x_sin - y_cos))
+
+        x_top_right, y_top_right = (
+            x_center + (y_sin - x_cos),
+            y_center - (x_sin + y_cos))
+
+        x_bottom_left, y_bottom_left = (
+            x_center - (y_sin - x_cos),
+            y_center + (x_sin + y_cos))
 
         x_bottom_right, y_bottom_right = (
             x_center + (y_cos + x_sin),
             y_center - (y_sin - x_cos))
-        x_bottom_left, y_bottom_left = (
-            x_center - (y_sin - x_cos),
-            y_center + (x_sin + y_cos))
-        x_top_right, y_top_right = (
-            x_center + (y_sin - x_cos),
-            y_center - (x_sin + y_cos))
-        x_top_left, y_top_left = (x_center + (x_cos + y_sin),
-                                  y_center + (x_sin - y_cos))
 
         return (
             [x_top_left, y_top_left],

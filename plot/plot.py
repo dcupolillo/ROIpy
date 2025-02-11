@@ -10,7 +10,33 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib.animation import FuncAnimation
 import matplotlib.colors as mcolors
 import numpy as np
-from ROIpy.assets.palette import dim
+
+
+def get_scan_units(
+        class_instance: object,
+        scan_angle: bool
+) -> tuple:
+    """
+    Returns the appropriate units, corners, and labels
+    based on the scan_angle flag.
+
+    Parameters
+    ----------
+    class_instance : object
+        The instance containing morphology or scanfield data.
+    scan_angle : bool
+        If True, returns angle-based values (degrees).
+        If False, returns spatial values (micrometers).
+
+    Returns
+    -------
+    tuple
+        (units, corners)
+    """
+    if scan_angle:
+        return class_instance.units_deg, class_instance.corners_deg
+
+    return class_instance.units_um, class_instance.corners_um
 
 
 def plot_image(
@@ -19,7 +45,7 @@ def plot_image(
         ax: plt.Axes,
         norm: tuple or list,
         cmap: str,
-        z: int
+        z: int,
 ) -> None:
     """
     Plots a 2D image from a Stack class instance.
@@ -50,46 +76,46 @@ def plot_image(
 
     """
 
+    units, corners = get_scan_units(class_instance, scan_angle)
+
+    title = (
+        f'{class_instance.stack_name}, z = {z}'
+        if isinstance(z, int)
+        else f'{class_instance.stack_name}')
+
     if ax is None:
         _, ax = plt.subplots()
-        ax.set_aspect('equal')
-        if isinstance(z, int):
-            ax.set_title(f'{class_instance.stack_name}, z = {z}')
-        else:
-            ax.set_title(f'{class_instance.stack_name}')
         ax.autoscale()
 
-        ax.set_xlim(min(corners[0]), max(corners[1]))
-        ax.set_ylim(max(corners[2]), min(corners[3]))
+        ax.set(
+            xlabel=units,
+            ylabel=units,
+            xlim=(min(corners[0]), max(corners[1])),
+            ylim=(max(corners[2]), min(corners[3])),
+            aspect="equal",
+            title=title,
+            )
 
-        label = class_instance.units_um if not scan_angle else class_instance.units_deg
-        ax.set_xlabel(label)
-        ax.set_ylabel(label)
+    img = (
+        class_instance.image[z] if z is not None
+        else np.max(class_instance.image, axis=0)
+        )
 
-    img = (class_instance.image[z] if z is not None
-           else np.max(class_instance.image, axis=0))
-
-    # Define the field of view corners and set axis limit
-    corners = (
-        class_instance.corners_um
-        if not scan_angle
-        else class_instance.corners_deg)
-    
     flat_corners = [
         [values for values in sublist] for sublist in corners]
-    
+
     extent = [
         np.min(flat_corners), np.max(flat_corners),
         np.max(flat_corners), np.min(flat_corners)]
 
     if norm is None:
         ax.imshow(img, extent=extent, cmap=cmap)
-    
+
     elif isinstance(norm, (list, tuple)):
         min_value, max_value = norm
         norm = Normalize(vmin=min_value, vmax=max_value)
         ax.imshow(img, extent=extent, cmap=cmap, norm=norm)
-    
+
     else:
         raise KeyError("'norm' should be a list or a tuple")
 
@@ -148,7 +174,7 @@ def skeleton(
             x_values = (
                 [node.x, parent.x] if not scan_angle
                 else [node.x_deg, parent.x_deg])
-            
+
             y_values = (
                 [node.y, parent.y] if not scan_angle
                 else [node.y_deg, parent.y_deg])
@@ -185,9 +211,10 @@ def plot_morph(
     """
     Plot a two-dimensional representation of a neuronal morphology.
 
-    This function visualizes a neuronal morphology in 2D, optionally showing 
-    the segmented skeleton, individual nodes, and a colormap indicating Z-plane 
-    depth. The morphology can be visualized either in spatial (µm) or angular 
+    This function visualizes a neuronal morphology in 2D,
+    optionally showing the segmented skeleton, individual nodes
+    and a colormap indicating Z-plane depth.
+    The morphology can be visualized either in spatial (µm) or angular
     (degrees) coordinates.
 
     Parameters
@@ -196,7 +223,7 @@ def plot_morph(
         The morphology object containing attributes:
         - `zs`: List of Z-plane values (in µm or degrees).
         - `stack_name`: Name of the morphology stack.
-        - `corners_deg` or `corners_um`: Bounding box for the morphology 
+        - `corners_deg` or `corners_um`: Bounding box for the morphology
           in degrees or micrometers.
         - `units_deg` or `units_um`: Units for the plot axes.
     input_data : list
@@ -208,7 +235,7 @@ def plot_morph(
     show_nodes : bool
         If True, display individual nodes as scatter points.
     scan_angle : bool
-        If True, use angle-based coordinates (degrees). If False, use 
+        If True, use angle-based coordinates (degrees). If False, use
         spatial coordinates (micrometers).
     ax : plt.Axes
         Matplotlib axes object to plot on. If None, a new plot is created.
@@ -225,7 +252,7 @@ def plot_morph(
     Returns
     -------
     None
-        This function modifies the provided axes object or creates a new 
+        This function modifies the provided axes object or creates a new
         Matplotlib plot.
     """
 
@@ -239,20 +266,22 @@ def plot_morph(
 
     if ax is None:
         fig, ax = plt.subplots()
-        ax.set_title(class_instance.stack_name)
-        ax.set_aspect('equal')
 
-        corners = class_instance.corners_deg if scan_angle else class_instance.corners_um
-        units = class_instance.units_deg if scan_angle else class_instance.units_um
+        units, corners = get_scan_units(class_instance, scan_angle)
 
-        ax.set_xlim(min(corners[0]), max(corners[1]))
-        ax.set_ylim(max(corners[2]), min(corners[3]))
-        ax.set_xlabel(units)
-        ax.set_ylabel(units)
+        ax.set(
+            xlim=(min(corners[0]), max(corners[1])),
+            ylim=(max(corners[2]), min(corners[3])),
+            xlabel=units,
+            ylabel=units,
+            title=class_instance.stack_name,
+            aspect='equal'
+            )
 
     if axis_lims is not None:
-        ax.set_xlim(min(axis_lims[0]), max(axis_lims[1]))
-        ax.set_ylim(max(axis_lims[2]), min(axis_lims[3]))
+        ax.set(
+            xlim=(min(axis_lims[0]), max(axis_lims[1])),
+            ylim=(max(axis_lims[2]), min(axis_lims[3])))
 
     if z is None:
         x_values = (
@@ -350,17 +379,17 @@ def plot_morph_3d(
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
 
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        ax.set_zlabel("Z")
+        ax.set(
+            xlabel="X",
+            ylabel="Y",
+            zlabel="Z"
+            )
 
     node_dict = {node.id: node for node in input_data}
     segments = [
-        (
-            [node.x, parent.x],
-            [node.y, parent.y],
-            [node.z, parent.z]
-        )
+        ([node.x, parent.x],
+         [node.y, parent.y],
+         [node.z, parent.z])
         for node in input_data if node.parent_id in node_dict
         for parent in [node_dict[node.parent_id]]
     ]
@@ -370,8 +399,12 @@ def plot_morph_3d(
         ax.plot(x[:2], y[:2], z[:2], color=color, linewidth=linewidth)
 
     if show_nodes:
-        x_nodes = [node.x_deg if scan_angle else node.x for node in input_data]
-        y_nodes = [node.y_deg if scan_angle else node.y for node in input_data]
+        x_nodes = [
+            node.x_deg if scan_angle else node.x
+            for node in input_data]
+        y_nodes = [
+            node.y_deg if scan_angle else node.y
+            for node in input_data]
         z_nodes = [node.z for node in input_data]
 
         cmap = plt.get_cmap(cmap)
@@ -384,14 +417,16 @@ def plot_morph_3d(
         cbar.set_label("Z")
 
     if axis_lims:
-        ax.set_xlim(axis_lims[0], axis_lims[1])
-        ax.set_ylim(axis_lims[2], axis_lims[3])
-        ax.set_zlim(axis_lims[4], axis_lims[5])
+        ax.set(
+            xlim=(axis_lims[0], axis_lims[1]),
+            ylim=(axis_lims[2], axis_lims[3]),
+            zlim=(axis_lims[4], axis_lims[5]))
 
     else:
         x_vals = [node.x for node in input_data]
         y_vals = [node.y for node in input_data]
         z_vals = [node.z for node in input_data]
+
         max_range = np.array(
             [max(x_vals) - min(x_vals),
              max(y_vals) - min(y_vals),
@@ -401,9 +436,10 @@ def plot_morph_3d(
         mid_y = (max(y_vals) + min(y_vals)) * 0.5
         mid_z = (max(z_vals) + min(z_vals)) * 0.5
 
-        ax.set_xlim(mid_x - max_range, mid_x + max_range)
-        ax.set_ylim(mid_y - max_range, mid_y + max_range)
-        ax.set_zlim(mid_z - max_range, mid_z + max_range)
+        ax.set(
+            xlim=(mid_x - max_range, mid_x + max_range),
+            ylim=(mid_y - max_range, mid_y + max_range),
+            zlim=(mid_z - max_range, mid_z + max_range))
 
     if azim is not None:
         ax.view_init(elev=elev if elev is not None else 30, azim=azim)
@@ -484,6 +520,7 @@ def animate_morph_3d(
     """
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
+
     if not axis_label:
         ax.tick_params(axis='both', which='both', length=0)
         ax.set(
@@ -540,7 +577,8 @@ def plot_scanfield(
         cmap: str,
         edgecolor: str,
         linewidth: int,
-        scan_angle: bool
+        scan_angle: bool,
+        alpha: float,
 ) -> None:
     """
     Plot rectangles representing ROIs on a given axis.
@@ -551,19 +589,21 @@ def plot_scanfield(
         The Scanfield object containing metadata.
     rectangles : list
         List of Roi objects to be plotted.
-    ax : plt.Axes, optional
+    ax : plt.Axes
         The axis on which to plot.
         If None, a new figure and axis will be created.
-    axis_lims : list, optional,
+    axis_lims : list
         If specified, plot will be bounded to limits.
-    cmap : str, optional
+    cmap : str
         Colormap to use for coloring the rectangles based on z values.
-    edgecolor : str, optional
+    edgecolor : str
         Color of the rectangle edges.
-    linewidth : int, optional
+    linewidth : int
         Width of rectangle's line.
-    scan_angle : bool, optional
+    scan_angle : bool
         If True, the rectangles will be plotted using angle coordinates.
+    alpha : float
+        The alpha value set for the Roi's edgecolor
 
     Returns
     -------
@@ -593,35 +633,40 @@ def plot_scanfield(
 
     if not ax:
         _, ax = plt.subplots()
-        ax.set_aspect('equal')
-        ax.set_title(class_instance.stack_name)
+        ax.set(
+            aspect='equal',
+            title=class_instance.stack_name,
+        )
         ax.autoscale()
 
-    corners = (
-        class_instance.corners_deg if scan_angle
-        else class_instance.corners_um)
-    units = (
-        class_instance.units_deg if scan_angle
-        else class_instance.units_um)
+    units, corners = get_scan_units(class_instance, scan_angle)
 
     if axis_lims:
-        ax.set_xlim(min(axis_lims[0]), max(axis_lims[1]))
-        ax.set_ylim(max(axis_lims[2]), min(axis_lims[3]))
-    
+        ax.set(
+            xlim=(min(axis_lims[0]), max(axis_lims[1])),
+            ylim=(max(axis_lims[2]), min(axis_lims[3])))
+
     else:
-        ax.set_xlim(min(corners[0]), max(corners[1]))
-        ax.set_ylim(max(corners[2]), min(corners[3]))
-        ax.set_xlabel(units)
-        ax.set_ylabel(units)
+        ax.set(
+            xlim=(min(corners[0]), max(corners[1])),
+            ylim=(max(corners[2]), min(corners[3])),
+            xlabel=units,
+            ylabel=units)
 
     for rect in rectangles:
 
         color = cmap(norm(rect.z)) if cmap else 'none'
 
-        width, height = rect.size_deg if scan_angle else rect.size_xy
+        width, height = (
+            rect.size_deg
+            if scan_angle
+            else rect.size_xy)
+
         bottom_right = (
-            rect.bottom_right_deg if scan_angle
+            rect.bottom_right_deg
+            if scan_angle
             else rect.bottom_right)
+
         rotation = rect.rotation_degrees
 
         patch = patches.Rectangle(
@@ -631,7 +676,7 @@ def plot_scanfield(
             facecolor=color,
             edgecolor=edgecolor,
             linewidth=linewidth,
-            alpha=.5)
+            alpha=alpha)
 
         ax.add_patch(patch)
 
@@ -700,20 +745,17 @@ def plot_scanfields_3d(
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
 
-        corners = (class_instance.corners_deg if scan_angle
-                   else class_instance.corners_um)
-        units = (class_instance.units_deg if scan_angle
-                 else class_instance.units_um)
+        units, corners = get_scan_units(class_instance, scan_angle)
 
-        ax.set_xlim(min(corners[0]), max(corners[1]))
-        ax.set_ylim(max(corners[2]), min(corners[3]))
-        ax.set_zlim(class_instance.zs[-1], class_instance.zs[0])
+        ax.set(
+            xlim=(min(corners[0]), max(corners[1])),
+            ylim=(max(corners[2]), min(corners[3])),
+            zlim=(class_instance.zs[-1], class_instance.zs[0]),
+            zticklabels=[],
+            aspect='equal')
+
         ax.set_xlabel(units, labelpad=30)
         ax.set_ylabel(units, labelpad=30)
-
-        ax.set_zticklabels([])
-
-        ax.set_aspect('equal')
 
     z_values = [rect.z for rect in rectangles]
     norm = mcolors.Normalize(vmin=min(z_values), vmax=max(z_values))
@@ -733,13 +775,17 @@ def plot_scanfields_3d(
              ]
         )
 
-        vertices = np.array([[x, y, z],
-                             [x + width, y, z],
-                             [x + width, y + height, z],
-                             [x, y + height, z]])
+        vertices = np.array([
+            [x, y, z],
+            [x + width, y, z],
+            [x + width, y + height, z],
+            [x, y + height, z]])
+
         rotated_vertices = (
-            np.dot(vertices[:, :2] - [x + width / 2, y + height / 2],
-                   rotation_matrix.T) + [x + width / 2, y + height / 2])
+            np.dot(
+                vertices[:, :2] - [x + width / 2, y + height / 2],
+                rotation_matrix.T) +
+            [x + width / 2, y + height / 2])
 
         vertices[:, :2] = rotated_vertices
 
@@ -787,7 +833,8 @@ def animate_scanfields_3d(
         axis_label: bool
 ):
     """
-    Animate a 3D representation of scanfields with customizable rotation and elevation.
+    Animate a 3D representation of scanfields with
+    customizable rotation and elevation.
 
     Parameters
     ----------
@@ -836,32 +883,32 @@ def animate_scanfields_3d(
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    corners = (class_instance.corners_deg if scan_angle
-               else class_instance.corners_um)
-    units = (class_instance.units_deg if scan_angle
-             else class_instance.units_um)
+    units, corners = get_scan_units(class_instance, scan_angle)
 
-    ax.set_xlim(min(corners[0]), max(corners[1]))
-    ax.set_ylim(max(corners[2]), min(corners[3]))
-    ax.set_zlim(class_instance.zs[-1], class_instance.zs[0])
+    ax.set(
+        xlim=(min(corners[0]), max(corners[1])),
+        ylim=(max(corners[2]), min(corners[3])),
+        zlim=(class_instance.zs[-1], class_instance.zs[0]),
+        aspect="equal")
+
     ax.set_xlabel(units, labelpad=30)
     ax.set_ylabel(units, labelpad=30)
-
-    ax.set_aspect('equal')
 
     # Configure axis labels and grid
     if not axis_label:
         ax.tick_params(axis='both', which='both', length=0)
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_zticks([])
-        ax.set_xlabel("")
-        ax.set_ylabel("")
-        ax.set_zlabel("")
+        ax.set(
+            xticks=[],
+            yticks=[],
+            zticks=[],
+            xlabel="",
+            ylabel="",
+            zlabel="")
     else:
-        ax.set_xlabel("X")
-        ax.set_ylabel("Y")
-        ax.set_zlabel("Z")
+        ax.set(
+            xlabel="X",
+            ylabel="Y",
+            zlabel="Z")
 
     # Initial plot of scanfields
     plot_scanfields_3d(
@@ -889,8 +936,11 @@ def animate_scanfields_3d(
 
     # Create the animation
     anim = FuncAnimation(
-        fig, update, frames=frames, interval=interval, blit=False
-    )
+        fig,
+        update,
+        frames=frames,
+        interval=interval,
+        blit=False)
 
     # Save the animation if a save path is provided
     if save_path:

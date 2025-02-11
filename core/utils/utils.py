@@ -23,7 +23,7 @@ def parse_stack_metadata(
     corners_deg = framedata['SI.hRoiManager.imagingFovDeg']
     width_pix = framedata['SI.hRoiManager.pixelsPerLine']
     height_pix = framedata['SI.hRoiManager.linesPerFrame']
-    
+
     width_um = np.abs(
         min(corners_um[0])
         - max(corners_um[1]))
@@ -36,7 +36,7 @@ def parse_stack_metadata(
     height_deg = np.abs(
         min(corners_deg[2])
         + max(corners_deg[3]))
-    
+
     pix_um_ratio = width_pix / width_um
     units_um = 'µm'
     units_deg = 'deg'
@@ -66,8 +66,7 @@ def parse_stack_metadata(
     ch_available_list = np.arange(n_channel_available)
     ch_active = (
         [framedata['SI.hChannels.channelsActive']]
-        if isinstance(
-        framedata['SI.hChannels.channelsActive'], int)
+        if isinstance(framedata['SI.hChannels.channelsActive'], int)
         else framedata['SI.hChannels.channelsActive'])
 
     ch_active_list = [
@@ -186,10 +185,10 @@ def is_new_branch(
         node: object,
         previous_node: object
 ) -> bool:
-        
-        return (
-            node.parent_id != previous_node.id or
-            node.parent_id is None)
+
+    return (
+        node.parent_id != previous_node.id or
+        node.parent_id is None)
 
 
 def split_neurite(

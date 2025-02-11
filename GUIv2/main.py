@@ -79,8 +79,9 @@ class MainWindow(QMainWindow):
         # self.scan_parameters.change_roi_file.connect(
         #     self.save_files.update_scanfield)
 
-    def closeEvent(self, event):
+    def closeEvent(self, event) -> None:
         """Handle the close event triggered by the top corner X button."""
+
         reply = QMessageBox.question(
             self, 'Quit Application',
             "Are you sure you want to quit?",
@@ -94,6 +95,7 @@ class MainWindow(QMainWindow):
 
 
 def run_app():
+
     if not QtWidgets.QApplication.instance():
         app = QtWidgets.QApplication(sys.argv)
     else:

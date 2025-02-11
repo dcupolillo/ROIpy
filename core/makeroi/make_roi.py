@@ -14,69 +14,88 @@ def make_roi(
         input_data: list
 ) -> list:
     """
-    Generate a list of rectangular Regions of Interest (ROIs) from neuronal morphology data.
+    Generate a list of rectangular Regions of Interest (ROIs)
+    from neuronal morphology data.
 
-    This function orchestrates a series of steps to process a morphology dataset, 
-    subdividing it into ROIs optimized for imaging and analysis.
-    The ROIs are generated, filtered, refined, and enriched with relevant metadata,
+    This function orchestrates a series of steps to process a
+    morphology dataset, subdividing it into ROIs optimized for
+    imaging and analysis. The ROIs are generated, filtered,
+    refined, and enriched with relevant metadata,
     including geometric transformations and branch association details.
 
     Parameters
     ----------
     class_instance : object
-        An instance of the Scanfield class containing key parameters and metadata for processing:
+        An instance of the Scanfield class containing
+        key parameters and metadata for processing:
         - `soma`: Coordinates of the soma.
         - `objective_resolution`: Objective resolution of the imaging system.
         - `zs`: List of Z-plane positions in micrometers.
-        - `dim_ratio_threshold`: Threshold for width-to-height ratio for rectangle filtering.
-        - `filtering_radius`: Tuple containing radii for filtering basal and apical dendrite ROIs.
+        - `dim_ratio_threshold`: Threshold for width-to-height ratio
+            for rectangle filtering.
+        - `filtering_radius`: Tuple containing radii for filtering
+            basal and apical dendrite ROIs.
         - `overlap_threshold`: Threshold for removing overlapping rectangles.
-        - Various timing parameters for calculating frame rates and scanning periods.
+        - Various timing parameters for calculating frame rates
+            and scanning periods.
     input_data : list
         A list of `Node` objects representing the neuronal morphology.
 
     Returns
     -------
     list
-        A nested list of `Roi` objects organized by Z-planes. Each Z-plane contains a list of ROIs.
+        A nested list of `Roi` objects organized by Z-planes.
+        Each Z-plane contains a list of ROIs.
 
     Notes
     -----
-    The function follows these main steps associated to functions in the module:
+    The function follows these main steps associated to functions
+    in the module:
     1. **Group Nodes by Z-Plane**:
        - Nodes are grouped into Z-planes using their Z-coordinates (`group_z`).
-       - Coplanar nodes are further divided into consecutive segments (`split_consecutive`).
+       - Coplanar nodes are further divided into consecutive segments
+           (`split_consecutive`).
 
     2. **Calculate Segment Boundaries**:
-       - The closest and farthest points in each segment relative to the soma are identified (`distance_node`).
+       - The closest and farthest points in each segment relative to the soma
+           are identified (`distance_node`).
 
     3. **Generate Initial Rectangles**:
-       - Rectangles are created based on segment boundaries (`find_rectangles`).
+       - Rectangles are created based on segment boundaries
+           (`find_rectangles`).
 
     4. **Filter Rectangles by Dimension Ratio**:
-       - Rectangles with a width-to-height ratio exceeding a specified threshold are excluded 
-         (`remove_short_rectangles`).
+       - Rectangles with a width-to-height ratio exceeding a specified
+           threshold are excluded
+           (`remove_short_rectangles`).
 
     5. **Merge Excluded Rectangles**:
-       - Consecutive excluded rectangles are merged into larger rectangles (`merge_neighbors`).
+       - Consecutive excluded rectangles are merged into larger rectangles
+           (`merge_neighbors`).
 
     6. **Widen and Elongate Rectangles**:
-       - Rectangles are widened to include nearby outlier nodes (`correct_curvatures`).
-       - Rectangles are elongated to improve coverage (`elongate_rectangles`).
+       - Rectangles are widened to include nearby outlier nodes
+           (`correct_curvatures`).
+       - Rectangles are elongated to improve coverage
+           (`elongate_rectangles`).
 
     7. **Remove Overlapping Rectangles**:
-       - Rectangles with significant overlap are removed (`remove_overlapping`).
+       - Rectangles with significant overlap are removed
+           (`remove_overlapping`).
 
     8. **Filter Rectangles Near Soma**:
-       - Rectangles within a specified radius of the soma are excluded (`remove_rect_within_radius`).
+       - Rectangles within a specified radius of the soma are excluded
+           (`remove_rect_within_radius`).
 
     9. **Add Pixel Properties and Transformations**:
-       - Rectangles are populated with pixel resolution, dimensions, and transformation matrices 
-         (`roi_populate_pixels`, `calculate_transform`).
+       - Rectangles are populated with pixel resolution, dimensions,
+           and transformation matrices
+           (`roi_populate_pixels`, `calculate_transform`).
 
     10. **Assign Branch Attributes**:
-        - ROIs are enriched with branch ID and degree information based on their associated nodes 
-          (`assign_branch_attributes`).
+        - ROIs are enriched with branch ID and degree information
+            based on their associated nodes
+            (`assign_branch_attributes`).
 
     Examples
     --------
@@ -255,7 +274,18 @@ def distance_node(
 
     """
 
-    soma = class_instance.soma
+    if class_instance.soma:
+        soma = class_instance.soma
+    else:
+        first_node = None
+        min_id = np.inf
+        for z_layer in input_data:
+            for segment in z_layer:
+                for node in segment:
+                    if node.id < min_id:
+                        first_node = node
+                        min_id = node.id
+        soma = first_node
 
     # Pre-allocate empty list
     closest_points = [None] * len(class_instance.zs)
@@ -310,6 +340,23 @@ def distance_node(
     return closest_points, farthest_points
 
 
+def set_rotation_value(rotation: float) -> float:
+    """
+    Normalize a rotation angle to the range [0, 360).
+
+    Parameters
+    ----------
+    rotation : float
+        The input rotation angle in degrees.
+
+    Returns
+    -------
+    float
+        The normalized rotation angle in the range [0, 360).
+    """
+    return rotation % 360
+
+
 def find_rectangles(
         class_instance: object,
         close: list,
@@ -354,7 +401,7 @@ def find_rectangles(
                 (close_node[1] + far_node[1]) / 2]
             dx = far_node[0] - close_node[0]
             dy = far_node[1] - close_node[1]
-            rotation = np.degrees(np.arctan2(dy, dx))
+            rotation = set_rotation_value(np.degrees(np.arctan2(dy, dx)))
             height = np.sqrt(dx ** 2 + dy ** 2)
             width = 10
             size = [width, height]
@@ -508,7 +555,7 @@ def merge_neighbors(
         far_node.append(train[-1].compartment)
         dx = far_node[0] - close_node[0]
         dy = far_node[1] - close_node[1]
-        rotation = np.degrees(np.arctan2(dy, dx))
+        rotation = set_rotation_value(np.degrees(np.arctan2(dy, dx)))
         height = np.sqrt(dx ** 2 + dy ** 2)
         width = 10
         size = [width, height]
@@ -642,7 +689,12 @@ def nodes_outside(
         cx + half_height * cos + half_width * sin,
         cy + half_height * sin - half_width * cos]
     bottom_right = rect.bottom_right
-    corners = [bottom_left, bottom_right, top_left, top_right]  # order matters
+    corners = [
+        bottom_left,
+        bottom_right,
+        top_left,
+        top_right]  # order matters
+
     path = mpath.Path(corners)
 
     outside_nodes = []
@@ -713,7 +765,7 @@ def correct_curvatures(
                     [rect.z, rect.end_node_id, rect.compartment]
                 dx = far_node[0] - close_node[0]
                 dy = far_node[1] - close_node[1]
-                rotation = np.degrees(np.arctan2(dy, dx))
+                rotation = set_rotation_value(np.degrees(np.arctan2(dy, dx)))
                 distances = []
 
                 for node in outside_nodes:
@@ -803,21 +855,24 @@ def elongate_rectangles(
                 [rect.z, rect.start_node_id, rect.compartment]
             far_node = rect.end_node + \
                 [rect.z, rect.end_node_id, rect.compartment]
-            dx, dy = (far_node[0] - close_node[0],
-                      far_node[1] - close_node[1])
-            rotation = np.degrees(np.arctan2(dy, dx))
-            width, height = (rect.size_xy[0],
-                             rect.size_xy[1] * elongating_factor)
+            dx, dy = (
+                far_node[0] - close_node[0],
+                far_node[1] - close_node[1])
+            rotation = set_rotation_value(np.degrees(np.arctan2(dy, dx)))
+            width, height = (
+                rect.size_xy[0],
+                rect.size_xy[1] * elongating_factor)
             size = [width, height]
-            center = [(close_node[0] + far_node[0]) / 2,
-                      (close_node[1] + far_node[1]) / 2]
+            center = [
+                (close_node[0] + far_node[0]) / 2,
+                (close_node[1] + far_node[1]) / 2]
             half_width, half_height = width / 2, height / 2
-            cos, sin = (np.cos(np.radians(rotation)),
-                        np.sin(np.radians(rotation)))
-            bottom_right = [center[0] - half_height
-                            * cos + half_width * sin,
-                            center[1] - half_height
-                            * sin - half_width * cos]
+            cos, sin = (
+                np.cos(np.radians(rotation)),
+                np.sin(np.radians(rotation)))
+            bottom_right = [
+                center[0] - half_height * cos + half_width * sin,
+                center[1] - half_height * sin - half_width * cos]
 
             # Create elongated rectangle and append to the list
             elongated_rect = Roi(
@@ -959,10 +1014,12 @@ def remove_overlapping(
             overlap_mask = calculate_overlap_matrix(class_instance, z_plane)
 
             if any(overlap_mask):
-                removing_indices = [i for i in range(len(overlap_mask))
-                                    if overlap_mask[i]]
-                z_plane = [rect for n, rect in enumerate(z_plane)
-                           if n not in removing_indices]
+                removing_indices = [
+                    i for i in range(len(overlap_mask))
+                    if overlap_mask[i]]
+                z_plane = [
+                    rect for n, rect in enumerate(z_plane)
+                    if n not in removing_indices]
 
         removed_overlapped_rectangles[n] = z_plane
 
@@ -1001,18 +1058,21 @@ def remove_rect_within_radius(
     Remove rectangles (ROIs) located too close to the soma.
 
     This function filters out rectangular ROIs that are within a specified
-    radius of the soma, as analysis is not expected to be performed near the soma.
+    radius of the soma, as analysis is not expected to be performed
+    near the soma.
 
     Parameters
     ----------
     class_instance : object
         The instance of the class containing attributes:
-        - `soma`: The central node representing the soma, with `x` and `y` coordinates.
+        - `soma`: The central node representing the soma,
+            with `x` and `y` coordinates.
         - `filtering_radius`: A tuple containing two float values:
             - `radius_apical`: The minimum distance for apical dendrite ROIs.
             - `radius_basal`: The minimum distance for basal dendrite ROIs.
     rectangles : list
-        A list of lists, where each inner list contains `Roi` objects for a single Z-plane.
+        A list of lists, where each inner list contains `Roi` objects
+        for a single Z-plane.
 
     Returns
     -------
@@ -1020,6 +1080,9 @@ def remove_rect_within_radius(
         A filtered list of lists, where rectangles within the specified radius
         from the soma are removed.
     """
+
+    if not class_instance.soma:
+        return rectangles
 
     radius_apical, radius_basal = class_instance.filtering_radius
 
@@ -1046,8 +1109,10 @@ def remove_rect_within_radius(
                 rect.top_right]
 
             max_distance = max(
-                euclidean_distance(corner, (class_instance.soma.x,
-                                            class_instance.soma.y))
+                euclidean_distance(
+                    corner,
+                    (class_instance.soma.x,
+                     class_instance.soma.y))
                 for corner in corners)
 
             if max_distance > radius:
@@ -1201,10 +1266,9 @@ def calculate_transform(
                 rect.bottom_right,
                 pixel_resolution_xy=rect.pixel_resolution_xy,
                 pix_um_ratio=rect.pix_um_ratio,
-                pixel_to_ref=[list(row)
-                              for row in
-                              pixel_to_ref_transformation(
-                                  rect, T)],
+                pixel_to_ref=[
+                    list(row)
+                    for row in pixel_to_ref_transformation(rect, T)],
                 affine=[list(row) for row in T],
                 acquisition_line_period=rect.acquisition_line_period,
                 line_scan_period=rect.line_scan_period,

@@ -2,7 +2,7 @@
     @author: dcupolillo """
 
 import numpy as np
-from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull, QhullError
 import matplotlib.pyplot as plt
 
 
@@ -97,14 +97,15 @@ def sholl_analysis(
     input_data: object,
     radius_step: float,
     n_radii: int,
-    ax: plt.Axes = None,
-    ax_sholl_curve: plt.Axes = None,
-    circle_color: str = None,
-    circle_linestyle: str = None,
-    circle_linewidth: int or float = None,
-    intersection_color: str = None,
-    marker: str = 'o',
-    size: int or float = None,
+    ax: plt.Axes,
+    ax_sholl_curve: plt.Axes,
+    circle_color: str,
+    circle_linestyle: str,
+    circle_linewidth: int or float,
+    intersection_color: str,
+    color: str,
+    marker: str,
+    size: int or float,
 ) -> tuple:
     """
     Perform Sholl analysis with 3D calculations and 2D representation.
@@ -129,6 +130,8 @@ def sholl_analysis(
         Line width of the concentric circles. Default is None.
     intersection_color : str, optional
         Color of the intersection markers. Default is None.
+    color : str, optional
+        Color of the morphology onject. Default is 'black'.
     marker : str, optional
         Marker style for intersections. Default is 'o'.
     size : int or float, optional
@@ -142,7 +145,17 @@ def sholl_analysis(
         - `counts_basal` (array): Intersection counts for basal dendrites.
         - `radii` (array): Radii of concentric spheres.
     """
-    center_node = [node for node in input_data if node.type == 'soma'][0]
+    try:
+        center_node = [
+            node for node in input_data if node.type == 'soma'][0]
+    except IndexError:
+        center_node = min(
+            (node for node in input_data),
+            key=lambda node: node.id,
+            default=None
+        )
+
+    branch_list = list(set([node.branch_id for node in input_data]))
 
     # Define radii for concentric spheres
     max_radius = radius_step * n_radii
@@ -159,7 +172,9 @@ def sholl_analysis(
         intersecting_nodes_per_radius_apical = []
         intersecting_nodes_per_radius_basal = []
 
-        for neurite in input_data.neurite:
+        for neurite_n in branch_list:
+            neurite = input_data.get_branch(neurite_n)
+
             # Calculate 3D distance
             first_node_distance = internode_distance(
                 center_node, neurite[0])
@@ -229,6 +244,12 @@ def sholl_analysis(
                        radii[0] and nodes.index(node) == 0 else ""),
             )
 
+    for n in range(len(input_data) - 1):
+        ax.plot(
+            [input_data[n].x, input_data[n + 1].x],
+            [input_data[n].y, input_data[n + 1].y],
+            color=color)
+
     if not ax_sholl_curve:
         fig_sholl_curve, ax_sholl_curve = plt.subplots()
 
@@ -251,7 +272,8 @@ def hull_volume(
     **kwargs,
 ) -> float:
     """
-    Calculate and optionally plot the convex hull volume formed by terminal points.
+    Calculate and optionally plot the convex hull volume
+    formed by terminal points.
 
     Parameters
     ----------
@@ -299,7 +321,19 @@ def hull_volume(
 
     # Points for convex hull
     points = np.column_stack((x_terminal, y_terminal, z_terminal))
-    hull = ConvexHull(points)
+
+    # Check if there are at least 4 non-coplanar points
+    if len(points) < 4:
+        raise ValueError(
+            f"Not enough points ({len(points)}) to compute a 3D convex hull. "
+            "At least 4 non-coplanar points are required.")
+
+    try:
+        hull = ConvexHull(points)
+    except QhullError as e:
+        raise ValueError(
+            "Convex hull computation failed due to coplanarity "
+            "or insufficient points.") from e
 
     # Plotting (optional, 2D projection in XY plane)
     if show_plot:

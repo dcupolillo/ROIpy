@@ -4,19 +4,15 @@
 from pathlib import Path
 import tifffile
 import matplotlib.pyplot as plt
-
 from ROIpy.core.bundles import NodeBundle, ScanfieldBundle
 from ROIpy.plot.plot import (
     plot_image, plot_morph,
     plot_morph_3d, animate_morph_3d,
     plot_scanfield, plot_scanfields_3d,
     animate_scanfields_3d)
-
 from ROIpy.core.utils.utils import (
     parse_swc, parse_stack_metadata, assign_branch_degree_and_id)
 from ROIpy.core.makeroi import make_roi, roi_file
-from ROIpy.assets.palette import dim
-
 from neuronpath.path import NeuronPath
 
 
@@ -81,6 +77,7 @@ class Stack():
             image_data[1] if image_data.ndim == 4 else image_data)
 
         metadata = parse_stack_metadata(self.imagename)
+
         for key, value in metadata.items():
             setattr(self, key, value)
 
@@ -105,7 +102,7 @@ class Stack():
             ax: plt.Axes = None,
             norm: list or tuple = None,
             cmap: str = 'binary_r',
-            z: int = None
+            z: int = None,
     ) -> plt.Axes:
         """
         Plot the max projection stack image or individual images.
@@ -212,11 +209,16 @@ class Morphology(Stack):
             [node for node in self.neuron
              if node._type == 'basal dendrite'])
 
-        self.soma = [
-            node for node in self.neuron
-            if node._type == 'soma'][0]  # so it's not a list
-        
-        self._branches_ids = list(set([node.branch_id for node in self.neuron]))
+        try:
+            self.soma = [
+                node for node in self.neuron
+                if node._type == 'soma'][0]  # so it's not a list
+        except IndexError:
+            # handles cases where only branches are given
+            self.soma = []
+
+        self._branches_ids = list(
+            set([node.branch_id for node in self.neuron]))
         self.n_branches = len(self._branches_ids)
 
     def _make_nodebundle(self) -> list:
@@ -536,15 +538,15 @@ class Scanfields(Morphology):
                 neuComp,
                 key=lambda layer: layer[0].z_ind
                 if layer else float('inf'))
-            
+
             for layer in sorted_neuComp:
                 layer.sort(key=lambda roi: roi.z_ind)
-            
+
             neuComp = ScanfieldBundle(sorted_neuComp)
             neuComp.save_to_h5(self.paths.scanfields)
 
             return neuComp
-         
+
     def __getattr__(
             self,
             name: str):
@@ -584,7 +586,8 @@ class Scanfields(Morphology):
             cmap: str = None,
             scan_angle: bool = False,
             edgecolor: str = "black",
-            linewidth: int = 1
+            linewidth: int = 1,
+            alpha: float = .5,
     ) -> plt.Axes:
         """
         Plot the scanfields as rotated rectangles
@@ -607,6 +610,8 @@ class Scanfields(Morphology):
             color of rectangles edge. The default is black.
         linewidth : int, optional
             specifies the width of rectangles edge. The default is 1.
+        alpha : float, optional
+            The set alpha value for the Roi's edgecolor. Default is 0.5.
 
         Returns
         -------
@@ -627,7 +632,8 @@ class Scanfields(Morphology):
             cmap=cmap,
             edgecolor=edgecolor,
             linewidth=linewidth,
-            scan_angle=scan_angle)
+            scan_angle=scan_angle,
+            alpha=alpha)
 
     def plot_3d(
             self,
@@ -637,6 +643,7 @@ class Scanfields(Morphology):
             scan_angle: bool = False,
             edgecolor: str = "black",
             linewidth: int = 1,
+            alpha: float = 0.5,
             elev: int or float = None,
             azim: int or float = None,
             zoom: int or float = None,
@@ -672,6 +679,7 @@ class Scanfields(Morphology):
             cmap=cmap,
             edgecolor=edgecolor,
             linewidth=linewidth,
+            alpha=alpha,
             scan_angle=scan_angle,
             elev=elev,
             azim=azim,
@@ -774,7 +782,7 @@ class Scanfields(Morphology):
         if structure_type not in ['neuron', 'apical', 'basal']:
             raise ValueError('Invalid structure_type')
 
-        return roi_file.generate_roi_file(
+        return roi_file.generate_roi_files(
             self,
             input_data,
             folder_path,

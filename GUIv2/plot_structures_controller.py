@@ -3,8 +3,8 @@
 
 from PyQt5.QtWidgets import QPushButton
 from PyQt5.QtCore import Qt, pyqtSignal
-from PyQt5.QtWidgets import (QMainWindow, QGridLayout, QSlider,
-                             QFrame, QLabel)
+from PyQt5.QtWidgets import (
+    QMainWindow, QGridLayout, QFrame, QLabel)
 
 
 class CustomToggleButton(QPushButton):

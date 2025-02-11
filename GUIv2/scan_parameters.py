@@ -117,7 +117,8 @@ class ScanParameters(QFrame):
             'fly_to_line': float(self.entries['fly'].text()),
             'sampling_rate': float(self.entries['sampling'].text()),
             'pixel_bin_factor': int(self.entries['pixel'].text()),
-            'filtering_radius': tuple(map(float, self.entries['radius'].text().strip('()').split(', ')))
+            'filtering_radius': tuple(map(
+                float, self.entries['radius'].text().strip('()').split(', ')))
         }
 
         numerical_aperture = 0.8

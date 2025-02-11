@@ -3,6 +3,7 @@
 
 import flammkuchen as fl
 import numpy as np
+import math
 import matplotlib.pyplot as plt
 from ROIpy.analysis.stats import (
     calculate_total_length,
@@ -15,7 +16,7 @@ from ROIpy.core.makeroi.make_roi import convert_to_polygon
 class NodeBundle():
     """
     A helper class to encapsulate a collection of nodes representing a neuronal
-    structure. This class provides methods for analysis, visualization, and 
+    structure. This class provides methods for analysis, visualization, and
     data manipulation.
 
     Attributes
@@ -23,7 +24,8 @@ class NodeBundle():
     nodes : list
         A list of `Node` objects representing the neuronal structure.
     _branches : list
-        A list of lists, where each sublist contains nodes belonging to a single branch.
+        A list of lists, where each sublist contains nodes
+        belonging to a single branch.
     _branches_ids : list
         A list of unique branch IDs corresponding to each branch.
     _branches_degrees : list
@@ -51,9 +53,9 @@ class NodeBundle():
 
         self._branches_ids = list(
             set([node.branch_id for node in self.nodes]))
-        
+
         self.n_branches = len(self._branches_ids)
-        
+
         self._branches = [None] * len(self._branches_ids)
         self._branches_degrees = [None] * len(self._branches_ids)
         self._branches_lengths = [None] * len(self._branches_ids)
@@ -61,7 +63,8 @@ class NodeBundle():
         for n, branch_id in enumerate(self._branches_ids):
             branch = [node for node in nodes if node.branch_id == branch_id]
             self._branches[n] = branch
-            self._branches_degrees[n] = set(node.branch_degree for node in branch).pop()
+            self._branches_degrees[n] = set(
+                node.branch_degree for node in branch).pop()
             self._branches_lengths[n] = calculate_total_length(branch)
 
     def __repr__(self):
@@ -113,7 +116,7 @@ class NodeBundle():
 
         return cls(nodes)
 
-    def get_branch(self, branch_id: int) -> object: 
+    def get_branch(self, branch_id: int) -> object:
         """
         Retrieve a neurite for a specific branch ID.
 
@@ -127,7 +130,7 @@ class NodeBundle():
         list
             The scanfields for the specified branch ID.
         """
-        if not branch_id in self._branches_ids:
+        if branch_id not in self._branches_ids:
             raise IndexError(
                 f"Specified branch not in {self._branches_ids}")
 
@@ -163,6 +166,7 @@ class NodeBundle():
         circle_linestyle: str = 'dashed',
         circle_linewidth: int or float = 1,
         intersection_color: str = 'blue',
+        color: str = 'black',
         marker: str = '+',
         size: int or float = 60,
     ) -> plt.Axes:
@@ -191,6 +195,8 @@ class NodeBundle():
             Line width of concentric circles. Default is 1.
         intersection_color : str, optional
             Color of intersection markers. Default is 'blue'.
+        color : str, optional
+            Color of the morphology onject. Default is 'black'.
         marker : str, optional
             Marker style for intersections. Default is '+'.
         size : int or float, optional
@@ -222,6 +228,7 @@ class NodeBundle():
             circle_linestyle=circle_linestyle,
             circle_linewidth=circle_linewidth,
             intersection_color=intersection_color,
+            color=color,
             marker=marker,
             size=size,
         )
@@ -312,7 +319,6 @@ class NodeBundle():
         return save_to_json(self, json_filename=json_filename)
 
 
-
 class Neurite:
     """
     Representation of a single neurite.
@@ -343,9 +349,9 @@ class Neurite:
             Total length of the neurite.
         """
         self.nodes = nodes
-        self.branch_id = branch_id
-        self.branch_degree = branch_degree
-        self.branch_length = branch_length
+        self.id = branch_id
+        self.degree = branch_degree
+        self.length = branch_length
 
     def __len__(self):
         return len(self.nodes)
@@ -355,54 +361,74 @@ class Neurite:
 
     def __iter__(self):
         return iter(self.nodes)
-    
-    def flatten_branch(
-        self,
-        direction: str = "horizontal",
-    ) -> None:
+
+    def flat(self, direction: str = "horizontal") -> tuple:
         """
-        Flatten a neurite such that the first node is at (0,0) and the last node is at (x,0) 
-        (if horizontal) or (0,y) (if vertical), while preserving inter-node distances along a straight line.
+        Flatten the branch so that its first and last nodes
+        align along a straight line, while preserving inter-node distances.
 
         Parameters
         ----------
-        neurite : list
-            List of Node objects representing a single neurite.
         direction : str, optional
-            Direction of flattening. Options:
-            - "horizontal" (default): First and last nodes are placed at (0,0) and (x,0).
-            - "vertical": First and last nodes are placed at (0,0) and (0,y).
+            Direction of flattening.
 
         Returns
         -------
-        list
-            Flattened list of (x, y) coordinates.
+        tuple
+            A tuple containing the rotation angle and a
+            list of Node objects with updated x, y coordinates.
+
+        Raises
+        ------
+        ValueError
+            If an invalid direction is provided.
         """
 
         if direction not in ["horizontal", "vertical"]:
-            raise ValueError("Invalid direction. Choose 'horizontal' or 'vertical'.")
+            raise ValueError(
+                "Invalid direction. Choose 'horizontal' or 'vertical'.")
 
-        # Compute cumulative Euclidean distances along the original path
-        distances = [0]  # First node starts at (0,0)
-        
-        for i, node in enumerate(self.nodes):
-            dx = node.x - node.x
-            dy = node.y - node.y
-            dz = node.z - node.z
-            
-            distances.append(
-                distances[-1] + np.sqrt(dx**2 + dy**2 + dz**2))
+        branch_copy = [
+            Node.from_dict(node.to_dict()) for node in self.nodes]
 
-        # Normalize distances to position the last node correctly
-        max_distance = distances[-1]
+        nodes = sorted(
+            branch_copy, key=lambda node: node.id)
 
-        if direction == "horizontal":
-            flattened_coords = [(x, 0) for x in distances]
-        else:  # "vertical"
-            flattened_coords = [(0, y) for y in distances]
+        first_node = nodes[0]
+        last_node = nodes[-1]
 
-        return flattened_coords
+        # Translate first node to (0, 0)
+        translation_x = -first_node.x
+        translation_y = -first_node.y
 
+        for node in branch_copy:
+            node.x += translation_x
+            node.y += translation_y
+
+        # Calculate the angle for alignment
+        delta_x = last_node.x
+        delta_y = last_node.y
+        angle = math.atan2(delta_y, delta_x)
+
+        if direction == "vertical":
+            angle -= math.pi / 2
+
+        # Compute rotation matrix
+        cos_theta = math.cos(-angle)
+        sin_theta = math.sin(-angle)
+        rotation_matrix = np.array(
+            [[cos_theta, -sin_theta],
+             [sin_theta, cos_theta]])
+
+        # Rotate all nodes
+        for node in branch_copy:
+            original_coords = np.array([node.x, node.y])
+            rotated_coords = rotation_matrix.dot(original_coords)
+            node.x, node.y = (
+                round(rotated_coords[0], 6),
+                round(rotated_coords[1], 6))
+
+        return angle % 360, branch_copy
 
 
 class ScanfieldBundle():
@@ -452,7 +478,7 @@ class ScanfieldBundle():
 
     def __len__(self):
         return len(self.scanfields)
-    
+
     def get_branch(self, branch_id: int) -> list:
         """
         Retrieve scanfields for a specific branch ID.
@@ -510,11 +536,11 @@ class ScanfieldBundle():
         """
         data = fl.load(filename)['scanfields']
         scanfields = [[Roi.from_dict(roi) for roi in z_plane]
-                     for z_plane in data]
+                      for z_plane in data]
         return cls(scanfields)
 
     @property
-    def shape(self):
+    def shape(self) -> tuple:
         """
         Get the shape of the ScanfieldBundle.
 
@@ -532,8 +558,9 @@ class ScanfieldBundle():
         """
         Calculate the total area covered by all ROIs in the ScanfieldBundle.
 
-        This method converts ROIs to polygons and accounts for overlapping portions
-        by subtracting intersection areas, ensuring non-overlapping area calculation.
+        This method converts ROIs to polygons and accounts for
+        overlapping portions by subtracting intersection areas,
+        ensuring non-overlapping area calculation.
 
         Returns
         -------
