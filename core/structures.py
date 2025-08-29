@@ -11,12 +11,12 @@ from ROIpy.plot.plot import (
     plot_scanfield, plot_scanfields_3d,
     animate_scanfields_3d)
 from ROIpy.core.utils.utils import (
-    parse_swc, parse_stack_metadata, assign_branch_degree_and_id)
+    stack_metadata_dictionary, parse_swc,
+    parse_stack_metadata, assign_branch_degree_and_id)
 from ROIpy.core.makeroi import make_roi, roi_file
-from neuronpath.path import NeuronPath
 
 
-class Stack():
+class Stack:
     """
     Represents a 3D image stack (.tif format) generated with ScanImage.
     This class initializes with a path to a single-channel or
@@ -27,25 +27,23 @@ class Stack():
     Example
     -------
     >>> import ROIpy as rp
-    >>> from neuronpath.path import neuronpath
-    >>> paths = neuronpath('date_string', cell_number)
-    >>> stack = rp.Stack(paths)  # Initialize stack
+    >>> path = "path/to/tiff"
+    >>> stack = rp.Stack(path)  # Initialize stack
     >>> stack.plot(cmap='viridis', norm=(100, 2000))  # Visualize
 
     """
 
     def __init__(
         self,
-        paths: NeuronPath
+        stack_filename: str or Path,
     ) -> None:
         """
         Initialize a Stack instance.
 
         Parameters
         ----------
-        paths : NeuronPath
-            Object manager for stored data. The stack image is defined
-            under the object.stackpath attribute.
+        stack_filename : str or Path
+            File name of the stack image.
 
         Raises
         ------
@@ -57,28 +55,22 @@ class Stack():
         None
         """
 
-        assert paths
+        stack_filename = Path(stack_filename)
 
-        if not isinstance(paths, NeuronPath):
-            raise TypeError("'paths' must be a neuronpath.path.NeuronPath")
-
-        if not (isinstance(paths.stackpath, Path)
-                and paths.stackpath.suffix.lower() in ('.tif', '.tiff')):
+        if stack_filename.suffix.lower() not in ['.tif', '.tiff']:
             raise Exception(
-                f"Invalid file format for {paths.stackpath}."
+                f"Invalid file format for {stack_filename}."
                 "Expected .tif or .tiff file.")
 
-        self.paths = paths
-
-        self.imagename = paths.stackpath
+        self.imagename = stack_filename
 
         image_data = tifffile.imread(self.imagename)
         self.image = (
             image_data[1] if image_data.ndim == 4 else image_data)
 
-        metadata = parse_stack_metadata(self.imagename)
+        self.metadata = parse_stack_metadata(self.imagename)
 
-        for key, value in metadata.items():
+        for key, value in self.metadata.items():
             setattr(self, key, value)
 
         self.folder = self.imagename.parent
@@ -103,6 +95,7 @@ class Stack():
             norm: list or tuple = None,
             cmap: str = 'binary_r',
             z: int = None,
+            axes_labels: bool = True,
     ) -> plt.Axes:
         """
         Plot the max projection stack image or individual images.
@@ -138,10 +131,11 @@ class Stack():
             ax=ax,
             norm=norm,
             cmap=cmap,
-            z=z)
+            z=z,
+            axes_labels=axes_labels)
 
 
-class Morphology(Stack):
+class Morphology:
     """
     Represents neuronal morphology data, inheriting from the Stack class.
 
@@ -171,14 +165,20 @@ class Morphology(Stack):
 
     def __init__(
             self,
-            paths: NeuronPath,
+            swc_filename: str or Path,
+            stack: Stack = None,
+            output_filename: str or Path = "morphology.h5"
     ) -> None:
         """
         Initializes a neuronal object. Inherits attributes from Stack.
 
-        paths : NeuronPath
-            Object manager for stored data. The stack image is defined
-            under the object.stackpath attribute.
+        swc_filename : str or Path
+            File name of the morphological reconstruction.
+        stack : Stack, optional
+            Instance of the Stack containing metadata. Default is None.
+        output_filename: str or Path
+            File name where morphology data are stored in h5 format.
+            Default is `morphology.h5`.
 
         Raises
         ------
@@ -190,14 +190,30 @@ class Morphology(Stack):
         None
         """
 
-        if not (isinstance(paths.tracepath, Path) or
-                paths.tracepath.suffix.lower() != '.swc'):
-            raise Exception(
-                f"Invalid file format for {paths.tracepath}."
-                "Expected .swc file.")
+        swc_filename = Path(swc_filename)
+        output_filename = Path(output_filename)
 
-        super().__init__(paths)
-        self.paths = paths
+        if swc_filename.suffix.lower() != '.swc':
+            raise Exception(
+                f"Invalid file format for {swc_filename}."
+                "Expected .swc")
+
+        if not output_filename.suffix == ".h5":
+            raise ValueError(
+                "Output filename needs to be in .h5 format")
+
+        self.filename = swc_filename
+        self.output_filename = Path(self.filename.parent / output_filename)
+
+        if stack:
+            metadata = stack_metadata_dictionary(**stack.metadata)
+        else:
+            metadata = stack_metadata_dictionary()
+
+        self._has_stack = True if stack else False
+
+        for key, value in metadata.items():
+            setattr(self, key, value)
 
         self.neuron = self._make_nodebundle()
 
@@ -231,33 +247,40 @@ class Morphology(Stack):
             list of separated branches.
         """
 
-        if self.paths.morphology.exists():
-            return NodeBundle.load_from_h5(self.paths.morphology)
+        files = list(self.filename.parent.iterdir())
+        nodebundle_filename = next(
+            (file for file in files
+             if file.stem == self.output_filename.stem),
+            None)
 
-        else:
-            neuron = NodeBundle(parse_swc(
-                self.paths.tracepath,
-                self.objective_resolution,
-                self.zs,
-                self.pixel_to_ref_transform))
+        if nodebundle_filename is not None and nodebundle_filename.exists():
+            return NodeBundle.load_from_h5(nodebundle_filename)
 
-            assign_branch_degree_and_id(neuron)
-            neuron.save_to_h5(self.paths.morphology)
+        neuron = NodeBundle(parse_swc(
+            self.filename,
+            self.objective_resolution,
+            self.zs,
+            self.pixel_to_ref_transform))
 
-            return neuron
+        assign_branch_degree_and_id(neuron)
+        neuron.save_to_h5(self.output_filename)
+
+        return neuron
 
     def plot(
             self,
             input_data: object,
             show_segments: bool = True,
             show_nodes: bool = False,
+            nodes_size: float = 10,
             z: int = None,
             ax: plt.Axes = None,
             axis_lims: list = None,
             cmap: str = 'viridis',
+            show_cmap: bool = True,
             scan_angle: bool = False,
             color: str = "black",
-            linewidth: int = 1
+            linewidth: int = None
     ) -> plt.Axes:
         """
         Plot the neuronal morphology structure.
@@ -278,6 +301,8 @@ class Morphology(Stack):
             Axes bounds as [xmin, xmax, ymin, ymax] (default is None).
         cmap : str, optional
             Colormap for z-position visualization (default is None).
+        show_cmap : bool, optional
+            Show the colormap legend (default is True).
         scan_angle : bool, optional
             Plot using angle units (default is False).
         color : str, optional
@@ -296,10 +321,12 @@ class Morphology(Stack):
             input_data,
             show_segments=show_segments,
             show_nodes=show_nodes,
+            nodes_size=nodes_size,
             z=z,
             ax=ax,
             axis_lims=axis_lims,
             cmap=cmap,
+            show_cmap=show_cmap,
             scan_angle=scan_angle,
             color=color,
             linewidth=linewidth)
@@ -313,7 +340,7 @@ class Morphology(Stack):
             cmap: str = "vridis",
             scan_angle: bool = False,
             color: str = "black",
-            linewidth: int = 1,
+            linewidth: int = None,
             azim: float = 45,
             elev: float = 30,
     ) -> plt.Axes:
@@ -354,7 +381,7 @@ class Morphology(Stack):
             cmap: str = "viridis",
             scan_angle: bool = False,
             color: str = "black",
-            linewidth: int = 1,
+            linewidth: int = None,
             elev_start: float = 30,
             elev_end: float = 30,
             azimut_start: float = 0,
@@ -410,27 +437,30 @@ class Morphology(Stack):
             axis_label=axis_label,)
 
 
-class Scanfields(Morphology):
+class Scanfields:
 
     """
-    A class to create and manage scanfields (rectangular ROIs) for imaging,
-    inheriting from the Morphology class.
+    A class to create and manage scanfields (rectangular ROIs) for imaging.
 
     This class uses neuronal morphology data to define scanfields based on
     imaging and experimental parameters. It includes methods for visualization,
     ROI generation, and exporting data in compatible formats.
 
+    Raises
+    ------
+    KeyError
+        If the passed Morphology was not initiated using a Stack.
+
     Example
     -------
     >>> import ROIpy as rp
-    >>> from neuronpath.path import neuronpath
-    >>> paths = neuronpath('date_string', cell_number)
-    >>> sf = rp.Scanfield(paths)
+    >>> sf = rp.Scanfield(morphology)
     """
 
     def __init__(
             self,
-            paths: NeuronPath,
+            morphology: Morphology,
+            output_filename: str or Path = "scanfields.h5",
             desired_framerate: int = 16,
             elongating_factor: float = 1.33,
             dim_ratio_threshold: float = 3.5,
@@ -452,8 +482,11 @@ class Scanfields(Morphology):
 
         Parameters
         ----------
-        paths : NeuronPath
-            Paths to the image and tracing files.
+        morphology : Morphology
+            Morphology element containing metadata.
+        output_filename: str or Path
+            File name where scanfields data are stored in h5 format.
+            Default is `scanfields.h5`.
         desired_framerate : int, optional
             Imaging framerate in Hz (default: 16).
         elongating_factor : float, optional
@@ -489,7 +522,18 @@ class Scanfields(Morphology):
         None
         """
 
-        super().__init__(paths)
+        if not morphology._has_stack:
+            raise KeyError(
+                "Morphology needs to be initiated using a Stack "
+                "to create a Scanfields object")
+
+        if not Path(output_filename).suffix == ".h5":
+            raise ValueError(
+                "Output filename needs to be in .h5 format")
+
+        self._morph = morphology
+        self.output_filename = Path(
+            self._morph.filename.parent / output_filename)
 
         self.desired_framerate = desired_framerate
         self.elongating_factor = elongating_factor
@@ -508,44 +552,55 @@ class Scanfields(Morphology):
         self.filtering_radius = filtering_radius
         self.framerate_delta_threshold = framerate_delta_threshold
 
+        self.objective_resolution = self._morph.objective_resolution
+        self.zs = self._morph.zs
+
         # Abbe's equation for diffraction limited spot
         # Rayleigh criterion: distance required to differentiate 2 structures
         self.optimal_pix_um_ratio = (1 / (
             ((0.61 * self.wavelength / self.numerical_aperture)
              * 1e-3) / 2))
 
-        self.neuComp = self._make_scanfieldbundle()
+        self.neuron = self._make_scanfieldbundle()
 
-        self.apiComp = ScanfieldBundle(
+        self.apical = ScanfieldBundle(
             [[rect for rect in z if rect.compartment == 'apical dendrite']
-             for z in self.neuComp if any(
+             for z in self.neuron if any(
                 rect.compartment == 'apical dendrite' for rect in z)])
 
-        self.basComp = ScanfieldBundle(
+        self.basal = ScanfieldBundle(
             [[rect for rect in z if rect.compartment == 'basal dendrite']
-             for z in self.neuComp if any(
+             for z in self.neuron if any(
                 rect.compartment == 'basal dendrite' for rect in z)])
 
     def _make_scanfieldbundle(self) -> list:
 
-        if self.paths.scanfields.exists():
-            return ScanfieldBundle.load_from_h5(self.paths.scanfields)
-        else:
-            neuComp = ScanfieldBundle(self.create_roi(self.neuron))
+        files = list(self._morph.filename.parent.iterdir())
 
-            # Eventually sort the ROIs by layer index
-            sorted_neuComp = sorted(
-                neuComp,
-                key=lambda layer: layer[0].z_ind
-                if layer else float('inf'))
+        scanfieldbundle_filename = next(
+            (file for file in files
+             if file.stem == self.output_filename.stem),
+            None)
 
-            for layer in sorted_neuComp:
-                layer.sort(key=lambda roi: roi.z_ind)
+        if (scanfieldbundle_filename is not None
+                and scanfieldbundle_filename.exists()):
+            return ScanfieldBundle.load_from_h5(scanfieldbundle_filename)
 
-            neuComp = ScanfieldBundle(sorted_neuComp)
-            neuComp.save_to_h5(self.paths.scanfields)
+        neuron = ScanfieldBundle(self.create_roi(self._morph.neuron))
 
-            return neuComp
+        # Eventually sort the ROIs by layer index
+        sorted_neuron = sorted(
+            neuron,
+            key=lambda layer: layer[0].z_ind
+            if layer else float('inf'))
+
+        for layer in sorted_neuron:
+            layer.sort(key=lambda roi: roi.z_ind)
+
+        neuron = ScanfieldBundle(sorted_neuron)
+        neuron.save_to_h5(self.output_filename)
+
+        return neuron
 
     def __getattr__(
             self,
@@ -557,6 +612,9 @@ class Scanfields(Morphology):
             name: str,
             value):
         self.__dict__[f"_{name}"] = value
+
+    def __len__(self) -> int:
+        return sum([len(zplane) for zplane in self.neuron])
 
     def create_roi(
             self,
@@ -584,8 +642,10 @@ class Scanfields(Morphology):
             ax: plt.Axes = None,
             axis_lims: list = None,
             cmap: str = None,
+            show_cmap: bool = True,
             scan_angle: bool = False,
             edgecolor: str = "black",
+            facecolor: str = 'none',
             linewidth: int = 1,
             alpha: float = .5,
     ) -> plt.Axes:
@@ -604,6 +664,8 @@ class Scanfields(Morphology):
         cmap : str, optional
             facecolor colormap of the rectangles based on their Z position.
             The default is None.
+        show_cmap : bool, optional
+            If True, shows the colormap legend. The default is True.
         scan_angle : bool, optional
             if True, plots in units of angle degrees. The default is False.
         edgecolor : str, optional
@@ -625,12 +687,14 @@ class Scanfields(Morphology):
         """
 
         return plot_scanfield(
-            self,
+            self._morph,
             input_roi,
             ax=ax,
             axis_lims=axis_lims,
             cmap=cmap,
+            show_cmap=show_cmap,
             edgecolor=edgecolor,
+            facecolor=facecolor,
             linewidth=linewidth,
             scan_angle=scan_angle,
             alpha=alpha)
@@ -673,7 +737,7 @@ class Scanfields(Morphology):
         """
 
         return plot_scanfields_3d(
-            self,
+            self._morph,
             input_roi,
             ax=ax,
             cmap=cmap,
@@ -685,7 +749,7 @@ class Scanfields(Morphology):
             azim=azim,
             zoom=zoom)
 
-    def animate_3d_scanfields(
+    def animate_3d(
             self,
             rectangles: ScanfieldBundle,
             elev_start: float = 40,
@@ -729,7 +793,7 @@ class Scanfields(Morphology):
         """
 
         return animate_scanfields_3d(
-            self,
+            self._morph,
             rectangles,
             elev_start=elev_start,
             elev_end=elev_end,

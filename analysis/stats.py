@@ -4,6 +4,7 @@
 import numpy as np
 from scipy.spatial import ConvexHull, QhullError
 import matplotlib.pyplot as plt
+from ROIpy.plot.plot import skeleton
 
 
 def internode_distance(
@@ -106,6 +107,9 @@ def sholl_analysis(
     color: str,
     marker: str,
     size: int or float,
+    show_sholl_curve: bool,
+    show_intersections: bool,
+    linewidth: int or float,
 ) -> tuple:
     """
     Perform Sholl analysis with 3D calculations and 2D representation.
@@ -136,6 +140,12 @@ def sholl_analysis(
         Marker style for intersections. Default is 'o'.
     size : int or float, optional
         Marker size for intersections. Default is None.
+    show_sholl_curve : bool, optional
+        If True, shows the Sholl curve. Default is True.
+    show_intersections : bool, optional
+        If True, shows the intersections. Default is True.
+    linewidth : int or float, optional
+        Line width of the morphology. Default is 1.
 
     Returns
     -------
@@ -203,59 +213,58 @@ def sholl_analysis(
         intersecting_nodes_apical.append(intersecting_nodes_per_radius_apical)
         intersecting_nodes_basal.append(intersecting_nodes_per_radius_basal)
 
-    # Plotting (2D representation)
-    if not ax:
-        fig, ax = plt.subplots()
-    ax.set_aspect('equal')
-    ax.autoscale()
+    if show_intersections:
 
-    for radius in radii:
-        circle = plt.Circle(
-            (center_node.x, center_node.y),
-            radius,
-            color=circle_color,
-            fill=False,
-            linestyle=circle_linestyle,
-            linewidth=circle_linewidth,
-        )
-        ax.add_artist(circle)
+        # Plotting (2D representation)
+        if not ax:
+            _, ax = plt.subplots()
+        ax.set_aspect('equal')
+        ax.autoscale()
 
-    for radius, nodes in zip(radii, intersecting_nodes_apical):
-        for node in nodes:
-            ax.scatter(
-                node.x,
-                node.y,
-                color=intersection_color,
-                marker=marker,
-                s=size,
-                label=('Apical' if radius ==
-                       radii[0] and nodes.index(node) == 0 else ""),
+        for radius in radii:
+            circle = plt.Circle(
+                (center_node.x, center_node.y),
+                radius,
+                color=circle_color,
+                fill=False,
+                linestyle=circle_linestyle,
+                linewidth=circle_linewidth,
             )
+            ax.add_artist(circle)
 
-    for radius, nodes in zip(radii, intersecting_nodes_basal):
-        for node in nodes:
-            ax.scatter(
-                node.x,
-                node.y,
-                color=intersection_color,
-                marker=marker,
-                s=size,
-                label=('Basal' if radius ==
-                       radii[0] and nodes.index(node) == 0 else ""),
-            )
+        for radius, nodes in zip(radii, intersecting_nodes_apical):
+            for node in nodes:
+                ax.scatter(
+                    node.x,
+                    node.y,
+                    color=intersection_color,
+                    marker=marker,
+                    s=size,
+                    label=('Apical' if radius ==
+                        radii[0] and nodes.index(node) == 0 else ""),
+                    zorder=2,
+                )
 
-    for n in range(len(input_data) - 1):
-        ax.plot(
-            [input_data[n].x, input_data[n + 1].x],
-            [input_data[n].y, input_data[n + 1].y],
-            color=color)
+        for radius, nodes in zip(radii, intersecting_nodes_basal):
+            for node in nodes:
+                ax.scatter(
+                    node.x,
+                    node.y,
+                    color=intersection_color,
+                    marker=marker,
+                    s=size,
+                    label=('Basal' if radius ==
+                        radii[0] and nodes.index(node) == 0 else ""),
+                    zorder=2,
+                )          
 
-    if not ax_sholl_curve:
-        fig_sholl_curve, ax_sholl_curve = plt.subplots()
+    if show_sholl_curve:
+        if not ax_sholl_curve:
+            _, ax_sholl_curve = plt.subplots()
 
-    ax_sholl_curve.plot(radii, counts_apical, label='Apical')
-    ax_sholl_curve.plot(-radii, counts_basal, label='Basal')
-    ax_sholl_curve.legend()
+        ax_sholl_curve.plot(radii, counts_apical, label='Apical')
+        ax_sholl_curve.plot(-radii, counts_basal, label='Basal')
+        ax_sholl_curve.legend()
 
     return np.array(counts_apical), np.array(counts_basal), radii
 
@@ -322,6 +331,8 @@ def hull_volume(
     # Points for convex hull
     points = np.column_stack((x_terminal, y_terminal, z_terminal))
 
+    points_2d = points[:, :2]
+
     # Check if there are at least 4 non-coplanar points
     if len(points) < 4:
         raise ValueError(
@@ -336,24 +347,34 @@ def hull_volume(
             "or insufficient points.") from e
 
     # Plotting (optional, 2D projection in XY plane)
-    if show_plot:
-        if ax is None:
-            fig, ax = plt.subplots()
-        ax.set_aspect('equal')
+    if not show_plot:
+        return hull.volume
 
-        # Scatter terminal points (projected to XY plane)
-        ax.scatter(points[:, 0], points[:, 1],
-                   color=terminal_point_color, **kwargs)
+    if ax is None:
+        fig, ax = plt.subplots()
+    ax.set_aspect('equal')
 
-        # Draw the convex hull edges in 2D (projected to XY plane)
-        hull_polygon = plt.Polygon(
-            points[hull.vertices, :2],  # Use only x, y for 2D polygon
-            edgecolor=linecolor,
-            facecolor=facecolor,
+    # Scatter terminal points (projected to XY plane)
+    ax.scatter(
+        points[:, 0],
+        points[:, 1],
+        color=terminal_point_color,
+        **kwargs)
+
+    hull_2d = ConvexHull(points_2d)  # 2d for representation
+
+    for simplex in hull_2d.simplices:
+        ax.plot(
+            points_2d[simplex, 0],
+            points_2d[simplex, 1],
             linewidth=linewidth,
             linestyle=linestyle,
-        )
-        ax.add_patch(hull_polygon)
+            color=linecolor)
 
-    # Return the 3D volume of the convex hull
+    ax.fill(
+        points_2d[hull_2d.vertices, 0],
+        points_2d[hull_2d.vertices, 1],
+        color=facecolor,
+        alpha=0.3)
+
     return hull.volume

@@ -2,7 +2,7 @@
 
 ## Description
 
-**ROIpy** is a python package for ROI (Region of Interest) semi-automatic generation and placement for functional imaging of neuronal dendrites of individual neurons :microscope::brain:. It provides a tool for defining, managing and visualizing dendritic ROIs. In addition, provides a benchmark for analyzing morphological data such as dendritic structure.
+**ROIpy** is a python package for ROI (Region of Interest) semi-automatic generation and placement for functional imaging of neuronal dendrites of individual neurons 🔬:brain:. It provides a tool for defining, managing and visualizing dendritic ROIs. In addition, provides a benchmark for analyzing morphological data such as dendritic structure.
 
 Designed to interface with [Vidrio ScanImage software](https://vidriotechnologies.com/).
 
@@ -10,7 +10,7 @@ Designed to interface with [Vidrio ScanImage software](https://vidriotechnologie
 
 ROIpy is designed to facilitate scanning along dendritic arborization. In Scanimage, it works for **Linear Scan - Frame scan** configuration (_Galvo-Galvo_). ROIpy is developed to overcome the inherent 2D limitation of arbitrary scanning, by generating a set of discrete planes populated with scattered rectangular ROIs spanning the depth of the neuron.
 
-It outputs `.roi` files which can be loaded and are interpreted by ScanImage [mROI Editor Window](<https://docs.scanimage.org/Premium+Features/Multiple+Region+of+Interest+(MROI).html>).
+It outputs `.roi` files which can be loaded and are interpreted by ScanImage [mROI Editor Window](https://docs.scanimage.org/Premium+Features/Multiple+Region+of+Interest+(MROI).html).
 
 ### Dendrite tracing
 
@@ -18,7 +18,16 @@ Tested to work with `.swc` files generated with ImageJ Fiji plugin [Simple Neuri
 
 ## Installation
 
-#### Option 1: Install via Git Clone
+#### Option 1: Create a Conda environment (recommended)
+
+Create the environment with required packages using the provided `environment.yaml` file:
+
+```powershell
+conda env create -f environment.yaml
+conda activate roipy
+```
+
+#### Option 2: Install via Git Clone
 
 Clone the repository and install it locally:
 
@@ -26,9 +35,9 @@ Clone the repository and install it locally:
 git clone https://github.com/dcupolillo/ROIpy.git
 ```
 
-#### Option 2: Manual copy
+#### Option 3: Manual copy
 
-Simply copy the folder "ROIpy" within your project folder :file_folder:. Ensure the folder is in your system path.
+Simply copy the folder "ROIpy" within your project folder 📁. Ensure the folder is in your system path.
 
 ```python
 import sys
@@ -105,7 +114,7 @@ morph.plot(morph.neuron, show_nodes=True, cmap="jet", linewidth=1)
 
 ### Scanfields
 
-Refers to **Scanimage** `scanimage.mroi.scanfield.fields.RotatedRectangle` objects. Generates and saves :floppy_disk: a number of single-plane json-formatted `.roi` files corresponding to the different zlayers to be loaded to **ScanImage** ROI Editor for multiple ROI (mROI) definition.
+Refers to **Scanimage** `scanimage.mroi.scanfield.fields.RotatedRectangle` objects. Generates and saves 💾 a number of single-plane json-formatted `.roi` files corresponding to the different zlayers to be loaded to **ScanImage** ROI Editor for multiple ROI (mROI) definition.
 
 Similarly to `Morphology` bundles, a `Scanfield` object includes a series of `ScanfieldBundle`:
 

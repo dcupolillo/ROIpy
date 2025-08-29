@@ -1,0 +1,11 @@
+analysis/__pycache__/stats.cpython-39.pyc
+core/__pycache__/bundles.cpython-39.pyc
+core/__pycache__/components.cpython-39.pyc
+core/__pycache__/structures.cpython-39.pyc
+core/makeroi/__pycache__/make_roi.cpython-39.pyc
+core/makeroi/__pycache__/roi_file.cpython-39.pyc
+core/utils/__pycache__/utils.cpython-39.pyc
+GUIv2/__pycache__/main.cpython-39.pyc
+GUIv2/__pycache__/plot_structures_controller.cpython-39.pyc
+GUIv2/__pycache__/scan_parameters.cpython-39.pyc
+plot/__pycache__/plot.cpython-39.pyc

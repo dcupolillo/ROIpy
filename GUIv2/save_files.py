@@ -76,15 +76,15 @@ class SaveFiles(QFrame):
 
         # save Roi Files
         if self.to_save == 'neuron':
-            self.sf.save(self.sf.neuComp,
+            self.sf.save(self.sf.neuron,
                          self.destination_folder,
                          self.to_save)
         elif self.to_save == 'apical':
-            self.sf.save(self.sf.apiComp,
+            self.sf.save(self.sf.apical,
                          self.destination_folder,
                          self.to_save)
         elif self.to_save == 'basal':
-            self.sf.save(self.sf.basComp,
+            self.sf.save(self.sf.basal,
                          self.destination_folder,
                          self.to_save)
 

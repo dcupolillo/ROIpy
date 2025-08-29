@@ -7,6 +7,103 @@ import tifffile
 from ROIpy.core.components import Node
 
 
+def stack_metadata_dictionary(
+        stack_name: str = None,
+        data_type: str = None,
+        corners_um: list = None,
+        corners_deg: list = None,
+        width_pix: int = None,
+        height_pix: int = None,
+        width_um: float = None,
+        height_um: float = None,
+        width_deg: float = None,
+        height_deg: float = None,
+        pix_um_ratio: float = None,
+        units_um: str = None,
+        units_deg: str = None,
+        zoom: float = None,
+        zs: list = None,
+        z_distance: float = None,
+        n_slices: int = None,
+        stack_start: float = None,
+        stack_end: float = None,
+        objective_resolution: float = None,
+        pixel_to_ref_transform: np.ndarray = None,
+        affine: np.ndarray = None,
+        n_channel_available: int = None,
+        ch_available_list: list = None,
+        ch_active: list = None,
+        ch_active_list: list = None,
+        n_channels: int = None
+) -> dict:
+    """
+    Constructs a metadata dictionary for a 3D image stack.
+
+    Parameters
+    ----------
+    stack_name : str, optional
+        Identifier or filename of the stack.
+    data_type : str, optional
+        Type of data (e.g., 'tif', 'npy').
+    corners_um : list of float, optional
+        Image corner coordinates in micrometers.
+    corners_deg : list of float, optional
+        Image corner coordinates in degrees.
+    width_pix : int, optional
+        Image width in pixels.
+    height_pix : int, optional
+        Image height in pixels.
+    width_um : float, optional
+        Image width in micrometers.
+    height_um : float, optional
+        Image height in micrometers.
+    width_deg : float, optional
+        Image width in degrees.
+    height_deg : float, optional
+        Image height in degrees.
+    pix_um_ratio : float, optional
+        Pixel-to-micron scaling factor.
+    units_um : str, optional
+        Units used for micrometer-based dimensions.
+    units_deg : str, optional
+        Units used for degree-based dimensions.
+    zoom : float, optional
+        Zoom factor used during acquisition.
+    zs : list of float, optional
+        Z-positions of individual slices.
+    z_distance : float, optional
+        Distance between consecutive z-slices.
+    n_slices : int, optional
+        Number of z-slices in the stack.
+    stack_start : float, optional
+        Start time of stack acquisition.
+    stack_end : float, optional
+        End time of stack acquisition.
+    objective_resolution : float, optional
+        Optical resolution of the objective in micrometers.
+    pixel_to_ref_transform : np.ndarray, optional
+        Transformation matrix from pixel to reference coordinates.
+    affine : np.ndarray, optional
+        Affine transformation matrix for spatial mapping.
+    n_channel_available : int, optional
+        Total number of available imaging channels.
+    ch_available_list : list of int, optional
+        List of all available channel indices.
+    ch_active : list of int, optional
+        Currently active channel indices.
+    ch_active_list : list of int, optional
+        Redundant/alternative list of active channel indices.
+    n_channels : int, optional
+        Number of active channels.
+
+    Returns
+    -------
+    dict
+        Dictionary containing all provided metadata fields.
+    """
+    return locals()
+
+
 def parse_stack_metadata(
         image_name: str or Path
 ) -> dict:
@@ -77,35 +174,35 @@ def parse_stack_metadata(
         1 if isinstance(ch_active, int)
         else len(ch_active))
 
-    return {
-        'stack_name': stack_name,
-        'data_type': data_type,
-        'corners_um': corners_um,
-        'corners_deg': corners_deg,
-        'width_pix': width_pix,
-        'height_pix': height_pix,
-        'width_um': width_um,
-        'height_um': height_um,
-        'width_deg': width_deg,
-        'height_deg': height_deg,
-        'pix_um_ratio': pix_um_ratio,
-        'units_um': units_um,
-        'units_deg': units_deg,
-        'zoom': zoom,
-        'zs': zs,
-        'z_distance': z_distance,
-        'n_slices': n_slices,
-        'stack_start': stack_start,
-        'stack_end': stack_end,
-        'objective_resolution': objective_resolution,
-        'pixel_to_ref_transform': pixel_to_ref_transform,
-        'affine': affine,
-        'n_channel_available': n_channel_available,
-        'ch_available_list': ch_available_list,
-        'ch_active': ch_active,
-        'ch_active_list': ch_active_list,
-        'n_channels': n_channels
-    }
+    return stack_metadata_dictionary(
+        stack_name=stack_name,
+        data_type=data_type,
+        corners_um=corners_um,
+        corners_deg=corners_deg,
+        width_pix=width_pix,
+        height_pix=height_pix,
+        width_um=width_um,
+        height_um=height_um,
+        width_deg=width_deg,
+        height_deg=height_deg,
+        pix_um_ratio=pix_um_ratio,
+        units_um=units_um,
+        units_deg=units_deg,
+        zoom=zoom,
+        zs=zs,
+        z_distance=z_distance,
+        n_slices=n_slices,
+        stack_start=stack_start,
+        stack_end=stack_end,
+        objective_resolution=objective_resolution,
+        pixel_to_ref_transform=pixel_to_ref_transform,
+        affine=affine,
+        n_channel_available=n_channel_available,
+        ch_available_list=ch_available_list,
+        ch_active=ch_active,
+        ch_active_list=ch_active_list,
+        n_channels=n_channels
+    )
 
 
 def parse_swc(
@@ -137,19 +234,29 @@ def parse_swc(
     """
 
     nodes = []
-    x_voxel_separation, y_voxel_separation = None, None
+    x_voxel_separation, y_voxel_separation = 1., 1.
 
     with open(filename, 'r') as f:
 
         for n_line, line in enumerate(f):
+
+            line = line.strip()
+
+            if not line:
+                continue
+
             if line.startswith('#'):
-                if n_line == 4:
-                    header_fields = line.strip().split()
-                    x_voxel_separation = float(header_fields[4][:-1])
-                    y_voxel_separation = float(header_fields[5][:-1])
+
+                if "Voxel separation" in line:
+                    voxel_info = line.split(':', 1)[1].strip()
+                    x, y, z = map(float, voxel_info.split(','))
+                    x_voxel_separation = x
+                    y_voxel_separation = y
+                    # z_voxel_separation = z
+
                 continue  # skip comment lines
 
-            fields = line.strip().split()
+            fields = line.split()
 
             # Create individual Node instances
             node = Node(

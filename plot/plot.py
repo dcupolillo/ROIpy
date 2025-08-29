@@ -10,6 +10,8 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib.animation import FuncAnimation
 import matplotlib.colors as mcolors
 import numpy as np
+import ROIpy.core.bundles as bndls
+import ROIpy.core.components as cmpnts
 
 
 def get_scan_units(
@@ -46,6 +48,7 @@ def plot_image(
         norm: tuple or list,
         cmap: str,
         z: int,
+        axes_labels: bool
 ) -> None:
     """
     Plots a 2D image from a Stack class instance.
@@ -88,8 +91,8 @@ def plot_image(
         ax.autoscale()
 
         ax.set(
-            xlabel=units,
-            ylabel=units,
+            xlabel=units if axes_labels else "",
+            ylabel=units if axes_labels else "",
             xlim=(min(corners[0]), max(corners[1])),
             ylim=(max(corners[2]), min(corners[3])),
             aspect="equal",
@@ -125,8 +128,8 @@ def skeleton(
         ax: plt.Axes,
         tridim: bool,
         scan_angle: bool,
-        linewidth: int,
-        z: int,
+        linewidth: int = None,
+        z: int = None,
         color: str = "black",
 ) -> None:
     """
@@ -160,8 +163,8 @@ def skeleton(
     node_dict = {node._id: node for node in input_data} if input_data else {}
 
     for n, node in enumerate(input_data if input_data else []):
-        if node.parent_id in (-1, 1):
-            continue  # Skip root or soma
+        if node.parent_id == -1:
+            continue  # Skip soma
 
         parent = node_dict.get(node.parent_id)
         if not parent:
@@ -179,12 +182,20 @@ def skeleton(
                 [node.y, parent.y] if not scan_angle
                 else [node.y_deg, parent.y_deg])
 
+            r_node = 1 if node.radius == 0 else node.radius
+            r_parent = 1 if parent.radius == 0 else parent.radius
+
+            this_linewidth = (
+                linewidth if linewidth is not None
+                else (r_node + r_parent) / 2.0
+            )
+
             if not tridim:
                 axis.plot(
                     x_values,
                     y_values,
                     color=color,
-                    linewidth=linewidth)
+                    linewidth=this_linewidth)
             else:
                 z_values = [node.z, parent.z]
                 axis.plot(
@@ -192,7 +203,7 @@ def skeleton(
                     y_values,
                     z_values,
                     color=color,
-                    linewidth=linewidth)
+                    linewidth=this_linewidth)
 
 
 def plot_morph(
@@ -201,10 +212,12 @@ def plot_morph(
         z: int,
         show_segments: bool,
         show_nodes: bool,
+        nodes_size: float,
         scan_angle: bool,
         ax: plt.Axes,
         axis_lims: list,
         cmap: str,
+        show_cmap: bool,
         color: str,
         linewidth: int
 ) -> None:
@@ -256,27 +269,51 @@ def plot_morph(
         Matplotlib plot.
     """
 
-    cmap = plt.get_cmap(cmap)
+    if isinstance(cmap, str):
+        cmap = plt.get_cmap(cmap)
+
+    zmin = min([node.z for node in input_data])
+    zmax = max([node.z for node in input_data])
+
     norm = colors.Normalize(
-        vmin=min(class_instance.zs),
-        vmax=max(class_instance.zs))
+        vmin=zmin,
+        vmax=zmax)
+
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
-    z = float(z) if z is not None else None
+    z = int(z) if z is not None else None
 
     if ax is None:
-        fig, ax = plt.subplots()
+        _, ax = plt.subplots()
 
-        units, corners = get_scan_units(class_instance, scan_angle)
+        units, corners = (
+            get_scan_units(class_instance, scan_angle)
+            if class_instance.corners_um is not None
+            else (None, None))
 
+        title = (class_instance.stack_name
+                 if class_instance.stack_name is not None
+                 else None)
+
+        xlim = (
+            (min(corners[0]), max(corners[1]))
+            if corners is not None
+            else None)
+        ylim = (
+            (max(corners[2]), min(corners[3]))
+            if corners is not None
+            else None)
         ax.set(
-            xlim=(min(corners[0]), max(corners[1])),
-            ylim=(max(corners[2]), min(corners[3])),
+            xlim=xlim,
+            ylim=ylim,
             xlabel=units,
             ylabel=units,
-            title=class_instance.stack_name,
+            title=title,
             aspect='equal'
             )
+
+        if not corners:
+            ax.autoscale()
 
     if axis_lims is not None:
         ax.set(
@@ -297,11 +334,18 @@ def plot_morph(
                            ' show_segments must be True')
 
         if show_nodes:
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes("right", size="2%", pad=0.1)
-            ax.scatter(x_values, y_values, c=z_values, cmap=cmap)
-            cbar = plt.colorbar(sm, ax=ax, orientation='vertical', cax=cax)
-            cbar.set_label('Z')
+            ax.scatter(
+                x_values,
+                y_values,
+                c=z_values,
+                cmap=cmap,
+                s=nodes_size)
+
+            if show_cmap:
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("right", size="2%", pad=0.1)
+                cbar = plt.colorbar(sm, ax=ax, orientation='vertical', cax=cax)
+                cbar.set_label('Z')
 
     else:
         x_values = (
@@ -322,11 +366,19 @@ def plot_morph(
                            ' show_segments must be True')
 
         if show_nodes:
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes("right", size="2%", pad=0.1)
-            ax.scatter(x_values, y_values, c=z_values, cmap=cmap)
-            cbar = plt.colorbar(sm, ax=ax, orientation='vertical', cax=cax)
-            cbar.set_label('Z')
+
+            ax.scatter(
+                x_values,
+                y_values,
+                c=z_values,
+                cmap=cmap,
+                s=nodes_size)
+
+            if show_cmap:
+                divider = make_axes_locatable(ax)
+                cax = divider.append_axes("right", size="2%", pad=0.1)
+                cbar = plt.colorbar(sm, ax=ax, orientation='vertical', cax=cax)
+                cbar.set_label('Z')
 
     if show_segments:
         skeleton(
@@ -386,17 +438,23 @@ def plot_morph_3d(
             )
 
     node_dict = {node.id: node for node in input_data}
-    segments = [
-        ([node.x, parent.x],
-         [node.y, parent.y],
-         [node.z, parent.z])
-        for node in input_data if node.parent_id in node_dict
-        for parent in [node_dict[node.parent_id]]
-    ]
 
-    for seg in segments:
-        x, y, z = seg
-        ax.plot(x[:2], y[:2], z[:2], color=color, linewidth=linewidth)
+    for node in input_data:
+        if node.parent_id not in node_dict:
+            continue
+
+        parent = node_dict[node.parent_id]
+
+        x = [node.x, parent.x]
+        y = [node.y, parent.y]
+        z = [node.z, parent.z]
+
+        this_linewidth = (
+            linewidth if linewidth is not None
+            else (node.radius + parent.radius) / 2.0
+        )
+
+        ax.plot(x, y, z, color=color, linewidth=this_linewidth)
 
     if show_nodes:
         x_nodes = [
@@ -570,12 +628,14 @@ def animate_morph_3d(
 
 
 def plot_scanfield(
-        class_instance: object,
+        morphology: object,
         rectangles: list,
         ax: plt.Axes,
         axis_lims: list,
         cmap: str,
+        show_cmap: bool,
         edgecolor: str,
+        facecolor: str,
         linewidth: int,
         scan_angle: bool,
         alpha: float,
@@ -585,8 +645,8 @@ def plot_scanfield(
 
     Parameters
     ----------
-    class_instance : object
-        The Scanfield object containing metadata.
+    morphology : object
+        The Morphology object containing metadata.
     rectangles : list
         List of Roi objects to be plotted.
     ax : plt.Axes
@@ -596,6 +656,11 @@ def plot_scanfield(
         If specified, plot will be bounded to limits.
     cmap : str
         Colormap to use for coloring the rectangles based on z values.
+    show_cmap : bool
+        If True, a colorbar will be displayed.
+    facecolor : str
+        Color of the rectangle faces.
+        If cmap is specified, this will be overridden.
     edgecolor : str
         Color of the rectangle edges.
     linewidth : int
@@ -613,17 +678,17 @@ def plot_scanfield(
     if cmap:
         cmap = plt.cm.get_cmap(cmap)
         norm = colors.Normalize(
-            vmin=min(class_instance.zs), vmax=max(class_instance.zs))
+            vmin=min(morphology.zs), vmax=max(morphology.zs))
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
     # If it's a 2d lists of ROIs (multiple scanfields)
     # flattens it to get a 1d list of ROIs
-    if str(type(rectangles)) == "<class 'ROIpy.core.bundles.ScanfieldBundle'>":
+    if isinstance(rectangles, bndls.ScanfieldBundle):
         rectangles = [rect for roiSet in rectangles for rect in roiSet]
 
     # If it's an individual ROI
     # put the single ROI object in a single-element list
-    elif str(type(rectangles)) == "<class 'ROIpy.core.components.Roi'>":
+    elif isinstance(rectangles, cmpnts.Roi):
         rectangles = [rectangles]
 
     # this block is just for testing intermediate rectangles
@@ -635,11 +700,11 @@ def plot_scanfield(
         _, ax = plt.subplots()
         ax.set(
             aspect='equal',
-            title=class_instance.stack_name,
+            title=morphology.stack_name,
         )
         ax.autoscale()
 
-    units, corners = get_scan_units(class_instance, scan_angle)
+    units, corners = get_scan_units(morphology, scan_angle)
 
     if axis_lims:
         ax.set(
@@ -649,13 +714,11 @@ def plot_scanfield(
     else:
         ax.set(
             xlim=(min(corners[0]), max(corners[1])),
-            ylim=(max(corners[2]), min(corners[3])),
-            xlabel=units,
-            ylabel=units)
+            ylim=(max(corners[2]), min(corners[3])))
 
     for rect in rectangles:
 
-        color = cmap(norm(rect.z)) if cmap else 'none'
+        color = cmap(norm(rect.z)) if cmap else facecolor
 
         width, height = (
             rect.size_deg
@@ -680,7 +743,10 @@ def plot_scanfield(
 
         ax.add_patch(patch)
 
-    if cmap:
+    if cmap and show_cmap:
+        sm.set_array([rect.z for rect in rectangles])
+        sm.set_clim(vmin=min(morphology.zs), vmax=max(morphology.zs))
+        
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="2%", pad=0.1)
         cbar = plt.colorbar(sm, ax=ax, orientation='vertical', cax=cax)
@@ -688,7 +754,7 @@ def plot_scanfield(
 
 
 def plot_scanfields_3d(
-        class_instance: object,
+        morphology: object,
         rectangles: list,
         ax: plt.Axes,
         cmap: str,
@@ -705,8 +771,8 @@ def plot_scanfields_3d(
 
     Parameters
     ----------
-    class_instance : object
-        The Scanfield object containing metadata.
+    morphology : object
+        The Morphology object containing metadata.
     rectangles : list
         List of Roi objects to be plotted.
     ax : plt.Axes, optional
@@ -735,23 +801,24 @@ def plot_scanfields_3d(
     None
     """
 
-    if str(type(rectangles)) == "<class 'ROIpy.core.bundles.ScanfieldBundle'>":
+    if isinstance(rectangles, bndls.ScanfieldBundle):
         rectangles = [rect for roiSet in rectangles for rect in roiSet]
 
-    elif str(type(rectangles)) == "<class 'ROIpy.core.components.Roi'>":
+    elif isinstance(rectangles, cmpnts.Roi):
         rectangles = [rectangles]
 
     if not ax:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
 
-        units, corners = get_scan_units(class_instance, scan_angle)
+        units, corners = get_scan_units(morphology, scan_angle)
 
         ax.set(
             xlim=(min(corners[0]), max(corners[1])),
             ylim=(max(corners[2]), min(corners[3])),
-            zlim=(class_instance.zs[-1], class_instance.zs[0]),
-            zticklabels=[],
+            zlim=(min(morphology.zs), max(morphology.zs)),
+            zticks=(min(morphology.zs), max(morphology.zs)),
+            zticklabels=(min(morphology.zs), max(morphology.zs)),
             aspect='equal')
 
         ax.set_xlabel(units, labelpad=30)
@@ -815,7 +882,7 @@ def plot_scanfields_3d(
 
 
 def animate_scanfields_3d(
-        class_instance: object,
+        morphology: object,
         rectangles: list,
         cmap: str,
         edgecolor: str,
@@ -838,8 +905,8 @@ def animate_scanfields_3d(
 
     Parameters
     ----------
-    class_instance : object
-        The Scanfield object containing metadata.
+    morphology : object
+        The Morphology object containing metadata.
     rectangles : list
         List of Roi objects to be plotted.
     figsize : tuple, optional
@@ -883,12 +950,12 @@ def animate_scanfields_3d(
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    units, corners = get_scan_units(class_instance, scan_angle)
+    units, corners = get_scan_units(morphology, scan_angle)
 
     ax.set(
         xlim=(min(corners[0]), max(corners[1])),
         ylim=(max(corners[2]), min(corners[3])),
-        zlim=(class_instance.zs[-1], class_instance.zs[0]),
+        zlim=(min(morphology.zs), max(morphology.zs)),
         aspect="equal")
 
     ax.set_xlabel(units, labelpad=30)
@@ -912,7 +979,7 @@ def animate_scanfields_3d(
 
     # Initial plot of scanfields
     plot_scanfields_3d(
-        class_instance=class_instance,
+        morphology=morphology,
         rectangles=rectangles,
         ax=ax,
         cmap=cmap,

@@ -266,9 +266,9 @@ class Canvas(QFrame):
         """Plot the scanfield ROIs on the canvas."""
 
         struct_map = {
-            'neuron': self.sf.neuComp,
-            'apical': self.sf.apiComp,
-            'basal': self.sf.basComp
+            'neuron': self.sf.neuron,
+            'apical': self.sf.apical,
+            'basal': self.sf.basal
         }
 
         struct = struct_map.get(struct_type)

@@ -19,7 +19,7 @@ class MainWindow(QMainWindow):
 
         QMainWindow.__init__(self)
 
-        self.paths = None
+        self.folder_name = None
 
         self.central_widget = QWidget(self)
         self.layout = QGridLayout(self.central_widget)
@@ -44,7 +44,7 @@ class MainWindow(QMainWindow):
 
         # connect the signals
         self.load_files.paths_signal.connect(
-            lambda paths: setattr(self, 'paths', paths))
+            lambda folder_name: setattr(self, 'folder_name', folder_name))
 
         self.load_files.generate_button_clicked.connect(
             self.structure_frame.activate_buttons)

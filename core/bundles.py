@@ -169,6 +169,9 @@ class NodeBundle():
         color: str = 'black',
         marker: str = '+',
         size: int or float = 60,
+        show_sholl_curve: bool = True,
+        show_intersections: bool = True,
+        linewidth: int = 1,
     ) -> plt.Axes:
         """
         Perform 3D Sholl analysis with 2D visualization.
@@ -201,6 +204,12 @@ class NodeBundle():
             Marker style for intersections. Default is '+'.
         size : int or float, optional
             Marker size for intersections. Default is 60.
+        show_sholl_curve : bool, optional
+            If True, shows the Sholl curve. Default is True.
+        show_intersections : bool, optional
+            If True, shows intersection markers. Default is True.
+        linewidth : int, optional
+            Line width of the morphology object. Default is 1.
 
         Returns
         -------
@@ -231,6 +240,9 @@ class NodeBundle():
             color=color,
             marker=marker,
             size=size,
+            show_sholl_curve=show_sholl_curve,
+            show_intersections=show_intersections,
+            linewidth=linewidth
         )
 
     def hull(
@@ -351,7 +363,9 @@ class Neurite:
         self.nodes = nodes
         self.id = branch_id
         self.degree = branch_degree
+        self.compartment = self.nodes[0].type
         self.length = branch_length
+        self.mean_radius = self._mean_radius()
 
     def __len__(self):
         return len(self.nodes)
@@ -362,7 +376,25 @@ class Neurite:
     def __iter__(self):
         return iter(self.nodes)
 
-    def flat(self, direction: str = "horizontal") -> tuple:
+    def _mean_radius(self):
+        return np.mean([node.radius for node in self.nodes])
+
+    def totlen(self) -> float:
+        """
+        Calculate the total length of the neurites.
+
+        Returns
+        -------
+        float
+            Total length of neurites in micrometers (µm).
+        """
+        return calculate_total_length(self.nodes)
+
+    def flat(
+            self,
+            direction: str = "horizontal",
+            return_params: bool = False
+    ) -> tuple:
         """
         Flatten the branch so that its first and last nodes
         align along a straight line, while preserving inter-node distances.
@@ -413,6 +445,9 @@ class Neurite:
         if direction == "vertical":
             angle -= math.pi / 2
 
+        if return_params:
+            return (translation_x, translation_y), angle
+
         # Compute rotation matrix
         cos_theta = math.cos(-angle)
         sin_theta = math.sin(-angle)
@@ -427,8 +462,8 @@ class Neurite:
             node.x, node.y = (
                 round(rotated_coords[0], 6),
                 round(rotated_coords[1], 6))
-
-        return angle % 360, branch_copy
+        
+        return branch_copy
 
 
 class ScanfieldBundle():
@@ -553,8 +588,7 @@ class ScanfieldBundle():
 
         return len(self.scanfield), [len(row) for row in self.scanfield]
 
-    @property
-    def area(self) -> float:
+    def area(self, z: int = None) -> float:
         """
         Calculate the total area covered by all ROIs in the ScanfieldBundle.
 
@@ -570,21 +604,25 @@ class ScanfieldBundle():
         total_area = 0
         processed_polygons = []
 
-        for z_plane in self.scanfield:
-            for roi in z_plane:
-                # Convert the ROI to a polygon
-                current_polygon = convert_to_polygon(roi)
+        if z is None:
+           scanfields = [roi for z in self.scanfields for roi in z]
+        else:
+            scanfields = self.scanfields[z]
+        
+        for roi in scanfields:
+            # Convert the ROI to a polygon
+            current_polygon = convert_to_polygon(roi)
 
-                # Add the current polygon's area
-                total_area += current_polygon.area
+            # Add the current polygon's area
+            total_area += current_polygon.area
 
-                # Subtract overlapping areas with previously processed polygons
-                for processed_polygon in processed_polygons:
-                    overlap_area = current_polygon.intersection(
-                        processed_polygon).area
-                    total_area -= overlap_area
+            # Subtract overlapping areas with previously processed polygons
+            for processed_polygon in processed_polygons:
+                overlap_area = current_polygon.intersection(
+                    processed_polygon).area
+                total_area -= overlap_area
 
-                # Add the current polygon to the processed list
-                processed_polygons.append(current_polygon)
+            # Add the current polygon to the processed list
+            processed_polygons.append(current_polygon)
 
         return total_area

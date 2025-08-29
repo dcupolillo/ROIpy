@@ -125,6 +125,7 @@ def make_roi(
     # Widens and elongates rectangles
     widened_rectangles = correct_curvatures(
         class_instance, input_data, reintegrated_rectangles)
+
     elongated_rectangles = elongate_rectangles(
         class_instance, widened_rectangles)
 
@@ -260,7 +261,7 @@ def distance_node(
 
     Parameters
     ----------
-    class_instance : TYPE
+    class_instance : object
         The class object containing relevant parameters..
     input_data : list
         Nested list of z-sorted consecutive segments.
@@ -367,7 +368,7 @@ def find_rectangles(
 
     Parameters
     ----------
-    class_instance : TYPE
+    class_instance : object
         Class containing objective resolution and zs.
     close : list
         Nested list of closest points.
@@ -443,7 +444,7 @@ def remove_short_rectangles(
 
     Parameters
     ----------
-    class_instance : TYPE
+    class_instance : object
         The class object containing relevant parameters.
     rectangles : list
         List of rectangles grouped by z-plane.
@@ -489,7 +490,7 @@ def merge_neighbors(
 
     Parameters
     ----------
-    class_instance : TYPE
+    class_instance : object
         The class object containing relevant parameters.
     input_data : list
         List of Node objects.
@@ -603,7 +604,7 @@ def reintegrate(
 
     Parameters
     ----------
-    class_instance : TYPE
+    class_instance : object
         The class object containing relevant parameters.
     previously_included : list
         List of included rectangles grouped by z-plane.
@@ -718,7 +719,7 @@ def correct_curvatures(
 
     Parameters
     ----------
-    class_instance : TYPE
+    class_instance : object
         The class object containing relevant parameters.
     input_data : list
         List of all nodes in the input structure.
@@ -825,7 +826,7 @@ def elongate_rectangles(
 
     Parameters
     ----------
-    class_instance : TYPE
+    class_instance : object
         The class object containing relevant parameters.
     rectangles : list
         Rectangles to elongate.
@@ -939,7 +940,7 @@ def calculate_overlap_matrix(
 
     Parameters
     ----------
-    class_instance : TYPE
+    class_instance : object
         The class object containing relevant parameters.
     rectangles : list
         list of custom Roi objects.
@@ -993,7 +994,7 @@ def remove_overlapping(
 
     Parameters
     ----------
-    class_instance : TYPE
+    class_instance : object
         list of custom Roi objects.
     rectangles : list
         list of custom Roi objects.
@@ -1223,7 +1224,7 @@ def calculate_transform(
 
     Parameters
     ----------
-    class_instance : TYPE
+    class_instance : object
         The class object containing relevant parameters.
     rectangles : list
         List of lists of Roi objects.

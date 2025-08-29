@@ -1,19 +1,17 @@
 """ Created on Tue Aug 27 15:22:29 2024
     @author: dcupolillo """
 
-import os
-from PyQt5.QtWidgets import (QMainWindow, QFrame, QLabel, QGridLayout,
-                             QPushButton, QFileDialog, QMessageBox)
+from pathlib import Path
+from PyQt5.QtWidgets import (
+    QMainWindow, QFrame, QLabel, QGridLayout,
+    QPushButton, QFileDialog, QMessageBox)
 from PyQt5.QtCore import Qt, pyqtSignal
-
-
 from ROIpy.core.structures import Stack, Morphology, Scanfields
-from neuronpath.path import neuronpath
 
 
 class LoadFiles(QFrame):
 
-    paths_signal = pyqtSignal(object)
+    paths_signal = pyqtSignal(Path)
     structures_signal = pyqtSignal(Stack, Morphology, Scanfields)
     generate_button_clicked = pyqtSignal()
 
@@ -22,7 +20,8 @@ class LoadFiles(QFrame):
 
         super().__init__(parent)
 
-        self.paths = None
+        self.date = None
+        self.cell_n = None
 
         self.layout = QGridLayout()
         self.setLayout(self.layout)
@@ -74,30 +73,25 @@ class LoadFiles(QFrame):
             QFileDialog.ShowDirsOnly | QFileDialog.ReadOnly
         )
 
-        if folder_name:
+        self.folder_name = Path(folder_name)
+
+        if self.folder_name:
             self.path_entry.setText(folder_name)
 
             # Split the folder path into its components
-            path_parts = os.path.normpath(folder_name).split(os.sep)
+            path_parts = self.folder_name.parts
 
             # Store the last and second-to-last components
             self.cell_n = int(''.join(filter(str.isdigit, path_parts[-1])))
             self.date = str(path_parts[-2])
 
-            self.paths = neuronpath(
-                date=self.date,
-                neuron_number=self.cell_n,
-                # home='C:\\Users\\vregio',
-                # user='Desktop'
-            )
-
             self.are_files_loaded()
 
     def are_files_loaded(self) -> None:
 
-        if self.paths:
+        if self.date and self.cell_n:
             self.generate_button.setEnabled(True)
-            self.paths_signal.emit(self.paths)
+            self.paths_signal.emit(self.folder_name)
 
     def generate(self) -> None:
         """
@@ -105,9 +99,17 @@ class LoadFiles(QFrame):
         Emit a signal to Main Window.
         Enables the structure buttons in the structure frame.
         """
-        stack = Stack(self.paths)
-        morph = Morphology(self.paths)
-        sf = Scanfields(self.paths)
+        for file in self.folder_name.iterdir():
+            if file.suffix in ['.tif', '.tiff']:
+                stack_filename = file
+            elif file.suffix == ".swc":
+                swc_filename = file
+            else:
+                pass
+
+        stack = Stack(stack_filename)
+        morph = Morphology(swc_filename, stack)
+        sf = Scanfields(morph)
 
         self.structures_signal.emit(stack, morph, sf)
         self.generate_button_clicked.emit()

@@ -56,7 +56,7 @@ class MarkedList:
     Wrap a list for custom JSON encoding.
     """
 
-    def __init__(self, lst: list) -> None:
+    def __init__(self, _list: list) -> None:
         """
         Initialize with a list.
 
@@ -66,10 +66,10 @@ class MarkedList:
             The list to wrap.
         """
 
-        if not isinstance(lst, list):
+        if not isinstance(_list, list):
             raise TypeError("MarkedList requires a list.")
 
-        self.lst = lst
+        self._list = _list
 
 
 class NullValue:
@@ -77,7 +77,7 @@ class NullValue:
     Wrap the string 'null' for custom JSON encoding.
     """
 
-    def __init__(self, s: str) -> None:
+    def __init__(self, _string: str) -> None:
         """
         Initialize with the string 'null'.
 
@@ -91,11 +91,11 @@ class NullValue:
         ValueError
             If s is not 'null'.
         """
-        if s != "null":
+        if _string != "null":
             raise ValueError(
                 "NullValue must be initialized with the string 'null'.")
 
-        self.s = s
+        self._string = _string
 
 
 class CustomJSONEncoder(JSONEncoder):
@@ -120,10 +120,10 @@ def generate_roi_files(
 ) -> None:
 
     if structure_type:
-        name = class_var.stack_name.split('_')[0] + f"_{structure_type}"
+        name = class_var._morph.stack_name.split('_')[0] + f"_{structure_type}"
         folder_path = Path(folder_path, name)
     else:
-        name = class_var.stack_name
+        name = class_var._morph.stack_name
         folder_path = Path(folder_path, name)
 
     folder_path.mkdir(parents=True, exist_ok=True)

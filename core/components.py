@@ -116,25 +116,40 @@ class Node:
         None
         """
 
+        # Spatial calibration adjustement for pixel size
         x_corrected = float(x) / voxel_separation_x
         y_corrected = float(y) / voxel_separation_y
-        transformed_pixel_to_ref = self.transform_coordinates(
-            [x_corrected,  y_corrected], matrix)
 
+        self.id = int(_id)
+        self.type = self.get_type(int(_type))
         self.obj_res = obj_res
         self.zs = zs
         self.matrix = matrix
         self.voxel_separation_x = voxel_separation_x
         self.voxel_separation_y = voxel_separation_y
 
-        self.id = int(_id)
-        self.type = self.get_type(int(_type))
-        self.x = transformed_pixel_to_ref[0] * obj_res
-        self.y = transformed_pixel_to_ref[1] * obj_res
-        self.z = float(zs[int(float(z_ind))])
+        if matrix is not None:
+            transformed_pixel_to_ref = self.transform_coordinates(
+                [x_corrected,  y_corrected], matrix)
+
+            self.x = transformed_pixel_to_ref[0] * obj_res  # deg to µm
+            self.y = transformed_pixel_to_ref[1] * obj_res
+            self.x_deg = transformed_pixel_to_ref[0]
+            self.y_deg = transformed_pixel_to_ref[1]
+
+        else:
+            self.x = x_corrected
+            self.y = y_corrected
+            self.x_deg = None
+            self.y_deg = None
+
+        if zs is not None:
+            self.z = float(zs[int(float(z_ind))])
+        else:
+            self.z = float(z_ind)
+
         self.z_ind = float(z_ind)
-        self.x_deg = transformed_pixel_to_ref[0]
-        self.y_deg = transformed_pixel_to_ref[1]
+
         self.x_pix = x_corrected
         self.y_pix = y_corrected
         self.radius = float(radius)
@@ -173,7 +188,7 @@ class Node:
         Returns
         -------
         list
-            Transformed coordinates.
+            Transformed coordinates in angle degrees.
         """
 
         pixel_coords = np.array(coords + [1])

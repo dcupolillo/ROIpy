@@ -12,7 +12,6 @@ from PyQt5.QtCore import Qt, pyqtSignal
 from ROIpy.core.structures import Stack, Morphology, Scanfields
 from ROIpy.assets.palette import dim
 from ROIpy.GUI.guiStyles import darkMode, icon
-from neuronpath.path import neuronpath
 
 
 class LoadFiles(QFrame):
