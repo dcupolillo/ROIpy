@@ -4,7 +4,7 @@
 
 **ROIpy** is a python package for ROI (Region of Interest) semi-automatic generation and placement for functional imaging of neuronal dendrites of individual neurons 🔬:brain:. It provides a tool for defining, managing and visualizing dendritic ROIs. In addition, provides a benchmark for analyzing morphological data such as dendritic structure.
 
-Designed to interface with [Vidrio ScanImage software](https://vidriotechnologies.com/).
+Designed to interface with [Vidrio ScanImage software](https://vidriotechnologies.com/) (now [MBF](https://www.mbfbioscience.com/products/scanimage/)).
 
 ### ScanImage setup
 
@@ -61,75 +61,54 @@ Object defining the digitized structural anatomy of a dendritic arborization dra
 
 Represents the rotated rectangular ROIs that encapsulate the entire dendritic tree region.
 
-## Dependency on Neuronpath
+## Plotting API
 
-`ROIpy` objects initialization depends on the custom dataset handler `Neuronpath` (find repository [here](https://github.com/dcupolillo/neuronpath)).
+ROIpy now provides a unified `plot()` function at the package level. You can visualize any supported structure (Stack, Morphology, Scanfields), bundle (NodeBundle, ScanfieldBundle) or component (Node, Roi) by passing it to `rp.plot()`. The function automatically dispatches to the correct plotter and supports flexible keyword arguments for customization.
 
-**Example Usage:**
+### Flexible Customization
+
+`rp.plot()` accepts flexible keyword arguments (`**kwargs`) for customizing colors, linewidths, colormaps, and more. These are dispatched to the appropriate underlying plotter for each data type.
+
+### Animation
+
+If you want to animate 3D visualizations, use the unified `animate()` function:
 
 ```python
-from neuronpath.path import neuronpath
-paths = neuronpath("date_string", cell_number)
-
-# date_string: str (in the format YYMMDD i.e. "240505")
-# cell_number: int (i.e. 1)
+anim = rp.animate(morph.neuron, projection='3d', frames=120)
+anim.save("morphology_rotation.gif")
 ```
 
-## Example usage
-
-### Stack
+## Example Usage
 
 ```python
 import ROIpy as rp
 
 # Initialize a stack of neuron images
-stack = rp.Stack(paths)
+stack_filename = "path/to/your/stack"
+stack = rp.Stack(stack_filename)
 
 # Plot the stack image
-stack.plot(cmap="viridis", norm=(100, 2000))
+rp.plot(stack, cmap="viridis", norm=(100, 2000))
+
+# Initialize the morphology with image and tracing files
+swc_filename = "path/to/your/swc"
+morph = rp.Morphology(swc_filename, stack_filename)
+
+# Plot the morphology
+rp.plot(morph.neuron, show_nodes=True, cmap="jet", linewidth=1)
+
+# Initialize the scanfields with image and tracing files
+sf = rp.Scanfields(morph)
+
+# Plot the scanfields
+rp.plot(sf.neuComp, edgecolor="red")
+
+# 3D plotting example
+rp.plot(morph.neuron, projection='3d', show_nodes=True, cmap="jet")
 ```
 
 ![Example of a stack](assets/stack.png)
 
-### Morphology
-
-A `Morphology` object includes a series of `NodeBudle`:
-
-1. `neuron`: the structure of the overall neuron, which includes all the others.
-2. `apical`: the apical dendritic compartment.
-3. `basal`: the basal dendritic compartment.
-4. `soma`: the cell body of the neuron.
-
-Each `NodeBundle` is composed of a series of `Node` components, defining the features of every individual point within the structure.
-
-```python
-# Initialize the morphology with image and tracing files
-morph = rp.Morphology(paths)
-
-# Plot the morphology
-morph.plot(morph.neuron, show_nodes=True, cmap="jet", linewidth=1)
-```
-
 ![Example of a morph neuron](assets/morph.png)
-
-### Scanfields
-
-Refers to **Scanimage** `scanimage.mroi.scanfield.fields.RotatedRectangle` objects. Generates and saves 💾 a number of single-plane json-formatted `.roi` files corresponding to the different zlayers to be loaded to **ScanImage** ROI Editor for multiple ROI (mROI) definition.
-
-Similarly to `Morphology` bundles, a `Scanfield` object includes a series of `ScanfieldBundle`:
-
-1. `neuComp`: (as in neuronal compartment), the ensemble of dendritic ROIs, covering the whole neuron.
-2. `apiComp`: ROIs covering the apical dendritic compartment.
-3. `basComp`: ROIs coveing the basal dendritic compartment.
-
-Each `ScanfieldBundle` is a collection of individual `Roi` components, defining the features of every individual rectangle within the structure.
-
-```python
-# Initialize the scanfields with image and tracing files
-sf = rp.Scanfields(paths)
-
-# Plot the scanfields
-sf.plot(sf.neuComp, edgecolor="red")
-```
 
 ![Example of a neuronal scanfield](assets/sf.png)

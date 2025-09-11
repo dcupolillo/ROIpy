@@ -46,17 +46,6 @@ class Node:
         matrix: np.ndarray,
         voxel_separation_x: float,
         voxel_separation_y: float,
-        # is_fork: bool = False,
-        # children: list = [],
-        # x_deg: float = None,
-        # y_deg: float = None,
-        # x_pix: int = None,
-        # y_pix: int = None,
-        # z: float = None,
-        # branch_degree: int = None,
-        # branch_id: int = None,
-        # has_spine: bool = None,
-        # spine_id: int = None,
     ) -> None:
         """
         Initialize a Node instance.
@@ -162,7 +151,10 @@ class Node:
         self.spine_id = None
 
     def __getattr__(self, name: str):
-        return self.__dict__[f"_{name}"]
+        key = f"_{name}"
+        if key in self.__dict__:
+            return self.__dict__[key]
+        raise AttributeError(name)
 
     def __setattr__(
             self,

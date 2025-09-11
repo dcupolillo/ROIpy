@@ -34,7 +34,10 @@ class NodeBundle():
         A list of total lengths (in micrometers) for each branch.
     """
 
-    def __init__(self, nodes: list) -> None:
+    def __init__(
+            self,
+            nodes: list,
+    ) -> None:
         """
         Initialize a NodeBundle instance.
 
@@ -42,6 +45,8 @@ class NodeBundle():
         ----------
         nodes : list
             A list of `Node` objects representing the neuronal structure.
+        metadata : dict
+            A dictionary containing metadata associated with the neuronal
 
         Notes
         -----
@@ -483,7 +488,7 @@ class ScanfieldBundle():
 
     def __init__(
             self,
-            scanfields: list
+            scanfields: list,
     ) -> None:
         """
         Initialize a ScanfieldBundle instance.

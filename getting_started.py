@@ -20,24 +20,27 @@ stack = rp.Stack(stack_filename)
 morph = rp.Morphology(swc_filename, stack)
 sf = rp.Scanfields(morph)
 
+# generate individual branches
+branch = morph.neuron.get_branch(11)
+
 # plot the stack
-stack.plot()
-stack.plot(cmap='viridis', norm=(100, 2000))
+rp.plot(stack.image)
+rp.plot(stack.image, stack.metadata, cmap='viridis', norm=(100, 2000))
 
 # plot the morphology structure
-morph.plot(morph.neuron)
-morph.plot(morph.neuron, show_nodes=True, cmap='jet', linewidth=1)
+rp.plot(morph.neuron)
+rp.plot(morph.neuron, show_nodes=True, cmap='jet', linewidth=1)
 
 # plot the scanfields
-sf.plot(sf.neuron)
-sf.plot(sf.neuron, edgecolor='red', cmap='viridis')
+rp.plot(sf.neuron)
+rp.plot(sf.neuron, sf.metadata, edgecolor='red', cmap='viridis')
 
 # plot them together
 fig, ax = plt.subplots()
 ax.set_aspect('equal')
-stack.plot(ax=ax)
-morph.plot(morph.neuron, ax=ax, color="lime")
-sf.plot(sf.neuron, ax=ax, edgecolor="fuchsia")
+rp.plot(stack.image, stack.metadata, ax=ax)
+rp.plot(morph.neuron, morph.metadata, ax=ax, color="lime")
+rp.plot(sf.neuron, sf.metadata, ax=ax, edgecolor="fuchsia")
 plt.show()
 
 # Start the graphical interface

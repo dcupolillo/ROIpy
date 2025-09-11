@@ -207,9 +207,7 @@ def parse_stack_metadata(
 
 def parse_swc(
         filename: str,
-        objective_resolution: float,
-        zs: list,
-        pixel_to_ref_transform: list or np.ndarray
+        metadata: dict,
 ) -> list:
     """
     Parse an SWC file and generate a list of Node instances.
@@ -219,13 +217,12 @@ def parse_swc(
     ----------
     filename : str
         Path to the SWC file containing the neuronal morphology data.
-    objective_resolution : float
-        Resolution of the objective used, stored in the image metadata.
-    zs : list
-        List of Z slice positions in micrometers (µm).
-    pixel_to_ref_transform : list or np.ndarray
-        Transformation matrix for converting pixel coordinates to
-        reference space.
+    metadata : dict
+        Dictionary containing metadata required for parsing the SWC file.
+        Expected keys:
+        - "objective_resolution": float
+        - "zs": list of float
+        - "pixel_to_ref_transform": np.ndarray
 
     Returns
     -------
@@ -233,12 +230,16 @@ def parse_swc(
         List of Node instances representing the parsed morphology.
     """
 
+    objective_resolution = metadata["objective_resolution"]
+    zs = metadata["zs"]
+    pixel_to_ref_transform = metadata["pixel_to_ref_transform"]
+
     nodes = []
     x_voxel_separation, y_voxel_separation = 1., 1.
 
     with open(filename, 'r') as f:
 
-        for n_line, line in enumerate(f):
+        for line in f:
 
             line = line.strip()
 
@@ -249,10 +250,9 @@ def parse_swc(
 
                 if "Voxel separation" in line:
                     voxel_info = line.split(':', 1)[1].strip()
-                    x, y, z = map(float, voxel_info.split(','))
+                    x, y, _ = map(float, voxel_info.split(','))
                     x_voxel_separation = x
                     y_voxel_separation = y
-                    # z_voxel_separation = z
 
                 continue  # skip comment lines
 
