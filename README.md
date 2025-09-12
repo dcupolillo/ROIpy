@@ -107,7 +107,7 @@ rp.plot(morph.neuron, projection='3d', show_nodes=True, cmap="jet")
 If you want to animate 3D visualizations, use the unified `animate()` function:
 
 ```python
-anim = rp.animate(
+morph_anim = rp.animate(
 	morph.neuron,
 	flip_yz=True,
 	axis_label=False,
@@ -116,10 +116,21 @@ anim = rp.animate(
 	show_nodes=True, 
 	show_cbar=True,
 	save_path="morph_anim.gif")
+
+scanfields_anim = rp.animate(
+	sf.neuron,
+	sf.metadata,
+	cmap="viridis",
+	show_cbar=True,
+	axis_label=False,
+	interval=250,
+	zoom=1.5,
+	save_path="scanfields_anim.gif")
 ```
 
 
 ![til](./assets/morph_anim.gif)
 
+![Example animation](assets/scanfields_anim.gif)
 
 ## GUI to interact with ScanImage mROI tool

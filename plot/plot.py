@@ -172,6 +172,56 @@ def animate(
 
     else:
         raise TypeError("Unsupported data type for plotting.")
+    
+def update_3d_view(
+        ax: plt.Axes,
+        elev_start: float,
+        elev_end: float,
+        azimut_start: float,
+        azimut_end: float,
+        frames: int
+) -> callable:
+    """
+    Returns a function that updates the 3D view of the Axes.
+    
+    Parameters
+    ----------
+    ax : plt.Axes
+        The 3D Axes to be updated.
+    elev_start : float
+        Starting elevation angle.
+    elev_end : float
+        Ending elevation angle.
+    azimut_start : float
+        Starting azimuth angle.
+    azimut_end : float
+        Ending azimuth angle.
+    frames : int
+        Total number of frames in the animation.
+    
+    Returns
+    -------
+    callable
+        A function that updates the view for each frame.
+    """
+    
+    def updater(frame):
+        
+        current_elev = (
+            elev_start +
+            (elev_end - elev_start) *
+            (frame / (frames - 1))
+        )
+        current_azimut = (
+            azimut_start +
+            (azimut_end - azimut_start) *
+            (frame / (frames - 1))
+        )
+        ax.view_init(elev=current_elev, azim=current_azimut)
+        
+        return ax,
+    
+    return updater
 
 
 def check_metadata(metadata: dict) -> None:
@@ -636,6 +686,16 @@ def plot_morph_3d(
     -------
     None
     """
+    if not isinstance(input_data, (list, cmpnts.Node, bndls.NodeBundle)):
+        raise TypeError("input_data must be a list of Nodes, a single Node, "
+                        "or a NodeBundle.")
+    
+    if isinstance(input_data, cmpnts.Node):
+        input_data = [input_data]
+
+    if not all(isinstance(node, cmpnts.Node) for node in input_data):
+        raise TypeError("All elements in input_data must be Nodes.")
+
     default_nodes_kwargs = {
         'edgecolor': 'black',
         'alpha': 0.7,
@@ -652,7 +712,7 @@ def plot_morph_3d(
     nodes_kwargs = {**default_nodes_kwargs, **(nodes_kwargs or {})}
     segments_kwargs = {**default_segments_kwargs, **(segments_kwargs or {})}
 
-    if ax is None:
+    if not ax:
         fig = plt.figure()
         ax = fig.add_subplot(111, projection='3d')
 
@@ -697,7 +757,7 @@ def plot_morph_3d(
                 k: v for k, v in nodes_kwargs.items() if k != 'color'}
             cmap = plt.get_cmap(cmap)
             norm = plt.Normalize(min(z_nodes), max(z_nodes))
-            sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            scalar_map= plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
             ax.scatter(
                 x_nodes,
@@ -714,8 +774,8 @@ def plot_morph_3d(
                 **nodes_kwargs)
 
         if show_cbar:
-            cbar = plt.colorbar(sm, ax=ax)
-            cbar.set_label("Z")
+            cbar = plt.colorbar(scalar_map, ax=ax)
+            cbar.set_label("Z (µm)")
 
     if axis_lims:
         ax.set(
@@ -755,20 +815,20 @@ def plot_morph_3d(
     if azim is not None:
         ax.view_init(elev=elev, azim=azim)
 
-        # --- Zoom effect by scaling axis limits ---
-        if zoom != 1.0:
-            xlim = ax.get_xlim3d()
-            ylim = ax.get_ylim3d()
-            zlim = ax.get_zlim3d()
-            xmid = (xlim[0] + xlim[1]) / 2.0
-            ymid = (ylim[0] + ylim[1]) / 2.0
-            zmid = (zlim[0] + zlim[1]) / 2.0
-            xsize = (xlim[1] - xlim[0]) / zoom
-            ysize = (ylim[1] - ylim[0]) / zoom
-            zsize = (zlim[1] - zlim[0]) / zoom
-            ax.set_xlim3d(xmid - xsize/2, xmid + xsize/2)
-            ax.set_ylim3d(ymid - ysize/2, ymid + ysize/2)
-            ax.set_zlim3d(zmid - zsize/2, zmid + zsize/2)
+    # --- Zoom effect by scaling axis limits ---
+    if zoom != 1.0:
+        xlim = ax.get_xlim3d()
+        ylim = ax.get_ylim3d()
+        zlim = ax.get_zlim3d()
+        xmid = (xlim[0] + xlim[1]) / 2.0
+        ymid = (ylim[0] + ylim[1]) / 2.0
+        zmid = (zlim[0] + zlim[1]) / 2.0
+        xsize = (xlim[1] - xlim[0]) / zoom
+        ysize = (ylim[1] - ylim[0]) / zoom
+        zsize = (zlim[1] - zlim[0]) / zoom
+        ax.set_xlim3d(xmid - xsize/2, xmid + xsize/2)
+        ax.set_ylim3d(ymid - ysize/2, ymid + ysize/2)
+        ax.set_zlim3d(zmid - zsize/2, zmid + zsize/2)
 
 
 
@@ -906,19 +966,18 @@ def animate_morph_3d(
         segments_kwargs=segments_kwargs
     )
 
-    def update(frame):
-        current_elev = (
-            elev_start + (elev_end - elev_start) *
-            (frame / (frames - 1)))
-        current_azimut = (
-            azimut_start + (azimut_end - azimut_start) *
-            (frame / (frames - 1)))
-        ax.view_init(elev=current_elev, azim=current_azimut)
-        return ax,
-
     anim = FuncAnimation(
-        fig, update, frames=frames, interval=interval, blit=False
-    )
+        fig,
+        update_3d_view(
+            ax,
+            elev_start,
+            elev_end,
+            azimut_start,
+            azimut_end,
+            frames),
+        frames=frames,
+        interval=interval,
+        blit=False)
 
     if save_path:
         anim.save(save_path, writer="pillow")
@@ -1086,8 +1145,9 @@ def plot_scanfield(
 
 def plot_scanfields_3d(
         rectangles: list or bndls.ScanfieldBundle or cmpnts.Roi,
-        metadata: dict,
+        metadata: dict = None,
         ax: plt.Axes = None,
+        axis_lims: list = None,
         cmap: str = None,
         show_cbar: bool = False,
         scan_angle: bool = False,
@@ -1108,6 +1168,8 @@ def plot_scanfields_3d(
     ax : plt.Axes, optional
         The axis on which to plot.
         If None, a new 3D axis will be created. Default is None.
+    axis_lims : list, optional
+        If specified, plot will be bounded to limits. Default is None.
     cmap : str, optional
         Colormap to use for coloring the rectangles based on z values.
         Default is None.
@@ -1141,7 +1203,7 @@ def plot_scanfields_3d(
     elif isinstance(rectangles, cmpnts.Roi):
         rectangles = [rectangles]
 
-    zs = metadata['zs']
+    zs = metadata['zs'] if metadata else [rect.z for rect in rectangles]
 
     default_rect_kwargs = {
         'edgecolor': "black",
@@ -1150,9 +1212,6 @@ def plot_scanfields_3d(
         'alpha': 0.5
     }
     rect_kwargs = {**default_rect_kwargs, **(rect_kwargs or {})}
-
-    if cmap is not None:
-        rect_kwargs.pop("facecolor", None)
 
     if not ax:
         fig = plt.figure()
@@ -1177,9 +1236,7 @@ def plot_scanfields_3d(
     fig = ax.get_figure()
 
     z_values = [rect.z for rect in rectangles]
-    norm = mcolors.Normalize(vmin=min(z_values), vmax=max(z_values))
-    scalar_map = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
-
+    
     for rect in rectangles:
 
         x, y = rect.bottom_right
@@ -1211,6 +1268,10 @@ def plot_scanfields_3d(
         faces = [vertices]
 
         if cmap is not None:
+            rect_kwargs.pop("facecolor", None)
+            cmap = plt.get_cmap(cmap)
+            norm = mcolors.Normalize(vmin=min(z_values), vmax=max(z_values))
+            scalar_map = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
             color = scalar_map.to_rgba(z)
 
             poly3d = Poly3DCollection(
@@ -1227,12 +1288,47 @@ def plot_scanfields_3d(
         ax.add_collection3d(poly3d)
 
     if cmap and show_cbar:
-        scalar_map.set_array(z_values)
-        cbar = fig.colorbar(scalar_map, ax=ax, shrink=0.2, aspect=10)
-        cbar.set_label("Z depth")
-        cbar.set_ticks([])
+        cbar = plt.colorbar(scalar_map, ax=ax)
+        cbar.set_label("Z (µm)")
 
-    ax.view_init(elev=elev, azim=azim)
+    if axis_lims:
+        ax.set(
+            xlim=(axis_lims[0], axis_lims[1]),
+            ylim=(axis_lims[2], axis_lims[3]),
+            zlim=(axis_lims[4], axis_lims[5]))
+    else:
+        # Find most extreme x and y values among all corners of all rectangles
+        x_vals = []
+        y_vals = []
+        z_vals = []
+        for rect in rectangles:
+            rect_corners = [
+                rect.bottom_right,
+                rect.top_right,
+                rect.top_left,
+                rect.bottom_left]
+            
+            x_vals.extend([corner[0] for corner in rect_corners])
+            y_vals.extend([corner[1] for corner in rect_corners])
+            z_vals.extend([rect.z for _ in rect_corners])
+
+        max_range = np.array(
+            [max(x_vals) - min(x_vals),
+             max(y_vals) - min(y_vals),
+             max(z_vals) - min(z_vals)]).max() / 2.0
+        
+        mid_x = (max(x_vals) + min(x_vals)) * 0.5
+        mid_y = (max(y_vals) + min(y_vals)) * 0.5
+        mid_z = (max(z_vals) + min(z_vals)) * 0.5
+
+        ax.set(
+            xlim=(mid_x - max_range, mid_x + max_range),
+            ylim=(mid_y - max_range, mid_y + max_range),
+            zlim=(mid_z - max_range, mid_z + max_range)
+            )
+        
+    if azim is not None:
+        ax.view_init(elev=elev, azim=azim)
 
     # --- Zoom effect by scaling axis limits ---
     if zoom != 1.0:
@@ -1252,10 +1348,11 @@ def plot_scanfields_3d(
 
 def animate_scanfields_3d(
         rectangles: list,
-        metadata: dict,
+        metadata: dict = None,
+        scan_angle: bool = False,
+        axis_lims: list = None,
         cmap: str = None,
         show_cbar: bool = False,
-        scan_angle: bool = False,
         elev_start: float = 30,
         elev_end: float = 30,
         azimut_start: float = 0,
@@ -1263,8 +1360,8 @@ def animate_scanfields_3d(
         interval: int = 100,
         frames: int = 60,
         save_path: str = None,
+        axis_label: bool = True,
         zoom: float = 1.0,
-        axis_label: bool = False,
         rect_kwargs: dict = None
 ):
     """
@@ -1317,8 +1414,6 @@ def animate_scanfields_3d(
         raise TypeError(
             "rectangles must be a list, ScanfieldBundle, or Roi.")
 
-    zs = metadata['zs']
-
     default_rect_kwargs = {
         'edgecolor': "black",
         'facecolor': "crimson",
@@ -1333,24 +1428,12 @@ def animate_scanfields_3d(
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    units, corners = get_scan_units(metadata, scan_angle)
-
-    ax.set(
-        xlim=(min(corners[0]), max(corners[1])),
-        ylim=(max(corners[2]), min(corners[3])),
-        zlim=(min(zs), max(zs)),
-        aspect="equal")
-
-    ax.set_xlabel(units, labelpad=30)
-    ax.set_ylabel(units, labelpad=30)
-
-    # Configure axis labels and grid
     if not axis_label:
         ax.tick_params(axis='both', which='both', length=0)
         ax.set(
-            xticks=[],
-            yticks=[],
-            zticks=[],
+            xticks=([]),
+            yticks=([]),
+            zticks=([]),
             xlabel="",
             ylabel="",
             zlabel="")
@@ -1365,6 +1448,7 @@ def animate_scanfields_3d(
         rectangles=rectangles,
         metadata=metadata,
         ax=ax,
+        axis_lims=axis_lims,
         cmap=cmap,
         show_cbar=show_cbar,
         scan_angle=scan_angle,
@@ -1373,20 +1457,17 @@ def animate_scanfields_3d(
         zoom=zoom,
         rect_kwargs=rect_kwargs
     )
-
-    # Update function for the animation
-    def update(frame):
-        current_elev = elev_start + \
-            (elev_end - elev_start) * (frame / (frames - 1))
-        current_azimut = azimut_start + \
-            (azimut_end - azimut_start) * (frame / (frames - 1))
-        ax.view_init(elev=current_elev, azim=current_azimut)
-        return ax,
-
+    
     # Create the animation
     anim = FuncAnimation(
         fig,
-        update,
+        update_3d_view(
+            ax,
+            elev_start,
+            elev_end,
+            azimut_start,
+            azimut_end,
+            frames),
         frames=frames,
         interval=interval,
         blit=False)
@@ -1394,7 +1475,5 @@ def animate_scanfields_3d(
     # Save the animation if a save path is provided
     if save_path:
         anim.save(save_path, writer="pillow")
-
-    plt.show()
 
     return anim
