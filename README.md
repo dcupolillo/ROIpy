@@ -134,3 +134,9 @@ scanfields_anim = rp.animate(
 ![Example animation](assets/scanfields_anim.gif)
 
 ## GUI to interact with ScanImage mROI tool
+
+```python
+import ROIpy as rp
+
+rp.run_app()
+```
