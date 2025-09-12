@@ -3,7 +3,13 @@
 
 from pathlib import Path
 import tifffile
+import matplotlib.pyplot as plt
 from ROIpy.core.bundles import NodeBundle, ScanfieldBundle
+# from ROIpy.plot.plot import (
+#     plot_image, plot_morph,
+#     plot_morph_3d, animate_morph_3d,
+#     plot_scanfield, plot_scanfields_3d,
+#     animate_scanfields_3d)
 from ROIpy.core.utils.utils import (
     stack_metadata_dictionary, parse_swc,
     parse_stack_metadata, assign_branch_degree_and_id)
@@ -23,7 +29,8 @@ class Stack:
     >>> import ROIpy as rp
     >>> path = "path/to/tiff"
     >>> stack = rp.Stack(path)  # Initialize stack
-    >>> rp.plot(stack.image, stack.metadata, cmap='viridis', norm=(100, 2000))  # Visualize
+    >>> stack.plot(cmap='viridis', norm=(100, 2000))  # Visualize
+
     """
 
     def __init__(
@@ -81,6 +88,59 @@ class Stack:
     ):
         self.__dict__[f"_{name}"] = value
 
+    # def plot(
+    #         self,
+    #         scan_angle: bool = False,
+    #         ax: plt.Axes = None,
+    #         norm: list or tuple = None,
+    #         cmap: str = 'binary_r',
+    #         z: int = None,
+    #         axes_labels: bool = True,
+    # ) -> plt.Axes:
+    #     """
+    #     Plot the max projection stack image or individual images.
+# 
+    #     Parameters
+    #     ----------
+    #     scan_angle : bool, optional
+    #         If True, uses scan angle units for plotting. Default is False.
+    #     ax : plt.Axes, optional
+    #         Axes to plot the image on. If None, creates a new Axes.
+    #     norm : list or tuple, optional
+    #         Limits for the lookup table (LUT). Default is None.
+    #     cmap : str, optional
+    #         Colormap for the image. Default is None, which plots in grayscale.
+    #     z : int, optional
+    #         Specific slice to plot.
+    #         If None, plots the entire stack. Default is None.
+# 
+    #     Returns
+    #     -------
+    #     plt.Axes
+    #         The axes with the plotted image.
+# 
+    #     Example
+    #     -------
+    #     >>> fig, ax = plt.subplots()
+    #     >>> stack.plot(cmap='viridis', norm=(100, 2000), ax=ax)
+    #     """
+# 
+    #     return plot_image(
+    #         self,
+    #         scan_angle=scan_angle,
+    #         ax=ax,
+    #         norm=norm,
+    #         cmap=cmap,
+    #         z=z,
+    #         axes_labels=axes_labels)
+
+        @property
+        def metadata_dict(self) -> dict:
+            """
+            Returns the metadata dictionary for this stack.
+            """
+            return self.metadata
+
 
 class Morphology:
     """
@@ -104,9 +164,10 @@ class Morphology:
     Example
     -------
     >>> import ROIpy as rp
-    >>> stack = rp.Stack(stack_filename)
-    >>> morph = rp.Morphology('path/to/swc_filename', stack)
-    >>> rp.plot(morph.neuron, show_nodes=True, cmap='jet')
+    >>> from neuronpath.path import neuronpath
+    >>> paths = neuronpath('date_string', cell_number)
+    >>> morph = rp.Morphology(paths)
+    >>> morph.plot(morph.neuron, show_nodes=True, cmap='jet', linewidth=1)
     """
 
     def __init__(
@@ -210,6 +271,182 @@ class Morphology:
 
         return neuron
 
+    # def plot(
+    #         self, 
+    #         input_data: object,
+    #         show_segments: bool = True,
+    #         show_nodes: bool = False,
+    #         nodes_size: float = 10,
+    #         z: int = None,
+    #         ax: plt.Axes = None,
+    #         axis_lims: list = None,
+    #         cmap: str = 'viridis',
+    #         show_cmap: bool = True,
+    #         scan_angle: bool = False,
+    #         color: str = "black",
+    #         linewidth: int = None
+    # ) -> plt.Axes:
+    #     """
+    #     Plot the neuronal morphology structure.
+# 
+    #     Parameters
+    #     ----------
+    #     input_data : NodeBundle or list(Node)
+    #         The data to plot (e.g., apical, basal, or full neuron structure).
+    #     show_segments : bool, optional
+    #         Plot lines connecting the nodes (default is True).
+    #     show_nodes : bool, optional
+    #         Plot individual nodes as scatter points (default is False).
+    #     z : int, optional
+    #         Specific z-plane to plot (default is None for all).
+    #     ax : plt.Axes, optional
+    #         Matplotlib axes to plot on (default is None for new axes).
+    #     axis_lims : list, optional
+    #         Axes bounds as [xmin, xmax, ymin, ymax] (default is None).
+    #     cmap : str, optional
+    #         Colormap for z-position visualization (default is None).
+    #     show_cmap : bool, optional
+    #         Show the colormap legend (default is True).
+    #     scan_angle : bool, optional
+    #         Plot using angle units (default is False).
+    #     color : str, optional
+    #         Line color (default is black).
+    #     linewidth : int, optional
+    #         Line width for connecting segments (default is 1).
+# 
+    #     Returns
+    #     -------
+    #     plt.Axes
+    #         The axes with the plotted morphology.
+    #     """
+# 
+    #     return plot_morph(
+    #         self,
+    #         input_data,
+    #         show_segments=show_segments,
+    #         show_nodes=show_nodes,
+    #         nodes_size=nodes_size,
+    #         z=z,
+    #         ax=ax,
+    #         axis_lims=axis_lims,
+    #         cmap=cmap,
+    #         show_cmap=show_cmap,
+    #         scan_angle=scan_angle,
+    #         color=color,
+    #         linewidth=linewidth)
+# 
+    #     @property
+    #     def metadata_dict(self) -> dict:
+    #         """
+    #         Returns the metadata dictionary for this morphology.
+    #         """
+    #         return self.metadata
+# 
+    # def plot_3d(
+    #         self,
+    #         input_data: object,
+    #         show_nodes: bool = False,
+    #         ax: plt.Axes = None,
+    #         axis_lims: list = None,
+    #         cmap: str = "vridis",
+    #         scan_angle: bool = False,
+    #         color: str = "black",
+    #         linewidth: int = None,
+    #         azim: float = 45,
+    #         elev: float = 30,
+    # ) -> plt.Axes:
+    #     """
+    #     Plot the neuronal morphology in 3D.
+# 
+    #     Parameters are similar to the `plot` method, with added `azim`
+    #     and `elev` for camera angle control.
+# 
+    #     azim : float, optional
+    #         Azimuthal angle for the 3D plot view (default is 45 degrees).
+    #     elev : float, optional
+    #         Elevation angle for the 3D plot view (default is 30 degrees).
+# 
+    #     Returns
+    #     -------
+    #     plt.Axes
+    #         The axes with the plotted 3D morphology.
+    #     """
+# 
+    #     return plot_morph_3d(
+    #         input_data,
+    #         show_nodes=show_nodes,
+    #         scan_angle=scan_angle,
+    #         color=color,
+    #         linewidth=linewidth,
+    #         axis_lims=axis_lims,
+    #         cmap=cmap,
+    #         azim=azim,
+    #         elev=elev,
+    #         ax=ax)
+# 
+    # def animate_3d(
+    #         self,
+    #         input_data: object,
+    #         show_nodes: bool = False,
+    #         axis_lims: list = None,
+    #         cmap: str = "viridis",
+    #         scan_angle: bool = False,
+    #         color: str = "black",
+    #         linewidth: int = None,
+    #         elev_start: float = 30,
+    #         elev_end: float = 30,
+    #         azimut_start: float = 0,
+    #         azimut_end: float = 360,
+    #         interval: int = 50,
+    #         frames: int = 360,
+    #         save_path: str or Path = None,
+    #         axis_label: bool = False,
+    # ) -> plt.Axes:
+    #     """
+    #     Animate the neuronal morphology in 3D.
+# 
+    #     Parameters are similar to the `plot` method, with the addition of:
+# 
+    #     elev_start : float, optional
+    #         Starting elevation angle for the animation (default is 30 degrees).
+    #     elev_end : float, optional
+    #         Ending elevation angle for the animation (default is 30 degrees).
+    #     azimut_start : float, optional
+    #         Starting azimuthal angle for the animation (default is 0 degrees).
+    #     azimut_end : float, optional
+    #         Ending azimuthal angle for the animation (default is 360 degrees).
+    #     interval : int, optional
+    #         Time interval (in ms) between animation frames (default is 50).
+    #     frames : int, optional
+    #         Number of frames in the animation (default is 360).
+    #     save_path : str or Path, optional
+    #         File path to save the animation (default is None, no save).
+    #     axis_label : bool, optional
+    #         Whether to include axis labels in the animation (default is False).
+# 
+    #     Returns
+    #     -------
+    #     plt.Axes
+    #         The axes with the animated 3D morphology.
+    #     """
+# 
+    #     return animate_morph_3d(
+    #         input_data,
+    #         show_nodes=show_nodes,
+    #         scan_angle=scan_angle,
+    #         color=color,
+    #         linewidth=linewidth,
+    #         axis_lims=axis_lims,
+    #         cmap=cmap,
+    #         elev_start=elev_start,
+    #         elev_end=elev_end,
+    #         azimut_start=azimut_start,
+    #         azimut_end=azimut_end,
+    #         interval=interval,
+    #         frames=frames,
+    #         save_path=save_path,
+    #         axis_label=axis_label,)
+
 
 class Scanfields:
 
@@ -308,7 +545,7 @@ class Scanfields:
         self._morph = morphology
         self.output_filename = Path(
             self._morph.filename.parent / output_filename)
-        
+
         self.metadata = self._morph.metadata
 
         self.desired_framerate = desired_framerate
@@ -348,11 +585,12 @@ class Scanfields:
             [[rect for rect in z if rect.compartment == 'basal dendrite']
              for z in self.neuron if any(
                 rect.compartment == 'basal dendrite' for rect in z)])
-        
+
     @property
     def scan_params(self) -> dict:
         """
-        Returns a dictionary of all scan/imaging parameters for this Scanfields instance.
+        Returns a dictionary of all scan/imaging parameters
+        for this Scanfields instance.
         """
         return {
             'desired_framerate': self.desired_framerate,
@@ -437,6 +675,181 @@ class Scanfields:
         """
 
         return make_roi.make_roi(self, input_data)
+
+    # ef plot(
+    #        self,
+    #        input_roi: ScanfieldBundle,
+    #        ax: plt.Axes = None,
+    #        axis_lims: list = None,
+    #        cmap: str = None,
+    #        show_cmap: bool = True,
+    #        scan_angle: bool = False,
+    #        edgecolor: str = "black",
+    #        facecolor: str = 'none',
+    #        linewidth: int = 1,
+    #        alpha: float = .5,
+    #  -> plt.Axes:
+    #    """
+    #    Plot the scanfields as rotated rectangles
+
+    #    Parameters
+    #    ----------
+    #    input_roi : ScanfieldBundle
+    #        structure to plot.
+    #    ax : plt.Axes.ax, optional
+    #        if specified, plots in the indicated plot. The default is None.
+    #        The default is False.
+    #    axis_lims : list, optional
+    #        If specified, plot will be bounded to limits.
+    #    cmap : str, optional
+    #        facecolor colormap of the rectangles based on their Z position.
+    #        The default is None.
+    #    show_cmap : bool, optional
+    #        If True, shows the colormap legend. The default is True.
+    #    scan_angle : bool, optional
+    #        if True, plots in units of angle degrees. The default is False.
+    #    edgecolor : str, optional
+    #        color of rectangles edge. The default is black.
+    #    linewidth : int, optional
+    #        specifies the width of rectangles edge. The default is 1.
+    #    alpha : float, optional
+    #        The set alpha value for the Roi's edgecolor. Default is 0.5.
+
+    #    Returns
+    #    -------
+    #    plt.Axes.ax
+    #        Plot of the scanfields.
+
+    #    Example usage
+    #    -------
+    #    sf.plot(sf.neuComp, scanAngle = True)
+
+    #    """
+
+    #    return plot_scanfield(
+    #        self._morph,
+    #        input_roi,
+    #        ax=ax,
+    #        axis_lims=axis_lims,
+    #        cmap=cmap,
+    #        show_cmap=show_cmap,
+    #        edgecolor=edgecolor,
+    #        facecolor=facecolor,
+    #        linewidth=linewidth,
+    #        scan_angle=scan_angle,
+    #        alpha=alpha)
+
+    # ef plot_3d(
+    #        self,
+    #        input_roi: ScanfieldBundle,
+    #        ax: plt.Axes = None,
+    #        cmap: str = None,
+    #        scan_angle: bool = False,
+    #        edgecolor: str = "black",
+    #        linewidth: int = 1,
+    #        alpha: float = 0.5,
+    #        elev: int or float = None,
+    #        azim: int or float = None,
+    #        zoom: int or float = None,
+    #  -> plt.Axes:
+    #    """
+    #    Plot the scanfields in 3D with customizable
+    #    camera angles and other options.
+
+    #     Parameters are similar to the `plot` method, with added `azim`
+    #     and `elev` for camera angle control.
+
+    #     azim : float, optional
+    #         Azimuthal angle for the 3D plot view.
+    #         Default is None for default Matplotlib view.
+    #     elev : float, optional
+    #         Elevation angle for the 3D plot view.
+    #         Default is None for default Matplotlib view.
+
+    #    Returns
+    #    -------
+    #    plt.Axes
+    #        The 3D Matplotlib axes containing the plotted scanfields.
+
+    #    Example
+    #    -------
+    #    >>> sf.plot_3d(sf.neuComp, azim=45, elev=30, cmap='viridis')
+    #    """
+
+    #    return plot_scanfields_3d(
+    #        self._morph,
+    #        input_roi,
+    #        ax=ax,
+    #        cmap=cmap,
+    #        edgecolor=edgecolor,
+    #        linewidth=linewidth,
+    #        alpha=alpha,
+    #        scan_angle=scan_angle,
+    #        elev=elev,
+    #        azim=azim,
+    #        zoom=zoom)
+
+    # ef animate_3d(
+    #        self,
+    #        rectangles: ScanfieldBundle,
+    #        elev_start: float = 40,
+    #        elev_end: float = -40,
+    #        azimut_start: float = 0,
+    #        azimut_end: float = 360,
+    #        frames: int = 360,
+    #        interval: float = 50,
+    #        cmap: str = None,
+    #        edgecolor: str = "black",
+    #        linewidth: int = 1,
+    #        alpha: float = 1.,
+    #        scan_angle: bool = False,
+    #        save_path: str = None,
+    #        zoom: float = None,
+    #        axis_label: bool = False
+    #  -> None:
+    #    """
+    #    Animate the scanfields in 3D with dynamic camera angles.
+
+    #    Parameters are similar to the `plot` method, with the addition of:
+
+    #   elev_start : float, optional
+    #       Starting elevation angle for the animation. Default is 40 degrees.
+    #   elev_end : float, optional
+    #       Ending elevation angle for the animation. Default is -40 degrees.
+    #   azimut_start : float, optional
+    #       Starting azimuthal angle for the animation. Default is 0 degrees.
+    #   azimut_end : float, optional
+    #       Ending azimuthal angle for the animation. Default is 360 degrees.
+    #   frames : int, optional
+    #       Total number of frames in the animation. Default is 360.
+    #   interval : float, optional
+    #       Time interval (in milliseconds) between frames. Default is 50 ms.
+    #   save_path : str, optional
+    #       Path to save the animation. Default is None (no save).
+    #   zoom : float, optional
+    #       Zoom factor for the animation. Default is None.
+    #   axis_label : bool, optional
+    #       If True, includes axis labels in the animation. Default is False.
+    #    """
+
+    #    return animate_scanfields_3d(
+    #        self._morph,
+    #        rectangles,
+    #        elev_start=elev_start,
+    #        elev_end=elev_end,
+    #        azimut_start=azimut_start,
+    #        azimut_end=azimut_end,
+    #        frames=frames,
+    #        interval=interval,
+    #        cmap=cmap,
+    #        edgecolor=edgecolor,
+    #        linewidth=linewidth,
+    #        alpha=alpha,
+    #        scan_angle=scan_angle,
+    #        save_path=save_path,
+    #        zoom=zoom,
+    #        axis_label=axis_label
+    #    )
 
     def save(
             self,

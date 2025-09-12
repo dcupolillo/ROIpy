@@ -414,7 +414,7 @@ def plot_morph(
         ax: plt.Axes = None,
         axis_lims: list = None,
         cmap: str = None,
-        show_cmap: bool = False,
+        show_cbar: bool = False,
         axes_labels: bool = False,
         nodes_kwargs: dict = None,
         segments_kwargs: dict = None,
@@ -454,7 +454,7 @@ def plot_morph(
     cmap : str, optional
         Name of the colormap to use for visualizing Z-plane depth.
         Default is None.
-    show_cmap : bool, optional
+    show_cbar : bool, optional
         If True, display a colorbar. Default is False.
     axes_labels : bool, optional
         If True, axis labels are displayed. Default is False.
@@ -567,7 +567,7 @@ def plot_morph(
                 **nodes_kwargs
             )
 
-        if show_cmap:
+        if show_cbar and cmap is not None:
             divider = make_axes_locatable(ax)
             cax = divider.append_axes("right", size="2%", pad=0.1)
             cbar = plt.colorbar(sm, ax=ax, orientation='vertical', cax=cax)
@@ -584,14 +584,16 @@ def plot_morph(
 
 def plot_morph_3d(
         input_data: list,
+        ax: plt.Axes = None,
         show_nodes: bool = False,
         scan_angle: bool = False,
         axis_lims: list = None,
         cmap: str = None,
         show_cbar: bool = False,
-        azim: float = None,
-        elev: float = None,
-        ax: plt.Axes = None,
+        azim: float = 30,
+        elev: float = 30,
+        zoom: float = 1.0,
+        flip_yz: bool = False,
         nodes_kwargs: dict = None,
         segments_kwargs: dict = None
 ):
@@ -602,6 +604,9 @@ def plot_morph_3d(
     ----------
     input_data : list
         List of Node objects representing the morphology structure.
+    ax : plt.Axes, optional
+        Matplotlib 3D axes to plot on.
+        If None, a new figure and axes are created. Default is None.
     show_nodes : bool, optional
         If True, display individual nodes. Default is False.
     scan_angle : bool, optional
@@ -616,9 +621,10 @@ def plot_morph_3d(
         Azimuth angle for 3D view. Default is None.
     elev : float, optional
         Elevation angle for 3D view. Default is None.
-    ax : plt.Axes, optional
-        Matplotlib 3D axes to plot on.
-        If None, a new figure and axes are created. Default is None.
+    zoom : float, optional
+        Zoom factor for 3D view. Default is 1.0.
+    flip_yz : bool, optional
+        If True, swaps the Y and Z axes in the plot. Default is False.
     nodes_kwargs : dict, optional
         Additional keyword arguments for customizing node appearance.
         Default is None.
@@ -652,8 +658,8 @@ def plot_morph_3d(
 
         ax.set(
             xlabel="X",
-            ylabel="Y",
-            zlabel="Z"
+            ylabel="Y" if not flip_yz else "Z",
+            zlabel="Z" if not flip_yz else "Y",
             )
 
     if ax is not None and not ax.name == '3d':
@@ -668,8 +674,8 @@ def plot_morph_3d(
         parent = node_dict[node.parent_id]
 
         x = [node.x, parent.x]
-        y = [node.y, parent.y]
-        z = [node.z, parent.z]
+        y = [node.y, parent.y] if not flip_yz else [node.z, parent.z]
+        z = [node.z, parent.z] if not flip_yz else [node.y, parent.y]
 
         if segments_kwargs["linewidth"] is None:
             segments_kwargs['linewidth'] = (node.radius + parent.radius) / 2.0
@@ -695,8 +701,8 @@ def plot_morph_3d(
 
             ax.scatter(
                 x_nodes,
-                y_nodes,
-                z_nodes,
+                y_nodes if not flip_yz else z_nodes,
+                z_nodes if not flip_yz else y_nodes,
                 c=z_nodes,
                 cmap=cmap,
                 **nodes_kwargs)
@@ -714,12 +720,17 @@ def plot_morph_3d(
     if axis_lims:
         ax.set(
             xlim=(axis_lims[0], axis_lims[1]),
-            ylim=(axis_lims[2], axis_lims[3]),
-            zlim=(axis_lims[4], axis_lims[5]))
+            ylim=(
+                (axis_lims[2], axis_lims[3])
+                if not flip_yz else (axis_lims[4], axis_lims[5])),
+            zlim=(
+                (axis_lims[4], axis_lims[5])
+                if not flip_yz else (axis_lims[2], axis_lims[3]))
+            )
 
     else:
         x_vals = [node.x for node in input_data]
-        y_vals = [node.y for node in input_data]
+        y_vals = [node.y for node in input_data] 
         z_vals = [node.z for node in input_data]
 
         max_range = np.array(
@@ -733,11 +744,32 @@ def plot_morph_3d(
 
         ax.set(
             xlim=(mid_x - max_range, mid_x + max_range),
-            ylim=(mid_y - max_range, mid_y + max_range),
-            zlim=(mid_z - max_range, mid_z + max_range))
+            ylim=(
+                (mid_y - max_range, mid_y + max_range)
+                if not flip_yz else (mid_z - max_range, mid_z + max_range)),
+            zlim=(
+                (mid_z - max_range, mid_z + max_range)
+                if not flip_yz else (mid_y - max_range, mid_y + max_range))
+            )
 
     if azim is not None:
-        ax.view_init(elev=elev if elev is not None else 30, azim=azim)
+        ax.view_init(elev=elev, azim=azim)
+
+        # --- Zoom effect by scaling axis limits ---
+        if zoom != 1.0:
+            xlim = ax.get_xlim3d()
+            ylim = ax.get_ylim3d()
+            zlim = ax.get_zlim3d()
+            xmid = (xlim[0] + xlim[1]) / 2.0
+            ymid = (ylim[0] + ylim[1]) / 2.0
+            zmid = (zlim[0] + zlim[1]) / 2.0
+            xsize = (xlim[1] - xlim[0]) / zoom
+            ysize = (ylim[1] - ylim[0]) / zoom
+            zsize = (zlim[1] - zlim[0]) / zoom
+            ax.set_xlim3d(xmid - xsize/2, xmid + xsize/2)
+            ax.set_ylim3d(ymid - ysize/2, ymid + ysize/2)
+            ax.set_zlim3d(zmid - zsize/2, zmid + zsize/2)
+
 
 
 def animate_morph_3d(
@@ -755,6 +787,8 @@ def animate_morph_3d(
         frames: int = 360,
         save_path: str = None,
         axis_label: bool = True,
+        flip_yz: bool = False,
+        zoom: float = 1.0,
         nodes_kwargs: dict = None,
         segments_kwargs: dict = None,
 ):
@@ -804,6 +838,10 @@ def animate_morph_3d(
     axis_label : bool, optional
         If True, axis labels ("X", "Y", "Z") are displayed.
         If False, axis labels and ticks are hidden. Default is True.
+    flip_yz : bool, optional
+        If True, swaps the Y and Z axes in the plot. Default is False.
+    zoom : float, optional
+        Zoom factor for the 3D view. Default is 1.0.
     nodes_kwargs : dict, optional
         Additional keyword arguments for customizing node appearance.
         Default is None.
@@ -862,6 +900,8 @@ def animate_morph_3d(
         azim=azimut_start,
         elev=elev_start,
         ax=ax,
+        flip_yz=flip_yz,
+        zoom=zoom,
         nodes_kwargs=nodes_kwargs,
         segments_kwargs=segments_kwargs
     )
@@ -1193,7 +1233,21 @@ def plot_scanfields_3d(
         cbar.set_ticks([])
 
     ax.view_init(elev=elev, azim=azim)
-    ax.dist = zoom
+
+    # --- Zoom effect by scaling axis limits ---
+    if zoom != 1.0:
+        xlim = ax.get_xlim3d()
+        ylim = ax.get_ylim3d()
+        zlim = ax.get_zlim3d()
+        xmid = (xlim[0] + xlim[1]) / 2.0
+        ymid = (ylim[0] + ylim[1]) / 2.0
+        zmid = (zlim[0] + zlim[1]) / 2.0
+        xsize = (xlim[1] - xlim[0]) / zoom
+        ysize = (ylim[1] - ylim[0]) / zoom
+        zsize = (zlim[1] - zlim[0]) / zoom
+        ax.set_xlim3d(xmid - xsize/2, xmid + xsize/2)
+        ax.set_ylim3d(ymid - ysize/2, ymid + ysize/2)
+        ax.set_zlim3d(zmid - zsize/2, zmid + zsize/2)
 
 
 def animate_scanfields_3d(

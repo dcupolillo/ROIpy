@@ -61,24 +61,7 @@ Object defining the digitized structural anatomy of a dendritic arborization dra
 
 Represents the rotated rectangular ROIs that encapsulate the entire dendritic tree region.
 
-## Plotting API
-
-ROIpy now provides a unified `plot()` function at the package level. You can visualize any supported structure (Stack, Morphology, Scanfields), bundle (NodeBundle, ScanfieldBundle) or component (Node, Roi) by passing it to `rp.plot()`. The function automatically dispatches to the correct plotter and supports flexible keyword arguments for customization.
-
-### Flexible Customization
-
-`rp.plot()` accepts flexible keyword arguments (`**kwargs`) for customizing colors, linewidths, colormaps, and more. These are dispatched to the appropriate underlying plotter for each data type.
-
-### Animation
-
-If you want to animate 3D visualizations, use the unified `animate()` function:
-
-```python
-anim = rp.animate(morph.neuron, projection='3d', frames=120)
-anim.save("morphology_rotation.gif")
-```
-
-## Example Usage
+## Example usage
 
 ```python
 import ROIpy as rp
@@ -87,18 +70,24 @@ import ROIpy as rp
 stack_filename = "path/to/your/stack"
 stack = rp.Stack(stack_filename)
 
-# Plot the stack image
-rp.plot(stack, cmap="viridis", norm=(100, 2000))
-
 # Initialize the morphology with image and tracing files
 swc_filename = "path/to/your/swc"
 morph = rp.Morphology(swc_filename, stack_filename)
 
-# Plot the morphology
-rp.plot(morph.neuron, show_nodes=True, cmap="jet", linewidth=1)
-
 # Initialize the scanfields with image and tracing files
 sf = rp.Scanfields(morph)
+```
+
+## Plotting API
+
+ROIpy now provides a unified `plot()` function at the package level. You can visualize any supported structure (Stack, Morphology, Scanfields), bundle (NodeBundle, ScanfieldBundle) or component (Node, Roi) by passing it to `rp.plot()`. The function automatically dispatches to the correct plotter and supports flexible keyword arguments for customization. `rp.plot()` accepts flexible keyword arguments (`**kwargs`) for customizing colors, linewidths, colormaps, and more. These are dispatched to the appropriate underlying plotter for each data type.
+
+```python
+# Plot the stack image
+rp.plot(stack, cmap="viridis", norm=(100, 2000))
+
+# Plot the morphology
+rp.plot(morph.neuron, show_nodes=True, cmap="jet", linewidth=1)
 
 # Plot the scanfields
 rp.plot(sf.neuComp, edgecolor="red")
@@ -112,3 +101,23 @@ rp.plot(morph.neuron, projection='3d', show_nodes=True, cmap="jet")
 ![Example of a morph neuron](assets/morph.png)
 
 ![Example of a neuronal scanfield](assets/sf.png)
+
+### Animation
+
+If you want to animate 3D visualizations, use the unified `animate()` function:
+
+```python
+anim = rp.animate(
+	morph.neuron,
+	flip_yz=True,
+	axis_label=False,
+	zoom=2,
+	cmap="viridis",
+	show_nodes=True, 
+	show_cbar=True,
+	save_path="morph_anim.gif")
+```
+
+![Example animation](assets/animation.gif)
+
+## GUI to interact with ScanImage mROI tool

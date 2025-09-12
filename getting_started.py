@@ -29,7 +29,7 @@ rp.plot(stack.image, stack.metadata, cmap='viridis', norm=(100, 2000))
 
 # plot the morphology structure
 rp.plot(morph.neuron)
-rp.plot(morph.neuron, show_nodes=True, cmap='jet', linewidth=1)
+rp.plot(morph.neuron, show_nodes=True, cmap='jet')
 
 # plot the scanfields
 rp.plot(sf.neuron)
