@@ -118,6 +118,8 @@ anim = rp.animate(
 	save_path="morph_anim.gif")
 ```
 
-![Example animation](assets/animation.gif)
+
+![til](./assets/morph_anim.gif)
+
 
 ## GUI to interact with ScanImage mROI tool
