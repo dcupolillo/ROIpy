@@ -128,7 +128,6 @@ scanfields_anim = rp.animate(
 	save_path="scanfields_anim.gif")
 ```
 
-
 ![til](./assets/morph_anim.gif)
 
 ![Example animation](assets/scanfields_anim.gif)
@@ -140,3 +139,5 @@ import ROIpy as rp
 
 rp.run_app()
 ```
+
+![image](assets/GUI.png "GUI")
