@@ -543,6 +543,7 @@ class Scanfields:
                 "Output filename needs to be in .h5 format")
 
         self._morph = morphology
+        self.soma = self._morph.soma
         self.output_filename = Path(
             self._morph.filename.parent / output_filename)
 

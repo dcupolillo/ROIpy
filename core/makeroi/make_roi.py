@@ -274,7 +274,7 @@ def distance_node(
         Nested list of farthest points within each segment.
 
     """
-
+    print(class_instance)
     if class_instance.soma:
         soma = class_instance.soma
     else:

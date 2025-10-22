@@ -26,10 +26,18 @@ def internode_distance(
     float
         Euclidean distance between the two nodes in 3D space.
     """
+    if isinstance(node1, dict) and isinstance(node2, dict):
+        x1, y1, z1 = node1.get('_x'), node1.get('_y'), node1.get('_z')
+        x2, y2, z2 = node2.get('_x'), node2.get('_y'), node2.get('_z')
+
+    elif hasattr(node1, '_x') and hasattr(node2, '_x'):
+        x1, y1, z1 = node1._x, node1._y, node1._z
+        x2, y2, z2 = node2._x, node2._y, node2._z
+
     vector = np.array([
-        node2.x - node1.x,
-        node2.y - node1.y,
-        node2.z - node1.z
+        x2 - x1,
+        y2 - y1,
+        z2 - z1
     ])
     return np.linalg.norm(vector)
 
@@ -80,13 +88,34 @@ def calculate_total_length(
         Total length of neurites.
 
     """
+    if not isinstance(input_data, list):
+        raise TypeError(
+            "Input data must be a list of node instances."
+            f" Got {type(input_data)} instead.")
+    
+    if not all(isinstance(node, (dict, object)) for node in input_data):
+        raise TypeError(
+            "All elements in input_data must be node instances or dictionaries.")
 
     total_length = 0.0
 
     for node in input_data:
-        if node.parent_id is not None:
-            parent_node = next((n for n in input_data
-                                if n._id == node.parent_id), None)
+
+        if isinstance(node, dict):
+            parent_id = node.get('_parent_id', None)
+        elif hasattr(node, '_parent_id'):
+            parent_id = node._parent_id
+        else:
+            parent_id = getattr(node, '_parent_id', None)
+
+        if parent_id is not None:
+            try:
+                parent_node = next(
+                    (n for n in input_data if n["_id"] == parent_id), None)
+            except TypeError:
+                parent_node = next(
+                    (n for n in input_data if n._id == parent_id), None)
+
             if parent_node is not None:
                 distance = internode_distance(parent_node, node)
                 total_length += distance

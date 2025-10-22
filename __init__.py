@@ -12,6 +12,8 @@ from .GUIv2.main import run_app
 # Import plot submodule
 from .plot.plot import plot, animate
 
+from .analysis import stats
+
 import sys
 from pathlib import Path
 
