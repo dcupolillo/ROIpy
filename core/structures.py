@@ -3,13 +3,7 @@
 
 from pathlib import Path
 import tifffile
-import matplotlib.pyplot as plt
 from ROIpy.core.bundles import NodeBundle, ScanfieldBundle
-# from ROIpy.plot.plot import (
-#     plot_image, plot_morph,
-#     plot_morph_3d, animate_morph_3d,
-#     plot_scanfield, plot_scanfields_3d,
-#     animate_scanfields_3d)
 from ROIpy.core.utils.utils import (
     stack_metadata_dictionary, parse_swc,
     parse_stack_metadata, assign_branch_degree_and_id)
@@ -29,8 +23,7 @@ class Stack:
     >>> import ROIpy as rp
     >>> path = "path/to/tiff"
     >>> stack = rp.Stack(path)  # Initialize stack
-    >>> stack.plot(cmap='viridis', norm=(100, 2000))  # Visualize
-
+    >>> rp.plot(stack.image, stack.metadata, cmap='viridis', norm=(100, 2000))  # Visualize
     """
 
     def __init__(
@@ -164,53 +157,90 @@ class Morphology:
     Example
     -------
     >>> import ROIpy as rp
-    >>> from neuronpath.path import neuronpath
-    >>> paths = neuronpath('date_string', cell_number)
-    >>> morph = rp.Morphology(paths)
-    >>> morph.plot(morph.neuron, show_nodes=True, cmap='jet', linewidth=1)
+    >>> stack = rp.Stack(stack_filename)
+    >>> morph = rp.Morphology('path/to/swc_filename', stack)
+    >>> rp.plot(morph.neuron, show_nodes=True, cmap='jet')
     """
 
     def __init__(
             self,
-            swc_filename: str or Path,
+            swc_filename: str or Path = None,
             stack: Stack = None,
-            output_filename: str or Path = "morphology.h5"
+            output_filename: str or Path = "morphology.h5",
+            h5_file: str or Path = None
     ) -> None:
         """
         Initializes a neuronal object. Inherits attributes from Stack.
 
-        swc_filename : str or Path
-            File name of the morphological reconstruction.
+        Parameters
+        ----------
+        swc_filename : str or Path, optional
+            File name of the morphological reconstruction (.swc format).
+            Required if h5_file is not provided. Default is None.
         stack : Stack, optional
             Instance of the Stack containing metadata. Default is None.
-        output_filename: str or Path
+        output_filename : str or Path, optional
             File name where morphology data are stored in h5 format.
-            Default is `morphology.h5`.
+            Default is `morphology.h5`. Used only when parsing from .swc.
+        h5_file : str or Path, optional
+            Path to an existing .h5 file to load neuron data directly.
+            If provided, skips .swc parsing and uses this file instead.
+            Default is None.
 
         Raises
         ------
-        Exception
+        ValueError
+            If neither swc_filename nor h5_file is provided.
+            If both swc_filename and h5_file are provided.
             If the tracing file is not in .swc format.
+            If output_filename is not in .h5 format.
+            If h5_file does not exist or is not in .h5 format.
 
         Returns
         -------
         None
         """
 
-        swc_filename = Path(swc_filename)
-        output_filename = Path(output_filename)
-
-        if swc_filename.suffix.lower() != '.swc':
-            raise Exception(
-                f"Invalid file format for {swc_filename}."
-                "Expected .swc")
-
-        if not output_filename.suffix == ".h5":
+        # Validate input arguments
+        if swc_filename is None and h5_file is None:
             raise ValueError(
-                "Output filename needs to be in .h5 format")
+                "Either 'swc_filename' or 'h5_file' must be provided.")
+        
+        if swc_filename is not None and h5_file is not None:
+            raise ValueError(
+                "Cannot provide both 'swc_filename' and 'h5_file'. "
+                "Choose one loading method.")
+        
+        # Handle h5_file loading path
+        if h5_file is not None:
+            h5_file = Path(h5_file)
+            if not h5_file.exists():
+                raise ValueError(
+                    f"Provided h5_file does not exist: {h5_file}")
+            if h5_file.suffix.lower() != '.h5':
+                raise ValueError(
+                    f"Invalid file format for {h5_file}. Expected .h5")
+            
+            self.filename = None  # No .swc file in this case
+            self.output_filename = h5_file
+            self._load_from_h5 = True
+        
+        # Handle swc_filename loading path
+        else:
+            swc_filename = Path(swc_filename)
+            output_filename = Path(output_filename)
 
-        self.filename = swc_filename
-        self.output_filename = Path(self.filename.parent / output_filename)
+            if swc_filename.suffix.lower() != '.swc':
+                raise ValueError(
+                    f"Invalid file format for {swc_filename}. Expected .swc")
+
+            if output_filename.suffix.lower() != ".h5":
+                raise ValueError(
+                    "Output filename needs to be in .h5 format")
+
+            self.filename = swc_filename
+            self.output_filename = Path(self.filename.parent / output_filename)
+            self._load_from_h5 = False
 
         if stack:
             self.metadata = stack_metadata_dictionary(**stack.metadata)
@@ -254,6 +284,11 @@ class Morphology:
             list of separated branches.
         """
 
+        # If loading directly from h5_file, load and return immediately
+        if self._load_from_h5:
+            return NodeBundle.load_from_h5(self.output_filename)
+
+        # Original behavior: check for existing cache or create new
         files = list(self.filename.parent.iterdir())
         nodebundle_filename = next(
             (file for file in files
@@ -916,3 +951,31 @@ class Scanfields:
         """
 
         print(sum(len(z) for z in inputData))
+
+    def get_roi_by_uuid(
+            self,
+            uuid: str
+    ) -> object:
+        """
+        Retrieve a specific ROI by its UUID.
+
+        Parameters
+        ----------
+        uuid : str
+            The UUID of the desired ROI.
+
+        Returns
+        -------
+        object
+            The ROI object with the specified UUID, or None if not found.
+
+        Example
+        -------
+        >>> roi = sf.get_roi_by_uuid('123e4567-e89b-12d3-a456-426614174000')
+        """
+
+        for zplane in self.neuron:
+            for roi in zplane:
+                if roi.roi_uuid == uuid:
+                    return roi
+        return None

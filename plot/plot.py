@@ -555,9 +555,9 @@ def plot_morph(
     else:
         title = None
         xlim, ylim = None, None
-
-    zmin = min([node.z for node in input_data])
-    zmax = max([node.z for node in input_data])
+        
+    zs = [node.z for node in input_data] if metadata is None else metadata['zs']
+    zmin, zmax = min(zs), max(zs)
 
     norm = colors.Normalize(
         vmin=zmin,
@@ -607,6 +607,8 @@ def plot_morph(
                 y_values,
                 c=z_values,
                 cmap=cmap,
+                norm=norm,
+                zorder=10,
                 **nodes_kwargs
             )
         else:
@@ -1115,13 +1117,13 @@ def plot_scanfield(
         rotation = rect.rotation_degrees
 
         if cmap is not None:
-            color = cmap(norm(rect.z))
+            facecolor = cmap(norm(rect.z))
 
             patch = patches.Rectangle(
                 bottom_right,
                 height, width,
                 angle=rotation,
-                color=color,
+                facecolor=facecolor,
                 **rect_kwargs)
 
         else:
