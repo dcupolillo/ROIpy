@@ -194,7 +194,7 @@ def sholl_analysis(
             default=None
         )
 
-    branch_list = list(set([node.branch_id for node in input_data]))
+    branch_list = list(set([node._branch_id for node in input_data]))
 
     # Define radii for concentric spheres
     max_radius = radius_step * n_radii

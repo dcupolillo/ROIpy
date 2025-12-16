@@ -5,15 +5,15 @@ import ROIpy as rp
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-date = "240828"
-cell_n = "cell0001"
-data_folder = Path(r"Y:\Vincenzo")
+date = "240912"
+cell_n = "cell0002"
+data_folder = Path(r"C:/Users/dcupolillo/Projects/spyne/data")
 neuron_path = Path(rf"{date}\{cell_n}")
 
 stack_filename = Path(
-    data_folder / neuron_path / rf"{date}_{cell_n}_stack_00001.tif")
+    data_folder / neuron_path / "raw" / rf"{date}_{cell_n}_stack_00001.tif")
 swc_filename = Path(
-    data_folder / neuron_path / rf"{date}_{cell_n}_stack_00001.swc")
+    data_folder / neuron_path / "raw" / rf"{date}_{cell_n}_stack_00001.swc")
 
 # generate the structures Objects
 stack = rp.Stack(stack_filename)

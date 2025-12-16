@@ -116,8 +116,9 @@ class NodeBundle():
         object: NodeBundle
             A NodeBundle instance loaded from the file.
         """
-        data = fl.load(filename)['nodes']
-        nodes = [Node.from_dict(node) for node in data]
+        data = fl.load(filename)
+        nodes_list = data['nodes']
+        nodes = [Node.from_dict(node) for node in nodes_list]
 
         return cls(nodes)
 
