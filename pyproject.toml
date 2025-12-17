@@ -41,7 +41,7 @@ Repository = "https://github.com/dcupolillo/ROIpy.git"
 "Bug Tracker" = "https://github.com/dcupolillo/ROIpy/issues"
 
 [tool.setuptools]
-packages = []
+packages = ["ROIpy"]
 
 [tool.setuptools.package-data]
 ROIpy = ["**/*.py"]
