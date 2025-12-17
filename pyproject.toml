@@ -49,10 +49,5 @@ Repository = "https://github.com/dcupolillo/ROIpy.git"
 [tool.setuptools]
 packages = []
 
-[tool.setuptools.package-discovery]
-where = ["."]
-include = ["ROIpy*"]
-exclude = ["tests*", "docs*", "examples*"]
-
 [tool.setuptools.package-data]
 ROIpy = ["**/*.py"]
