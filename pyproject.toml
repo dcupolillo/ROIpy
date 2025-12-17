@@ -32,6 +32,7 @@ dependencies = [
     "flammkuchen",
     "PyQt5>=5.15.10",
     "pyqtgraph>=0.13.3",
+    "shapely>=2.0",
 ]
 
 [project.urls]

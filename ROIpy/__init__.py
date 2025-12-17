@@ -6,7 +6,6 @@ compatible with ScanImage.
 __version__ = "0.1.0"
 
 from .core.structures import Stack, Morphology, Scanfields
-from .GUI.gui import main
 from .GUIv2.main import run_app
 
 # Import plot submodule
