@@ -42,6 +42,3 @@ Repository = "https://github.com/dcupolillo/ROIpy.git"
 
 [tool.setuptools]
 packages = ["ROIpy"]
-
-[tool.setuptools.package-data]
-ROIpy = ["**/*.py"]
