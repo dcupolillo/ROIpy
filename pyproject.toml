@@ -34,11 +34,6 @@ dependencies = [
     "pyqtgraph>=0.13.3",
 ]
 
-dev = [
-    "pytest",
-    "pytest-cov",
-]
-
 [project.urls]
 Homepage = "https://github.com/dcupolillo/ROIpy"
 Documentation = "https://github.com/dcupolillo/ROIpy#readme"
