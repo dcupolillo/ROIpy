@@ -41,8 +41,12 @@ Documentation = "https://github.com/dcupolillo/ROIpy#readme"
 Repository = "https://github.com/dcupolillo/ROIpy.git"
 "Bug Tracker" = "https://github.com/dcupolillo/ROIpy/issues"
 
+[tool.setuptools]
+package-dir = {"" = "src"}
+
 [tool.setuptools.packages.find]
-where = ["."]
+where = ["src"]
+include = ["ROIpy*"]
 
 [tool.setuptools.package-data]
 ROIpy = ["py.typed"]
