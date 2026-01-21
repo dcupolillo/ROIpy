@@ -38,7 +38,7 @@ pip install -e .
 
 ## Features
 
-`ROIpy` is composed of 3 main structures: **Stack**, **Morphology**, **Scanfields**. Morphology and Scanfields are further composed of **bundles** which in turn are formed by individual **components**. Each strucures handles metadata, indexing, and plotting methods for visual inspection.
+`ROIpy` is composed of 3 main structures: **Stack**, **Morphology**, **Scanfields**. Morphology and Scanfields are further composed of **bundles** which in turn are formed by individual **components**. 
 
 #### Stack
 
