@@ -2,7 +2,7 @@
 
 ## Description
 
-**ROIpy** is a python package for ROI (Region of Interest) semi-automatic generation and placement for functional imaging of neuronal dendrites of individual neurons 🔬:brain:. It provides a tool for defining, managing and visualizing dendritic ROIs. In addition, provides a benchmark for analyzing morphological data such as dendritic structure.
+**ROIpy** is a python package for ROI (Region of Interest) semi-automatic generation and placement for functional imaging of neuronal dendrites of individual neurons. It provides a tool for defining, managing and visualizing dendritic ROIs. In addition, provides a benchmark for analyzing morphological data such as dendritic structure.
 
 Designed to interface with [Vidrio ScanImage software](https://vidriotechnologies.com/) (now [MBF](https://www.mbfbioscience.com/products/scanimage/)).
 
@@ -18,30 +18,22 @@ Tested to work with `.swc` files generated with ImageJ Fiji plugin [Simple Neuri
 
 ## Installation
 
-#### Option 1: Create a Conda environment (recommended)
+Clone the repository and install the package:
 
-Create the environment with required packages using the provided `environment.yaml` file:
+```bash
+git clone https://github.com/dcupolillo/ROIpy.git
+cd ROIpy
+pip install -e .
+```
 
-```powershell
+**or optional:** you can create a conda environment first:
+
+```bash
+git clone https://github.com/dcupolillo/ROIpy.git
+cd ROIpy
 conda env create -f environment.yaml
 conda activate roipy
-```
-
-#### Option 2: Install via Git Clone
-
-Clone the repository and install it locally:
-
-```git
-git clone https://github.com/dcupolillo/ROIpy.git
-```
-
-#### Option 3: Manual copy
-
-Simply copy the folder "ROIpy" within your project folder 📁. Ensure the folder is in your system path.
-
-```python
-import sys
-sys.path.append("path/to/ROIpy")
+pip install -e .
 ```
 
 ## Features
@@ -50,23 +42,23 @@ sys.path.append("path/to/ROIpy")
 
 #### Stack
 
-Represents a stack of images of a given neuron, which includes all dendrites along depth.
-The initial Stack is acquired using Scanimage [Stack Control](https://docs.scanimage.org/Basic+Features/Stack+Acquisition.html). Each z-layer defines the discrete planes where ROIs will be placed on. The stack is necessary to outline the dendritic structure using SNT.
+Represents a stack of images of a given neuron, which includes all dendrites across depth.
+The initial Stack is acquired using Scanimage [Stack Control](https://docs.scanimage.org/Basic+Features/Stack+Acquisition.html). Each z-layer defines the discrete planes whereon ROIs will be placed. The stack is necessary to outline the dendritic structure using SNT.
 
 #### Morphology
 
-Object defining the digitized structural anatomy of a dendritic arborization drawn using SNT. This object is necessary to drive the placement of dendritic rectangular ROIs. A morphology object can also be used to run morphological analysis of dendritic structure.
+Object defining the digitized structural anatomy of a dendritic arborization (``.swc``). This object is necessary to drive the placement of dendritic rectangular ROIs. 
 
 #### Scanfields
 
-Represents the rotated rectangular ROIs that encapsulate the entire dendritic tree region.
+Represents the ensembles of rotated rectangular ROIs that encapsulate the entire dendritic tree region.
 
 ## Example usage
 
 ```python
 import ROIpy as rp
 
-# Initialize a stack of neuron images
+# Initialize a stack of images of an individual neuron
 stack_filename = "path/to/your/stack"
 stack = rp.Stack(stack_filename)
 
@@ -78,9 +70,29 @@ morph = rp.Morphology(swc_filename, stack_filename)
 sf = rp.Scanfields(morph)
 ```
 
+### Hierarchical organization
+
+The ``morphology`` structure resides in:
+
+```python
+nodes_list = morph.neuron
+
+# Indexing to access individual nodes
+node = morph.neuron[0]
+```
+
+``Scanfields`` are organized in z-planes, wherein individual ``Roi`` are nested:
+
+```python
+zplanes_containing_rois = sf.neuron
+
+# Indexing to access individual ROIs
+roi = sf.meuron[0][0] # first z-plane, first roi
+```
+
 ## Plotting API
 
-ROIpy now provides a unified `plot()` function at the package level. You can visualize any supported structure (Stack, Morphology, Scanfields), bundle (NodeBundle, ScanfieldBundle) or component (Node, Roi) by passing it to `rp.plot()`. The function automatically dispatches to the correct plotter and supports flexible keyword arguments for customization. `rp.plot()` accepts flexible keyword arguments (`**kwargs`) for customizing colors, linewidths, colormaps, and more. These are dispatched to the appropriate underlying plotter for each data type.
+You can visualize any supported structure (Stack, Morphology, Scanfields), bundle (NodeBundle, ScanfieldBundle) or component (Node, Roi) by passing it to `plot()`. The function automatically dispatches to the correct plotter and supports flexible keyword arguments (`**kwargs`) for customization. 
 
 ```python
 # Plot the stack image
@@ -90,7 +102,7 @@ rp.plot(stack, cmap="viridis", norm=(100, 2000))
 rp.plot(morph.neuron, show_nodes=True, cmap="jet", linewidth=1)
 
 # Plot the scanfields
-rp.plot(sf.neuComp, edgecolor="red")
+rp.plot(sf.neuron, edgecolor="red")
 
 # 3D plotting example
 rp.plot(morph.neuron, projection='3d', show_nodes=True, cmap="jet")
