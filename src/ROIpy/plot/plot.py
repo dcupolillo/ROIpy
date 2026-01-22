@@ -284,6 +284,75 @@ def get_scan_units(
     return metadata['units_um'], metadata['corners_um']
 
 
+def tapered_segment(
+        ax: plt.Axes,
+        x1: float, y1: float, r1: float,
+        x2: float, y2: float, r2: float,
+        tridim: bool = False,
+        z1: float = None, z2: float = None,
+        **kwargs
+) -> None:
+    """
+    Draw a tapered segment between two nodes with variable thickness.
+    
+    Parameters
+    ----------
+    ax : plt.Axes
+        The axes to draw on
+    x1, y1, r1 : float
+        Parent node coordinates and radius
+    x2, y2, r2 : float
+        Child node coordinates and radius  
+    tridim : bool, optional
+        Whether this is a 3D plot. Default is False.
+    z1, z2 : float, optional
+        Z coordinates for 3D plotting
+    **kwargs
+        Additional styling arguments
+    """
+    if tridim:
+        # For 3D, fall back to line with average thickness
+        avg_radius = (r1 + r2) / 2.0
+        line_kwargs = {**kwargs, 'linewidth': avg_radius}
+        ax.plot([x1, x2], [y1, y2], [z1, z2], **line_kwargs)
+        return
+    
+    # Calculate direction and length
+    dx = x2 - x1
+    dy = y2 - y1
+    length = np.sqrt(dx**2 + dy**2)
+    
+    if length < 1e-10:  # Avoid division by zero
+        return
+    
+    # Unit perpendicular vector (rotated 90 degrees)
+    perp_x = -dy / length
+    perp_y = dx / length
+    
+    # Create trapezoid vertices (clockwise)
+    polygon_x = [
+        x1 + perp_x * r1,  # parent top
+        x2 + perp_x * r2,  # child top
+        x2 - perp_x * r2,  # child bottom
+        x1 - perp_x * r1   # parent bottom
+    ]
+    polygon_y = [
+        y1 + perp_y * r1,
+        y2 + perp_y * r2,
+        y2 - perp_y * r2,
+        y1 - perp_y * r1
+    ]
+    
+    # Remove linewidth and linestyle from kwargs for fill
+    fill_kwargs = {k: v for k, v in kwargs.items() 
+                   if k not in ['linewidth', 'linestyle', 'ls']}
+    fill_kwargs.setdefault('alpha', 0.7)
+    fill_kwargs.setdefault('edgecolor', fill_kwargs.get('color', 'black'))
+    fill_kwargs.setdefault('linewidth', 0.5)
+    
+    ax.fill(polygon_x, polygon_y, **fill_kwargs)
+
+
 def plot_image(
         image: np.ndarray,
         metadata: dict = None,
@@ -437,22 +506,33 @@ def skeleton(
             r_parent = 1 if parent.radius == 0 else parent.radius
 
             # Determine linewidth priority: skeleton_kwargs > argument > comp.
-            if ('linewidth' not in skeleton_kwargs and
-                    skeleton_kwargs['linewidth'] is None):
-                default_kwargs['linewidth'] = (r_node + r_parent) / 2.0
-
-            if not tridim:
-                axis.plot(
-                    x_values,
-                    y_values,
-                    **skeleton_kwargs)
+            if skeleton_kwargs.get('linewidth') is None:
+                # Use tapered segment representation
+                z1 = parent.z if tridim else None
+                z2 = node.z if tridim else None
+                
+                tapered_segment(
+                    ax=axis,
+                    x1=x_values[1], y1=y_values[1], r1=r_parent,
+                    x2=x_values[0], y2=y_values[0], r2=r_node,
+                    tridim=tridim,
+                    z1=z1, z2=z2,
+                    **skeleton_kwargs
+                )
             else:
-                z_values = [node.z, parent.z]
-                axis.plot(
-                    x_values,
-                    y_values,
-                    z_values,
-                    **skeleton_kwargs)
+                # Use specified linewidth (constant thickness)
+                if not tridim:
+                    axis.plot(
+                        x_values,
+                        y_values,
+                        **skeleton_kwargs)
+                else:
+                    z_values = [node.z, parent.z]
+                    axis.plot(
+                        x_values,
+                        y_values,
+                        z_values,
+                        **skeleton_kwargs)
 
 
 def plot_morph(
