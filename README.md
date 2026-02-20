@@ -36,9 +36,11 @@ conda activate roipy
 pip install -e .
 ```
 
+Then restart Python.
+
 ## Features
 
-`ROIpy` is composed of 3 main structures: **Stack**, **Morphology**, **Scanfields**. Morphology and Scanfields are further composed of **bundles** which in turn are formed by individual **components**. 
+`ROIpy` is composed of 3 main structures: **Stack**, **Morphology**, **Scanfields**. Morphology and Scanfields are further composed of **bundles** which in turn are formed by individual **components**.
 
 #### Stack
 
@@ -47,7 +49,7 @@ The initial Stack is acquired using Scanimage [Stack Control](https://docs.scani
 
 #### Morphology
 
-Object defining the digitized structural anatomy of a dendritic arborization (``.swc``). This object is necessary to drive the placement of dendritic rectangular ROIs. 
+Object defining the digitized structural anatomy of a dendritic arborization (``.swc``). This object is necessary to drive the placement of dendritic rectangular ROIs.
 
 #### Scanfields
 
@@ -92,17 +94,17 @@ roi = sf.meuron[0][0] # first z-plane, first roi
 
 ## Plotting API
 
-You can visualize any supported structure (Stack, Morphology, Scanfields), bundle (NodeBundle, ScanfieldBundle) or component (Node, Roi) by passing it to `plot()`. The function automatically dispatches to the correct plotter and supports flexible keyword arguments (`**kwargs`) for customization. 
+You can visualize any supported structure (Stack, Morphology, Scanfields), bundle (NodeBundle, ScanfieldBundle) or component (Node, Roi) by passing it to `plot()`. The function automatically dispatches to the correct plotter and supports flexible keyword arguments (`**kwargs`) for customization.
 
 ```python
 # Plot the stack image
-rp.plot(stack, cmap="viridis", norm=(100, 2000))
+rp.plot(stack.image, cmap="viridis", norm=(100, 2000))
 
 # Plot the morphology
-rp.plot(morph.neuron, show_nodes=True, cmap="jet", linewidth=1)
+rp.plot(morph.neuron, show_nodes=True, cmap="jet", segments_kwargs={'linewidth': 1})
 
 # Plot the scanfields
-rp.plot(sf.neuron, edgecolor="red")
+rp.plot(sf.neuron, rect_kwargs={'edgecolor': 'red'})
 
 # 3D plotting example
 rp.plot(morph.neuron, projection='3d', show_nodes=True, cmap="jet")

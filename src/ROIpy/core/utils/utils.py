@@ -330,7 +330,7 @@ def split_neurite(
 
     for node_n, node in enumerate(input_data):
 
-        if node._type == 1:  # soma
+        if node._type == 'soma':
             if current_section:
                 sections.append(current_section)
             current_section = []

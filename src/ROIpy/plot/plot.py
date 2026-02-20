@@ -1134,16 +1134,18 @@ def plot_scanfield(
         xlim = (min(corners[0]), max(corners[1]))
         ylim = (max(corners[2]), min(corners[3]))
     else:
-        zs = [0, 1]
+        zs = [rect.z for rect in rectangles]
         stack_name = None
         xlim, ylim = None, None
+    
+    zmin, zmax = min(zs), max(zs)
 
     if cmap is not None:
         rect_kwargs.pop("facecolor", None)
 
         cmap = plt.cm.get_cmap(cmap)
         norm = colors.Normalize(
-            vmin=min(zs), vmax=max(zs))
+            vmin=zmin, vmax=zmax)
         sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 
     # If it's a 2d lists of ROIs (multiple scanfields)
@@ -1217,7 +1219,7 @@ def plot_scanfield(
 
     if cmap and show_cbar:
         sm.set_array([rect.z for rect in rectangles])
-        sm.set_clim(vmin=min(zs), vmax=max(zs))
+        sm.set_clim(vmin=zmin, vmax=zmax)
 
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="2%", pad=0.1)
@@ -1359,11 +1361,13 @@ def plot_scanfields_3d(
             poly3d = Poly3DCollection(
                 faces,
                 facecolors=color,
+                clip_on=False,
                 **rect_kwargs
             )
         else:
             poly3d = Poly3DCollection(
                 faces,
+                clip_on=False,
                 **rect_kwargs
             )
 

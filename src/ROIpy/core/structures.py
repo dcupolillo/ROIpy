@@ -121,7 +121,8 @@ class Morphology:
             swc_filename: str or Path = None,
             stack: Stack = None,
             output_filename: str or Path = "morphology.h5",
-            h5_file: str or Path = None
+            h5_file: str or Path = None,
+            force_recompute: bool = False
     ) -> None:
         """
         Initializes a neuronal object. Inherits attributes from Stack.
@@ -140,6 +141,9 @@ class Morphology:
             Path to an existing .h5 file to load neuron data directly.
             If provided, skips .swc parsing and uses this file instead.
             Default is None.
+        force_recompute : bool, optional
+            If True, forces recomputation of morphology data even if .h5 file exists.
+            Default is False.
 
         Raises
         ------
@@ -177,7 +181,7 @@ class Morphology:
             
             self.filename = None  # No .swc file in this case
             self.output_filename = h5_file
-            self._load_from_h5 = True
+            self._load_from_h5 = True if not force_recompute else False
             self.h5_file = h5_file
         
         # Handle swc_filename loading path
