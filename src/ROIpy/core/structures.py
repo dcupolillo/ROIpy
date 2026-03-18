@@ -52,11 +52,12 @@ class Stack:
         stack_filename = Path(stack_filename)
 
         if stack_filename.suffix.lower() not in ['.tif', '.tiff']:
-            raise Exception(
+            raise ValueError(
                 f"Invalid file format for {stack_filename}."
                 "Expected .tif or .tiff file.")
 
         self.imagename = stack_filename
+        self.folder = self.imagename.parent
 
         image_data = tifffile.imread(self.imagename)
         self.image = (
@@ -67,19 +68,17 @@ class Stack:
         for key, value in self.metadata.items():
             setattr(self, key, value)
 
-        self.folder = self.imagename.parent
-
-    def __getattr__(
-            self,
-            name: str
-    ):
-        return self.__dict__[f"_{name}"]
+    def __getattr__(self, name: str) -> any:
+        key = f"_{name}"
+        if key in self.__dict__:
+            return self.__dict__[key]
+        raise AttributeError(name)
 
     def __setattr__(
             self,
             name: str,
-            value
-    ):
+            value: any
+    ) -> None:
         self.__dict__[f"_{name}"] = value
 
     @property
@@ -388,11 +387,7 @@ class Scanfields:
         self.objective_resolution = self._morph.objective_resolution
         self.zs = self._morph.zs
 
-        # Abbe's equation for diffraction limited spot
-        # Rayleigh criterion: distance required to differentiate 2 structures
-        self.optimal_pix_um_ratio = (1 / (
-            ((0.61 * self.wavelength / self.numerical_aperture)
-             * 1e-3) / 2))
+        self.optimal_pix_um_ratio = self._rayleigh_nyquist()
 
         self.neuron = self._make_scanfieldbundle()
 
@@ -433,7 +428,35 @@ class Scanfields:
             'optimal_pix_um_ratio': self.optimal_pix_um_ratio,
         }
 
+    def _rayleigh_nyquist(self) -> float:
+        """
+        Calculate the Rayleigh/Nyquist pixel-to-micrometer ratio.
+
+        Uses the Rayleigh criterion to estimate the diffraction-limited
+        lateral resolution:
+            
+            0.61 * λ / NA
+        
+        and applies Nyquist sampling to express the
+        required pixels per micrometer:
+        
+            2 / resolution_um
+        """
+
+        diffraction_limited_spot_um = (
+            0.61 * self.wavelength / self.numerical_aperture
+        ) * 1e-3
+
+        return 2 / diffraction_limited_spot_um
+
     def _make_scanfieldbundle(self) -> list:
+        """
+        Loads a bundle if exists, otherwise creates it.
+        Returns
+        -------
+        neuron : ScanfieldBundle
+            list of separated branches.
+        """
 
         files = list(self._morph.filename.parent.iterdir())
 
@@ -465,7 +488,10 @@ class Scanfields:
     def __getattr__(
             self,
             name: str):
-        return self.__dict__[f"_{name}"]
+        key = f"_{name}"
+        if key in self.__dict__:
+            return self.__dict__[key]
+        raise AttributeError(name)
 
     def __setattr__(
             self,
@@ -474,7 +500,7 @@ class Scanfields:
         self.__dict__[f"_{name}"] = value
 
     def __len__(self) -> int:
-        return sum([len(zplane) for zplane in self.neuron])
+        return sum(len(zplane) for zplane in self.neuron)
 
     def create_roi(
             self,
