@@ -40,6 +40,7 @@ def help():
     webbrowser.open(
         "http://github.com/dcupolillo/ROIpy/tree/GUI_new_version", new=2)
     
+
 __all__ = [
     "Stack",
     "Morphology",

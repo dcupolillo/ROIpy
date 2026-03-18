@@ -1,10 +1,10 @@
 """ Created on Mon Aug 28 10:00:25 2023
     @author: dcupolillo """
 
+from __future__ import annotations
 import numpy as np
 from scipy.spatial import ConvexHull, QhullError
 import matplotlib.pyplot as plt
-from ROIpy.plot.plot import skeleton
 
 
 def internode_distance(
@@ -42,9 +42,7 @@ def internode_distance(
     return np.linalg.norm(vector)
 
 
-def internode_distance_along_path(
-        neurite: list
-) -> float:
+def internode_distance_along_path(neurite: list) -> float:
     """
     Calculate the distance between the first and last nodes
     along the path of the neurite.
@@ -71,9 +69,7 @@ def internode_distance_along_path(
     return total_distance
 
 
-def calculate_total_length(
-        input_data: list
-) -> float:
+def calculate_total_length(input_data: list) -> float:
     """
     Calculate the cumulative length of all neurites in the morphology.
 
@@ -131,14 +127,14 @@ def sholl_analysis(
     ax_sholl_curve: plt.Axes,
     circle_color: str,
     circle_linestyle: str,
-    circle_linewidth: int or float,
+    circle_linewidth: int | float,
     intersection_color: str,
     color: str,
     marker: str,
-    size: int or float,
+    size: int | float,
     show_sholl_curve: bool,
     show_intersections: bool,
-    linewidth: int or float,
+    linewidth: int | float,
 ) -> tuple:
     """
     Perform Sholl analysis with 3D calculations and 2D representation.
@@ -159,7 +155,7 @@ def sholl_analysis(
         Color of the concentric circles. Default is None.
     circle_linestyle : str, optional
         Linestyle of the concentric circles. Default is None.
-    circle_linewidth : int or float, optional
+    circle_linewidth : int | float, optional
         Line width of the concentric circles. Default is None.
     intersection_color : str, optional
         Color of the intersection markers. Default is None.
@@ -167,13 +163,13 @@ def sholl_analysis(
         Color of the morphology onject. Default is 'black'.
     marker : str, optional
         Marker style for intersections. Default is 'o'.
-    size : int or float, optional
+    size : int | float, optional
         Marker size for intersections. Default is None.
     show_sholl_curve : bool, optional
         If True, shows the Sholl curve. Default is True.
     show_intersections : bool, optional
         If True, shows the intersections. Default is True.
-    linewidth : int or float, optional
+    linewidth : int | float, optional
         Line width of the morphology. Default is 1.
 
     Returns
@@ -305,7 +301,7 @@ def hull_volume(
     terminal_point_color: str,
     linecolor: str,
     facecolor: str,
-    linewidth: int or float,
+    linewidth: int | float,
     linestyle: str,
     **kwargs,
 ) -> float:
