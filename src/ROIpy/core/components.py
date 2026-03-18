@@ -265,7 +265,10 @@ class Node:
             Transformed coordinates in angle degrees.
         """
 
-        pixel_coords = np.array(coords + [1])
+        if len(coords) != 2:
+            raise ValueError("coords must contain exactly two values: [x, y]")
+
+        pixel_coords = np.array([coords[0], coords[1], 1.0], dtype=float)
         ref_coords = np.dot(matrix, pixel_coords)
 
         return ref_coords[:-1]
@@ -286,17 +289,11 @@ class Node:
         """
         return self.TYPE_MAPPING.get(_type, 'unknown')
     
-    def __getattr__(self, name: str):
-        key = f"_{name}"
-        if key in self.__dict__:
-            return self.__dict__[key]
+    def __getattr__(self, name: str) -> any:
+        public_key = name.lstrip('_') if name.startswith('_') else name
+        if public_key in self.__dict__:
+            return self.__dict__[public_key]
         raise AttributeError(name)
-
-    def __setattr__(
-            self,
-            name,
-            value):
-        self.__dict__[f"_{name}"] = value
 
     def __repr__(self):
         """
@@ -309,7 +306,7 @@ class Node:
         """
 
         attributes_to_display = [
-            '_id', '_type',
+            'id', 'type',
             'x', 'y', 'z',
             'radius', 'parent_id',
             'is_fork', 'children',
@@ -320,7 +317,6 @@ class Node:
 
         for n, key in enumerate(attributes_to_display):
             value = getattr(self, key, None)
-            key = key.lstrip('_') if key.startswith('_') else key
             repr_strings[n] = f"{key} = {value}"
 
         return "\n(" + "\n".join(repr_strings) + ")\n"
@@ -336,7 +332,7 @@ class Node:
         """
 
         return {
-            key: value
+            key.lstrip('_'): value
             for key, value in self.__dict__.items()}
 
     @classmethod
@@ -443,36 +439,42 @@ class Roi:
         """
 
         self.roi_uuid, self.roi_uuid_uint64 = self.generate_roi_uuid()
+        self.obj_res = obj_res
 
         self.compartment = start[4]
         self.center_xy = center
         self.rotation_degrees = rotation
+        
+        x, y = size
         self.size_xy = size
-        self.area = size[0] * size[1]
-        self.dim_ratio = size[0] / size[1]
+        
+        self.area = x * y
+        self.dim_ratio = x / y
+        
         self.z = z
         self.z_ind = zs.index(z)
 
-        self.center_deg = [coord / obj_res for coord in center]
-        self.size_deg = [dim / obj_res for dim in size]
+        self.center_deg = self._um_to_deg(center)
+        self.size_deg = self._um_to_deg(size)
 
         self.start_node = start[:2]
         self.end_node = end[:2]
-        self.start_node_deg = [coord / obj_res for coord in start[:2]]
-        self.end_node_deg = [coord / obj_res for coord in end[:2]]
+        self.start_node_deg = self._um_to_deg(start[:2])
+        self.end_node_deg = self._um_to_deg(end[:2])
         self.start_node_id = start[3]
         self.end_node_id = end[3]
 
+        corners = self.find_corners()
+
         self.bottom_right = (
-            bottom_right if bottom_right else self.find_corners()[3])
-        self.bottom_right_deg = [
-            coord / obj_res for coord in self.bottom_right]
-        self.bottom_left = self.find_corners()[2]
-        self.bottom_left_deg = [coord / obj_res for coord in self.bottom_left]
-        self.top_right = self.find_corners()[1]
-        self.top_right_deg = [coord / obj_res for coord in self.top_right]
-        self.top_left = self.find_corners()[0]
-        self.top_left_deg = [coord / obj_res for coord in self.top_left]
+            bottom_right if bottom_right else corners[3])
+        self.bottom_right_deg = self._um_to_deg(self.bottom_right)
+        self.bottom_left = corners[2]
+        self.bottom_left_deg = self._um_to_deg(self.bottom_left)
+        self.top_right = corners[1]
+        self.top_right_deg = self._um_to_deg(self.top_right)
+        self.top_left = corners[0]
+        self.top_left_deg = self._um_to_deg(self.top_left)
 
         self.pixel_resolution_xy = pixel_resolution_xy
         self.pix_um_ratio = pix_um_ratio
@@ -487,13 +489,18 @@ class Roi:
         self.branch_id = branch_id
 
     def __getattr__(self, name: str):
-        return self.__dict__[f"_{name}"]
+        public_key = name.lstrip('_') if name.startswith('_') else name
+        if public_key in self.__dict__:
+            return self.__dict__[public_key]
+        raise AttributeError(name)
 
-    def __setattr__(
+    def _um_to_deg(
             self,
-            name: str,
-            value):
-        self.__dict__[f"_{name}"] = value
+            values: list | tuple | np.ndarray
+    ) -> list[float]:
+        """Convert one or more micrometer coordinates to degrees."""
+
+        return [float(value) / self.obj_res for value in values]
 
     def generate_roi_uuid(self) -> list:
         """
@@ -584,7 +591,7 @@ class Roi:
         """
 
         return {
-            key: value
+            key.lstrip('_'): value
             for key, value in self.__dict__.items()}
 
     @classmethod
