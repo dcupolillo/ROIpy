@@ -149,9 +149,7 @@ def make_roi(
     return rectangles_with_branch_info
 
 
-def group_z(
-        input_data: list
-) -> list:
+def group_z(input_data: list) -> list:
     """
     Groups nodes of a morphology object according to their z plane.
 
@@ -188,9 +186,7 @@ def group_z(
     return [group for _, group in sorted_grouped_nodes]
 
 
-def split_consecutive(
-        input_data: list
-) -> list:
+def split_consecutive(input_data: list) -> list:
     """
     Groups coplanar nodes into consecutive node segments.
 
@@ -464,15 +460,17 @@ def remove_short_rectangles(
     excluded_rectangles = []
 
     for z_plane_rectangles in rectangles:
+        included_z_plane_rectangles = []
+        excluded_z_plane_rectangles = []
 
-        included_z_plane_rectangles = [
-            rect for rect in z_plane_rectangles
-            if rect.dim_ratio
-            < dim_ratio_threshold]
-        excluded_z_plane_rectangles = [
-            rect for rect in z_plane_rectangles
-            if rect.dim_ratio
-            >= dim_ratio_threshold]
+        for rect in z_plane_rectangles:
+            # Assign rectangle to the target list based on its dimension ratio
+            target = (
+                included_z_plane_rectangles
+                if rect.dim_ratio < dim_ratio_threshold
+                else excluded_z_plane_rectangles
+            )
+            target.append(rect)
 
         included_rectangles.append(included_z_plane_rectangles)
         excluded_rectangles.append(excluded_z_plane_rectangles)
@@ -899,9 +897,7 @@ def elongate_rectangles(
     return elongated_rectangles
 
 
-def convert_to_polygon(
-        rectangle: Roi
-) -> Polygon:
+def convert_to_polygon(rectangle: Roi) -> Polygon:
     """
     Convert the rectangles into shapely.Polygon object because
     it allows to calculate the intersection area
@@ -1089,7 +1085,7 @@ def remove_rect_within_radius(
 
     filtered_rectangles = []
 
-    for n, z_plane_rectangles in enumerate(rectangles):
+    for z_plane_rectangles in rectangles:
 
         filtered_z_plane = []
 
@@ -1124,9 +1120,7 @@ def remove_rect_within_radius(
     return filtered_rectangles
 
 
-def affine(
-        rect: Roi
-) -> np.ndarray:
+def affine(rect: Roi) -> np.ndarray:
     """
     Constructs an affine transformation matrix for a given rectangle.
 
@@ -1490,7 +1484,8 @@ def roi_populate_pixels(
 
 def assign_branch_attributes(
         rois: list,
-        nodes: list) -> list:
+        nodes: list
+) -> list:
     """
     Assign branch degree and branch ID to each ROI
     based on its start and end nodes.
@@ -1564,7 +1559,7 @@ def assign_branch_attributes(
     return rois
 
 
-def get_split_index(split_indices_list):
+def get_split_index(split_indices_list) -> list:
 
     new_split_indices_list = []
     preceeding = 0
@@ -1752,23 +1747,27 @@ def calculate_pixel_size(
         desired_scanperiod,
         pixel_dwell_time,
         rectangles,
-        fill_fraction):
+        fill_fraction
+) -> float:
     """
     Calculate the required pixel size for multiple rectangles
     given the active scan time and pixel dwell time.
 
     Parameters
     ----------
-    desired_scanperiod, float
+    desired_scanperiod : float
         The total active scan time for the region of interest (ROI) in µs.
-    pixel_dwell_time, float
+    pixel_dwell_time : float
         The time to scan one pixel in µs.
-    rectangles, list
-        A list of dictionaries where each dictionary represents
-        a rectangle's dimensions with keys 'width' and 'height' µm.
+    rectangles : list
+        A list of Roi objects representing the rectangles to be scanned.
+    fill_fraction : float
+        The fraction of the rectangle area that is actively scanned.
 
-    Returns:
-    - float: The required pixel size in micrometers (µm/pixel).
+    Returns
+    -------
+    float
+        The required pixel size in micrometers (µm/pixel).
     """
 
     scan_area_um = sum(
@@ -1807,7 +1806,7 @@ def calculate_all_framerates(
     fly_to_line = class_instance.fly_to_line
 
     scan_period = []
-    for z, z_plane in enumerate(rectangles):
+    for z_plane in rectangles:
         if not z_plane:
             continue
         scan_period_z = 0
