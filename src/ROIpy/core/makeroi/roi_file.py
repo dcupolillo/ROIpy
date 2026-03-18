@@ -1,6 +1,7 @@
 """ Created on Wed Aug 16 14:49:17 2023
     @author: dcupolillo """
 
+from __future__ import annotations
 from pathlib import Path
 import json
 import secrets
@@ -227,7 +228,7 @@ def find_closest_node(target, nodes):
 def read_roi_files(
         class_var: object,
         nodes: list,
-        folder_path: Path or str
+        folder_path: Path | str
 ) -> list:
     """
     Reads all .roi JSON files from a given folder and reconstructs
