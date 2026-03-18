@@ -1,6 +1,7 @@
 """ Created on Mon Nov  6 14:22:55 2023
     @author: dcupolillo """
 
+from __future__ import annotations
 import flammkuchen as fl
 import numpy as np
 import math
@@ -170,14 +171,14 @@ class NodeBundle():
         ax_sholl_curve: plt.Axes = None,
         circle_color: str = 'gray',
         circle_linestyle: str = 'dashed',
-        circle_linewidth: int or float = 1,
+        circle_linewidth: int | float = 1,
         intersection_color: str = 'blue',
         color: str = 'black',
         marker: str = '+',
-        size: int or float = 60,
+        size: int | float = 60,
         show_sholl_curve: bool = True,
         show_intersections: bool = True,
-        linewidth: int = 1,
+        linewidth: int | float = 1,
     ) -> plt.Axes:
         """
         Perform 3D Sholl analysis with 2D visualization.
@@ -200,7 +201,7 @@ class NodeBundle():
             Color of concentric circles in the 2D plot. Default is 'gray'.
         circle_linestyle : str, optional
             Linestyle of concentric circles. Default is 'dashed'.
-        circle_linewidth : int or float, optional
+        circle_linewidth : int | float, optional
             Line width of concentric circles. Default is 1.
         intersection_color : str, optional
             Color of intersection markers. Default is 'blue'.
@@ -208,13 +209,13 @@ class NodeBundle():
             Color of the morphology onject. Default is 'black'.
         marker : str, optional
             Marker style for intersections. Default is '+'.
-        size : int or float, optional
+        size : int | float, optional
             Marker size for intersections. Default is 60.
         show_sholl_curve : bool, optional
             If True, shows the Sholl curve. Default is True.
         show_intersections : bool, optional
             If True, shows intersection markers. Default is True.
-        linewidth : int, optional
+        linewidth : int | float, optional
             Line width of the morphology object. Default is 1.
 
         Returns
@@ -258,7 +259,7 @@ class NodeBundle():
         terminal_point_color: str = 'red',
         linecolor: str = 'blue',
         facecolor: str = 'none',
-        linewidth: int or float = 1,
+        linewidth: int | float = 1,
         linestyle: str = '-',
     ) -> float:
         """
@@ -368,7 +369,7 @@ class Neurite:
         """
         self.nodes = nodes
         self.id = branch_id
-        self.degree = branch_degree
+        self.degree = int(branch_degree)
         self.compartment = self.nodes[0].type
         self.length = branch_length
         self.mean_radius = self._mean_radius()
@@ -592,7 +593,7 @@ class ScanfieldBundle():
             of ROIs in each Z-plane.
         """
 
-        return len(self.scanfield), [len(row) for row in self.scanfield]
+        return len(self.scanfields), [len(row) for row in self.scanfields]
 
     def area(self, z: int = None) -> float:
         """

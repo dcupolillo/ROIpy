@@ -1,6 +1,7 @@
 """ Created on Mon Nov  6 10:29:44 2023
     @author: dcupolillo """
 
+from __future__ import annotations
 from pathlib import Path
 import tifffile
 from ROIpy.core.bundles import NodeBundle, ScanfieldBundle
@@ -28,7 +29,7 @@ class Stack:
 
     def __init__(
         self,
-        stack_filename: str or Path,
+        stack_filename: str | Path,
     ) -> None:
         """
         Initialize a Stack instance.
@@ -118,10 +119,10 @@ class Morphology:
 
     def __init__(
             self,
-            swc_filename: str or Path = None,
+            swc_filename: str | Path = None,
             stack: Stack = None,
-            output_filename: str or Path = "morphology.h5",
-            h5_file: str or Path = None,
+            output_filename: str | Path = "morphology.h5",
+            h5_file: str | Path = None,
             force_recompute: bool = False
     ) -> None:
         """
@@ -129,15 +130,15 @@ class Morphology:
 
         Parameters
         ----------
-        swc_filename : str or Path, optional
+        swc_filename : str | Path, optional
             File name of the morphological reconstruction (.swc format).
             Required if h5_file is not provided. Default is None.
         stack : Stack, optional
             Instance of the Stack containing metadata. Default is None.
-        output_filename : str or Path, optional
+        output_filename : str | Path, optional
             File name where morphology data are stored in h5 format.
             Default is `morphology.h5`. Used only when parsing from .swc.
-        h5_file : str or Path, optional
+        h5_file : str | Path, optional
             Path to an existing .h5 file to load neuron data directly.
             If provided, skips .swc parsing and uses this file instead.
             Default is None.
@@ -289,7 +290,7 @@ class Scanfields:
     def __init__(
             self,
             morphology: Morphology,
-            output_filename: str or Path = "scanfields.h5",
+            output_filename: str | Path = "scanfields.h5",
             desired_framerate: int = 16,
             elongating_factor: float = 1.33,
             dim_ratio_threshold: float = 3.5,
@@ -313,7 +314,7 @@ class Scanfields:
         ----------
         morphology : Morphology
             Morphology element containing metadata.
-        output_filename: str or Path
+        output_filename: str | Path
             File name where scanfields data are stored in h5 format.
             Default is `scanfields.h5`.
         desired_framerate : int, optional
