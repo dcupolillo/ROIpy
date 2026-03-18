@@ -1,6 +1,7 @@
 """ Created on Mon Nov  6 10:29:44 2023
     @author: dcupolillo """
 
+from __future__ import annotations
 from pathlib import Path
 import numpy as np
 import tifffile
@@ -105,7 +106,7 @@ def stack_metadata_dictionary(
 
 
 def parse_stack_metadata(
-        image_name: str or Path
+        image_name: str | Path
 ) -> dict:
 
     with tifffile.TiffFile(image_name) as tif:
