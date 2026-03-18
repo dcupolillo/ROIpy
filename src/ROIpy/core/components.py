@@ -1,6 +1,7 @@
 """ Created on Mon Nov  6 14:11:21 2023
     @author: dcupolillo """
 
+from __future__ import annotations
 import numpy as np
 import random
 import math
@@ -17,12 +18,12 @@ class Node:
 
     Attributes
     ----------
-    type_mapping : dict
+    TYPE_MAPPING : dict
         Maps integer type codes (from .swc files)
         to descriptive compartment names.
     """
 
-    type_mapping = {
+    TYPE_MAPPING = {
         -1: 'root',
         0: 'undefined',
         1: 'soma',
@@ -36,24 +37,54 @@ class Node:
         self,
         obj_res: float,
         _id: int,
-        _type: int or str,
+        _type: int | str,
         x: float,
         y: float,
         z_ind: int,
-        zs: list,
+        zs: list[float],
         radius: float,
         parent_id: int,
         matrix: np.ndarray,
         voxel_separation_x: float,
         voxel_separation_y: float,
+        voxel_separation_z: float,
     ) -> None:
         """
         Initialize a Node instance.
 
+        Coordinate Systems and Spatial Transformations
+
+        SWC/SWC+ specifies that node coordinates (X, Y, Z) are expressed in micrometers (µm).
+        (see: https://neuroinformatics.nl/swcPlus/).
+
+        In this implementation, node coordinates originate in image pixel space and are mapped
+        into the ScanImage reference frame (true field-of-view space) as follows:
+
+        1) Node coordinates are converted to pixel coordinates by applying voxel separation factors
+            (voxel_separation_x, voxel_separation_y, voxel_separation_z) to account for
+            the physical size of each pixel in the acquisition.
+
+        2) pixelToRefTransform (retrieved from ScanImage metadata) is applied to convert pixel coordinates
+            into reference coordinates (typically scan angle units, e.g., degrees).
+            This affine transform encodes pixel scaling, rotation, and translation into the
+            acquisition reference frame.
+
+        Reference coordinates are also converted from scan angle units to micrometers
+        using the linear objective calibration factor (obj_res, retrieved from ScanImage metadata).
+
+        This procedure ensures that node coordinates are expressed in the same physical
+        reference space as the acquisition system, enabling geometrically correct
+        morphometric measurements (e.g., branch length, path length, and spatial density analyses)
+        as well as exact placing of node-aligned ROI during subsequent Scanfield generation.
+
+        Z is not considered here as the volume is treated as a stack of discrete 2D planes,
+        and each node's Z position is determined by the index of the plane (z_ind)
+        and the list of scanned Z positions (zs).
+        
         Parameters
         ----------
         obj_res : float
-            Objective resolution (conversion factor for coordinates).
+            Objective resolution (conversion factor for coordinates degree -> µm).
         _id : int
             Unique identifier for the node.
         _type : int
@@ -64,7 +95,7 @@ class Node:
             Y-coordinate of the node (in pixels).
         z_ind : int
             Index of the Z-plane the node is located on.
-        zs : list
+        zs : list[float]
             List of all scanned Z positions (in µm).
         radius : float
             Radius of the node (in µm).
@@ -76,6 +107,8 @@ class Node:
             Voxel-to-micrometer conversion factor along X.
         voxel_separation_y : float
             Voxel-to-micrometer conversion factor along Y.
+        voxel_separation_z : float
+            Voxel-to-micrometer conversion factor along Z.
         is_fork : bool, optional
             Indicates if the node is a bifurcation point. Default is False.
         children : list, optional
@@ -105,10 +138,6 @@ class Node:
         None
         """
 
-        # Spatial calibration adjustement for pixel size
-        x_corrected = float(x) / voxel_separation_x
-        y_corrected = float(y) / voxel_separation_y
-
         self.id = int(_id)
         self.type = self.get_type(int(_type))
         self.obj_res = obj_res
@@ -116,21 +145,17 @@ class Node:
         self.matrix = matrix
         self.voxel_separation_x = voxel_separation_x
         self.voxel_separation_y = voxel_separation_y
+        self.voxel_separation_z = voxel_separation_z
+        self.radius = float(radius)
+        self.parent_id = int(parent_id)
 
-        if matrix is not None:
-            transformed_pixel_to_ref = self.transform_coordinates(
-                [x_corrected,  y_corrected], matrix)
+        # Coordinates in pixel space, degrees, and micrometers FOV space
+        self.x_pix, self.y_pix = self._um_to_pixels(
+            x, y)
+        
+        self.x_deg, self.y_deg = self._pixels_to_deg(self.x_pix, self.y_pix)
 
-            self.x = transformed_pixel_to_ref[0] * obj_res  # deg to µm
-            self.y = transformed_pixel_to_ref[1] * obj_res
-            self.x_deg = transformed_pixel_to_ref[0]
-            self.y_deg = transformed_pixel_to_ref[1]
-
-        else:
-            self.x = x_corrected
-            self.y = y_corrected
-            self.x_deg = None
-            self.y_deg = None
+        self.x, self.y = self._deg_to_um(self.x_deg, self.y_deg)
 
         if zs is not None:
             self.z = float(zs[int(float(z_ind))])
@@ -139,10 +164,7 @@ class Node:
 
         self.z_ind = float(z_ind)
 
-        self.x_pix = x_corrected
-        self.y_pix = y_corrected
-        self.radius = float(radius)
-        self.parent_id = int(parent_id)
+        # Initialize additional attributes with default values
         self.is_fork = None
         self.children = []
         self.branch_degree = None
@@ -150,21 +172,81 @@ class Node:
         self.has_spine = None
         self.spine_id = None
 
-    def __getattr__(self, name: str):
-        key = f"_{name}"
-        if key in self.__dict__:
-            return self.__dict__[key]
-        raise AttributeError(name)
-
-    def __setattr__(
+    def _um_to_pixels(
             self,
-            name,
-            value):
-        self.__dict__[f"_{name}"] = value
+            x_um: float,
+            y_um: float,
+    ) -> tuple:
+        """
+        Convert coordinates from micrometers to pixel space.
+        
+        Parameters
+        ----------
+        x_um : float
+            X-coordinate in micrometers.
+        y_um : float
+            Y-coordinate in micrometers.
+        Returns
+        -------
+        tuple
+            (x_pix, y_pix) coordinates in pixel space."""
+        
+        return (
+            x_um / self.voxel_separation_x,
+            y_um / self.voxel_separation_y,
+        )
+    
+    def _pixels_to_deg(
+            self,
+            x_pix: float,
+            y_pix: float,
+    ) -> tuple:
+        """
+        Convert coordinates from pixel space to FOV degrees
+        using the transformation matrix.
+        
+        Parameters
+        ----------
+        x_pix : float
+            X-coordinate in pixels.
+        y_pix : float
+            Y-coordinate in pixels.
+        Returns
+        -------
+        tuple
+            (x_deg, y_deg) coordinates in degrees."""
+        
+        if self.matrix is not None:
+            transformed_pixel_to_ref = self.transform_coordinates(
+                [x_pix,  y_pix], self.matrix)
+            return transformed_pixel_to_ref[0], transformed_pixel_to_ref[1]
+        else:
+            return x_pix, y_pix
+        
+    def _deg_to_um(
+            self,
+            x_deg: float,
+            y_deg: float,
+    ) -> tuple:
+        """
+        Convert coordinates from degrees to micrometers using the objective resolution.
+        
+        Parameters
+        ----------
+        x_deg : float
+            X-coordinate in degrees.
+        y_deg : float
+            Y-coordinate in degrees.
+        Returns
+        -------
+        tuple
+            (x_um, y_um) coordinates in micrometers."""
+        
+        return x_deg * self.obj_res, y_deg * self.obj_res
 
     def transform_coordinates(
             self,
-            coords: list or tuple,
+            coords: list | tuple,
             matrix: np.ndarray
     ) -> list:
         """
@@ -202,7 +284,19 @@ class Node:
         str
             Compartment name corresponding to the type code.
         """
-        return self.type_mapping.get(_type, 'unknown')
+        return self.TYPE_MAPPING.get(_type, 'unknown')
+    
+    def __getattr__(self, name: str):
+        key = f"_{name}"
+        if key in self.__dict__:
+            return self.__dict__[key]
+        raise AttributeError(name)
+
+    def __setattr__(
+            self,
+            name,
+            value):
+        self.__dict__[f"_{name}"] = value
 
     def __repr__(self):
         """
@@ -413,6 +507,7 @@ class Roi:
         roi_uuid_hex = ''.join(random.choices('0123456789ABCDEF', k=16))
         roi_uuid_uint64 = int(roi_uuid_hex, 16)
         roi_uuid_str = "{:.9e}".format(roi_uuid_uint64)
+        
         return [roi_uuid_hex, roi_uuid_str]
 
     def find_corners(self) -> tuple:
