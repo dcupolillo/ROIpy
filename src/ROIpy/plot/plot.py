@@ -15,8 +15,51 @@ import ROIpy.core.bundles as bndls
 import ROIpy.core.components as cmpnts
 
 
+# ---------------------------------------------------
+# Helper functions for type checking and dispatching
+# ---------------------------------------------------
+
+def _is_non_empty_list_of(data, expected_type: type) -> bool:
+    """Return True when data is a non-empty list of the expected type."""
+
+    return (
+        isinstance(data, list)
+        and bool(data)
+        and all(isinstance(item, expected_type) for item in data)
+    )
+
+
+def _is_node_data(data) -> bool:
+    """Return True when data can be plotted as morphology data."""
+
+    return (
+        isinstance(data, (cmpnts.Node, bndls.NodeBundle, bndls.Neurite))
+        or _is_non_empty_list_of(data, cmpnts.Node)
+    )
+
+
+def _is_roi_data(data) -> bool:
+    """Return True when data can be plotted as ROI data."""
+
+    return (
+        isinstance(data, (cmpnts.Roi, bndls.ScanfieldBundle))
+        or _is_non_empty_list_of(data, cmpnts.Roi)
+    )
+
+
+def _reject_empty_list(data) -> None:
+    """Reject ambiguous empty list inputs for dispatch functions."""
+
+    if isinstance(data, list) and not data:
+        raise TypeError("Empty lists are not supported for plotting.")
+
+
+# ---------------------------------------------------
+# Generic dispatch functions
+# ---------------------------------------------------
+
 def plot(
-        data,
+        data: np.ndarray | cmpnts.Node | bndls.NodeBundle | bndls.Neurite | cmpnts.Roi | bndls.ScanfieldBundle | list,
         metadata: dict = None,
         projection: str = '2d',
         *args,
@@ -27,20 +70,21 @@ def plot(
 
     Parameters
     ----------
-    data : 
-        Stack, Morphology, Scanfields,
-        Node, NodeBundle, Roi, ScanfieldBundle, list
+    data : np.ndarray | Node | NodeBundle | Neurite | Roi | ScanfieldBundle | list
+        Supported inputs are image arrays, individual Node or Roi objects,
+        NodeBundle or Neurite bundles, ScanfieldBundle bundles, and non-empty
+        lists of only Node or only Roi objects.
         
         The data to be plotted. The accepted keyword arguments depend on
         the data type:
 
         | Data Type                | Main Keyword Arguments (kwargs)          |
         |-------------------------|-------------------------------------------|
-        | Stack (np.ndarray)      | cmap, norm, axes_labels, ax               |
-        | Morphology/Node/Bundle  | show_nodes, show_segments, cmap,          |
+        | np.ndarray              | cmap, norm, axes_labels, ax               |
+        | Node/NodeBundle/Neurite | show_nodes, show_segments, cmap,          |
         |                         | show_cmap, axes_labels, nodes_kwargs,     |
         |                         | segments_kwargs, ax, axis_lims            |
-        | Scanfields/Roi/Bundle   | cmap, show_cbar, scan_angle, rect_kwargs, |
+        | Roi/ScanfieldBundle     | cmap, show_cbar, scan_angle, rect_kwargs, |
         |                         | ax, axis_lims                             |
         | 3D Plotting             | projection='3d', azim, elev, axis_lims    |
 
@@ -59,13 +103,13 @@ def plot(
     -----
     For a full list of accepted arguments, see the docstring of the dispatched
     function for your data type:
-    - Stack:
+    - np.ndarray:
         >>> from ROIpy.plot.plot import plot_image
         >>> help(plot_image)
-    - Morphology/Node/NodeBundle:
+    - Node/NodeBundle/Neurite:
         >>> from ROIpy.plot.plot import plot_morph, plot_morph_3d
         >>> help(plot_morph)
-    - Scanfields/Roi/ScanfieldBundle:
+    - Roi/ScanfieldBundle:
         >>> from ROIpy.plot.plot import plot_scanfield, plot_scanfields_3d
         >>> help(plot_scanfields)
 
@@ -76,38 +120,26 @@ def plot(
     if projection not in ['2d', '3d']:
         raise ValueError("Invalid projection type. Choose '2d' or '3d'.")
 
+    _reject_empty_list(data)
+
     if isinstance(data, np.ndarray):
         return plot_image(data, metadata=metadata, *args, **kwargs)
 
-    elif (isinstance(data, cmpnts.Node) or
-            isinstance(data, bndls.NodeBundle) or
-            isinstance(data, bndls.Neurite) or
-            (isinstance(data, list) and
-             all(isinstance(d, cmpnts.Node) for d in data))):
-
+    if _is_node_data(data):
         if projection == "3d":
             return plot_morph_3d(data, *args, **kwargs)
+        return plot_morph(data, metadata=metadata, *args, **kwargs)
 
-        else:
-            return plot_morph(data, metadata=metadata, *args, **kwargs)
-
-    elif (isinstance(data, cmpnts.Roi) or
-            isinstance(data, bndls.ScanfieldBundle) or
-            (isinstance(data, list) and
-             all(isinstance(d, cmpnts.Roi) for d in data))):
-
+    if _is_roi_data(data):
         if projection == "3d":
             return plot_scanfields_3d(data, metadata=metadata, *args, **kwargs)
+        return plot_scanfield(data, metadata=metadata, *args, **kwargs)
 
-        else:
-            return plot_scanfield(data, metadata=metadata, *args, **kwargs)
-
-    else:
-        raise TypeError("Unsupported data type for plotting.")
+    raise TypeError("Unsupported data type for plotting.")
 
 
 def animate(
-        data,
+        data: cmpnts.Node | bndls.NodeBundle | bndls.Neurite | cmpnts.Roi | bndls.ScanfieldBundle | list,
         *args,
         **kwargs
 ) -> None:
@@ -117,19 +149,23 @@ def animate(
 
     Parameters
     ----------
-    data : Morphology, Scanfields, Node, NodeBundle, Roi, ScanfieldBundle, list
+    data : cmpnts.Node | bndls.NodeBundle | bndls.Neurite | cmpnts.Roi | bndls.ScanfieldBundle | list
+        Supported inputs are individual Node or Roi objects, NodeBundle or
+        Neurite bundles, ScanfieldBundle bundles, and non-empty lists of only
+        Node or only Roi objects.
+
         The data to be animated. Accepted keyword arguments depend on
         the data type:
 
         | Data Type                | Main Keyword Arguments (kwargs)      |
         |-------------------------|--------------------------------------|
-        | Morphology/Node/Bundle  | show_nodes, scan_angle, axis_lims,   |
+        | Node/NodeBundle/Neurite | show_nodes, scan_angle, axis_lims,   |
         |                         | cmap, show_cbar, elev_start,         |
         |                         | elev_end, azimut_start, azimut_end,  |
         |                         | interval, frames, save_path,         |
         |                         | axis_label, nodes_kwargs,            |
         |                         | segments_kwargs                      |
-        | Scanfields/Roi/Bundle   | cmap, show_cbar, scan_angle,         |
+        | Roi/ScanfieldBundle     | cmap, show_cbar, scan_angle,         |
         |                         | elev_start, elev_end, azimut_start,  |
         |                         | azimut_end, interval, frames,        |
         |                         | save_path, zoom, axis_label,         |
@@ -144,10 +180,10 @@ def animate(
     -----
     For a full list of accepted arguments, see the docstring of the
     dispatched function for your data type:
-    - Morphology/Node/NodeBundle:
+    - Node/NodeBundle/Neurite:
         >>> from ROIpy.plot.plot import animate_morph_3d
         >>> help(animate_morph_3d)
-    - Scanfields/Roi/ScanfieldBundle:
+    - Roi/ScanfieldBundle:
         >>> from ROIpy.plot.plot import animate_scanfields_3d
         >>> help(animate_scanfields_3d)
 
@@ -155,24 +191,21 @@ def animate(
     -------
     None
     """
-    if (isinstance(data, cmpnts.Node) or
-            isinstance(data, bndls.NodeBundle) or
-            isinstance(data, bndls.Neurite) or
-            (isinstance(data, list) and
-             all(isinstance(d, cmpnts.Node) for d in data))):
+    _reject_empty_list(data)
 
+    if _is_node_data(data):
         return animate_morph_3d(data, *args, **kwargs)
 
-    elif (isinstance(data, cmpnts.Roi) or
-            isinstance(data, bndls.ScanfieldBundle) or
-            (isinstance(data, list) and
-             all(isinstance(d, cmpnts.Roi) for d in data))):
-
+    if _is_roi_data(data):
         return animate_scanfields_3d(data, *args, **kwargs)
 
-    else:
-        raise TypeError("Unsupported data type for plotting.")
-    
+    raise TypeError("Unsupported data type for plotting.")
+
+
+# ---------------------------------------------------
+# Specific plotting functions
+# ---------------------------------------------------
+
 def update_3d_view(
         ax: plt.Axes,
         elev_start: float,
@@ -358,7 +391,7 @@ def plot_image(
         metadata: dict = None,
         scan_angle: bool = False,
         ax: plt.Axes = None,
-        norm: tuple or list = None,
+        norm: tuple | list = None,
         cmap: str = "binary_r",
         axes_labels: bool = True,
         **kwargs
@@ -537,7 +570,7 @@ def skeleton(
 
 
 def plot_morph(
-        input_data: list or cmpnts.Node or bndls.NodeBundle,
+        input_data: list | cmpnts.Node | bndls.NodeBundle,
         metadata: dict = None,
         show_segments: bool = True,
         show_nodes: bool = False,
@@ -1069,7 +1102,7 @@ def animate_morph_3d(
 
 
 def plot_scanfield(
-        rectangles: list or bndls.ScanfieldBundle or cmpnts.Roi,
+        rectangles: list | bndls.ScanfieldBundle | cmpnts.Roi,
         metadata: dict = None,
         ax: plt.Axes = None,
         axis_lims: list = None,
@@ -1229,7 +1262,7 @@ def plot_scanfield(
 
 
 def plot_scanfields_3d(
-        rectangles: list or bndls.ScanfieldBundle or cmpnts.Roi,
+        rectangles: list | bndls.ScanfieldBundle | cmpnts.Roi,
         metadata: dict = None,
         ax: plt.Axes = None,
         axis_lims: list = None,
