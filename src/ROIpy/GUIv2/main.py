@@ -4,7 +4,6 @@
 import sys
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QGridLayout, QWidget, QMessageBox
-
 from ROIpy.GUIv2.load_frame import LoadFiles
 from ROIpy.GUIv2.plot_structures_controller import StructureFrame
 from ROIpy.GUIv2.scan_parameters import ScanParameters
@@ -15,7 +14,13 @@ from ROIpy.GUIv2.canvas import Canvas
 class MainWindow(QMainWindow):
 
     def __init__(self) -> None:
-        """ Main Window with Frames for each functionality."""
+        """
+        Main Window with Frames for each functionality.
+        
+        Parameters
+        ----------
+        None
+        """
 
         QMainWindow.__init__(self)
 
