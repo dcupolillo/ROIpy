@@ -16,7 +16,14 @@ class LoadFiles(QFrame):
     generate_button_clicked = pyqtSignal()
 
     def __init__(self, parent: QMainWindow) -> None:
-        """ Frame where path is loaded. """
+        """
+        Frame where path is loaded.
+        
+        Parameters
+        ----------
+        parent : QMainWindow
+            The parent window to which this frame belongs.
+        """
 
         super().__init__(parent)
 
@@ -88,6 +95,14 @@ class LoadFiles(QFrame):
             self.are_files_loaded()
 
     def are_files_loaded(self) -> None:
+        """
+        Check if the necessary files are loaded and enable the generate button.
+
+        Returns
+        -------
+        None
+        """
+
 
         if self.date and self.cell_n:
             self.generate_button.setEnabled(True)

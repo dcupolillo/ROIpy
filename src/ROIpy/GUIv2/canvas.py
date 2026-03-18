@@ -1,6 +1,8 @@
 """ Created on Tue Aug 27 16:49:49 2024
     @author: dcupolillo """
 
+from __future__ import annotations
+from ROIpy.core.structures import Stack, Morph, ScanField
 import numpy as np
 import pyqtgraph as pg
 from PyQt5.QtWidgets import (
@@ -10,7 +12,25 @@ from PyQt5.QtCore import Qt, pyqtSignal
 
 class ImageView(pg.ImageView):
 
-    def __init__(self, parent, *args, **kwargs) -> None:
+    def __init__(
+            self,
+            parent: QMainWindow,
+            *args,
+            **kwargs
+    ) -> None:
+        """
+        Custom ImageView that initializes with a fixed size and hides the
+        ROI and menu buttons.
+        
+        Parameters
+        ----------
+        parent : QMainWindow
+            The parent window to which this ImageView belongs.
+        *args
+            Additional positional arguments passed to the base ImageView class.
+        **kwargs
+            Additional keyword arguments passed to the base ImageView class.
+        """
         super().__init__(*args, **kwargs)
 
         # Set ImageView size relative to the parent window
@@ -35,10 +55,25 @@ class CustomSlider(QWidget):
 
     def __init__(
             self,
-            tick_values=None,
-            orientation=Qt.Horizontal,
-            parent=None
+            tick_values: list = None,
+            orientation: Qt.Orientation = Qt.Horizontal,
+            parent: QWidget = None
     ) -> None:
+        """
+        Custom slider widget that includes a label to display the current value
+        and supports custom tick values.
+        
+        Parameters
+        ----------
+        tick_values : list, optional
+            A list of values to be used as ticks on the slider. If None, a default
+            range of 0-100 will be used.
+        orientation : Qt.Orientation, optional
+            The orientation of the slider (Qt.Horizontal or Qt.Vertical). Default is
+            Qt.Horizontal.
+        parent : QWidget, optional
+            The parent widget for this slider. Default is None.
+            """
 
         super().__init__(parent)
 
@@ -65,7 +100,7 @@ class CustomSlider(QWidget):
         # Connect the slider's value change to update the value label
         self.slider.valueChanged.connect(self.update_value_label)
 
-    def set_tick_values(self, tick_values):
+    def set_tick_values(self, tick_values: list) -> None:
         """Set tick values and adjust the slider range accordingly."""
 
         self.tick_values = tick_values
@@ -82,11 +117,11 @@ class CustomSlider(QWidget):
         else:
             self.value_label.setText(str(value))
 
-    def set_label_text(self, text):
+    def set_label_text(self, text: str) -> None:
         """Set the label text."""
         self.label.setText(text)
 
-    def set_slider_value(self, value):
+    def set_slider_value(self, value: int) -> None:
         """Set the slider's value based on the tick list."""
         if hasattr(self, 'tick_values'):
             if value in self.tick_values:
@@ -95,7 +130,7 @@ class CustomSlider(QWidget):
         else:
             self.slider.setValue(value)
 
-    def get_slider(self):
+    def get_slider(self) -> QSlider:
         """Get the underlying QSlider object."""
         return self.slider
 
@@ -105,6 +140,16 @@ class Canvas(QFrame):
     which_scanfield_signal = pyqtSignal(str)
 
     def __init__(self, parent: QMainWindow) -> None:
+        """
+        Canvas class that manages the display of images, morphology, and scanfield
+        ROIs. It includes an ImageView for displaying images and sliders for
+        navigating through Z-planes and channels.
+        
+        Parameters
+        ----------
+        parent : QMainWindow
+            The parent window to which this canvas belongs.
+        """
 
         super().__init__(parent)
 
@@ -149,7 +194,12 @@ class Canvas(QFrame):
         self.color_slider.setVisible(False)
         self.color_slider.slider.valueChanged.connect(self.update_image)
 
-    def get_structures(self, stack, morph, sf) -> None:
+    def get_structures(
+            self,
+            stack: Stack,
+            morph: Morph,
+            sf: ScanField
+    ) -> None:
         """Handle the received structure signal and initialize the stack."""
 
         self.stack = stack

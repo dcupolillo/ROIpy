@@ -9,7 +9,21 @@ from PyQt5.QtWidgets import (
 
 class CustomToggleButton(QPushButton):
 
-    def __init__(self, text, parent=None) -> None:
+    def __init__(
+            self,
+            text: str,
+            parent: QMainWindow = None
+    ) -> None:
+        """
+        Custom toggle button that can be used for morphology and scanfield plotting.
+        
+        Parameters
+        ----------
+        text : str
+            The text to display on the button.
+        parent : QMainWindow, optional
+            The parent window to which this button belongs.
+        """
 
         super().__init__(parent)
         self.setCheckable(True)
@@ -18,13 +32,23 @@ class CustomToggleButton(QPushButton):
 
 class MorphButton(CustomToggleButton):
 
-    def __init__(self, text, parent=None) -> None:
+    def __init__(
+            self,
+            text: str,
+            parent: QMainWindow = None
+    ) -> None:
+        
         super().__init__(text, parent)
 
 
 class ScanfieldButton(CustomToggleButton):
 
-    def __init__(self, text, parent=None) -> None:
+    def __init__(
+            self,
+            text: str,
+            parent: QMainWindow = None
+    ) -> None:
+        
         super().__init__(text, parent)
 
 
@@ -38,6 +62,14 @@ class StructureFrame(QFrame):
     max_proj_disabled = pyqtSignal()
 
     def __init__(self, parent: QMainWindow) -> None:
+        """
+        Frame that contains buttons to plot morphology and scanfield structures.
+        
+        Parameters
+        ----------
+        parent : QMainWindow
+            The parent window to which this frame belongs.
+        """
 
         super().__init__(parent)
 
@@ -116,7 +148,7 @@ class StructureFrame(QFrame):
             button.setEnabled(False)
 
     def activate_buttons(self) -> None:
-        # Simplified activation of buttons
+        """Activate all buttons."""
         buttons = [
             self.morph_neuron_button,
             self.morph_apical_button,
@@ -130,7 +162,12 @@ class StructureFrame(QFrame):
             button.setEnabled(True)
             button.setCheckable(True)
 
-    def toggle_morph_exclusivity(self, checked, active_button, struct_type):
+    def toggle_morph_exclusivity(
+            self,
+            checked: bool,
+            active_button: MorphButton,
+            struct_type: str
+    ) -> None:
 
         buttons = [
             self.morph_neuron_button,
@@ -146,7 +183,12 @@ class StructureFrame(QFrame):
         else:
             self.clear_morph.emit()
 
-    def toggle_sf_exclusivity(self, checked, active_button, struct_type):
+    def toggle_sf_exclusivity(
+            self,
+            checked: bool,
+            active_button: ScanfieldButton,
+            struct_type: str
+    ) -> None:
 
         buttons = [
             self.scanfield_neuron_button,
@@ -163,7 +205,7 @@ class StructureFrame(QFrame):
             if not any(button.isChecked() for button in buttons):
                 self.clear_sf.emit()
 
-    def toggle_max_proj(self, checked):
+    def toggle_max_proj(self, checked: bool) -> None:
         if checked:
             self.max_proj_activated.emit()
         else:

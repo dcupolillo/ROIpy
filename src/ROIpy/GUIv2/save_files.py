@@ -39,7 +39,7 @@ class SaveFiles(QFrame):
         self.sf = sf
         self.save_button.setEnabled(True)
 
-    def select_destination(self, paths) -> None:
+    def select_destination(self, paths: str) -> None:
 
         self.destination_folder = paths
 
