@@ -39,3 +39,15 @@ def help():
     import webbrowser
     webbrowser.open(
         "http://github.com/dcupolillo/ROIpy/tree/GUI_new_version", new=2)
+    
+__all__ = [
+    "Stack",
+    "Morphology",
+    "Scanfields",
+    "run_app",
+    "plot",
+    "animate",
+    "stats",
+    "showInfo",
+    "help"
+]
