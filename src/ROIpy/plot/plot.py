@@ -361,6 +361,7 @@ def plot_image(
         norm: tuple or list = None,
         cmap: str = "binary_r",
         axes_labels: bool = True,
+        **kwargs
 ) -> None:
     """
     Plots a 2D image from a Stack class instance.
@@ -429,12 +430,12 @@ def plot_image(
     img = np.max(image, axis=0) if image.ndim == 3 else image
 
     if norm is None:
-        ax.imshow(img, extent=extent, cmap=cmap)
+        ax.imshow(img, extent=extent, cmap=cmap, **kwargs)
 
     elif isinstance(norm, (list, tuple)):
         min_value, max_value = norm
         norm = Normalize(vmin=min_value, vmax=max_value)
-        ax.imshow(img, extent=extent, cmap=cmap, norm=norm)
+        ax.imshow(img, extent=extent, cmap=cmap, norm=norm, **kwargs)
 
     else:
         raise KeyError("'norm' should be a list or a tuple")
