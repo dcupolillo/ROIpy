@@ -250,11 +250,12 @@ def parse_swc(
 
                 if "Voxel separation" in line:
                     voxel_info = line.split(':', 1)[1].strip()
-                    x, y, _ = map(float, voxel_info.split(','))
+                    x, y, z = map(float, voxel_info.split(','))
                     x_voxel_separation = x
                     y_voxel_separation = y
+                    z_voxel_separation = z
 
-                continue  # skip comment lines
+                continue  # skip other comment lines
 
             fields = line.split()
 
@@ -271,7 +272,8 @@ def parse_swc(
                 parent_id=fields[6],
                 matrix=pixel_to_ref_transform,
                 voxel_separation_x=x_voxel_separation,
-                voxel_separation_y=y_voxel_separation)
+                voxel_separation_y=y_voxel_separation,
+                voxel_separation_z=z_voxel_separation)
             nodes.append(node)
 
     # Compute parent node
@@ -330,7 +332,7 @@ def split_neurite(
 
     for node_n, node in enumerate(input_data):
 
-        if node._type == 'soma':
+        if node._type == 1:
             if current_section:
                 sections.append(current_section)
             current_section = []
