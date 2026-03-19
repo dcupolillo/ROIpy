@@ -2,7 +2,7 @@
     @author: dcupolillo """
 
 from __future__ import annotations
-from ROIpy.core.structures import Stack, Morph, ScanField
+from ROIpy.core.structures import Stack, Morphology, ScanField
 import numpy as np
 import pyqtgraph as pg
 from PyQt5.QtWidgets import (
@@ -197,7 +197,7 @@ class Canvas(QFrame):
     def get_structures(
             self,
             stack: Stack,
-            morph: Morph,
+            morph: Morphology,
             sf: ScanField
     ) -> None:
         """Handle the received structure signal and initialize the stack."""
