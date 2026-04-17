@@ -174,8 +174,8 @@ def parse_stack_metadata(
     n_channels = (
         1 if isinstance(ch_active, int)
         else len(ch_active))
-
-    return stack_metadata_dictionary(
+    
+    metadata_dictionary = dict(
         stack_name=stack_name,
         data_type=data_type,
         corners_um=corners_um,
@@ -204,6 +204,8 @@ def parse_stack_metadata(
         ch_active_list=ch_active_list,
         n_channels=n_channels
     )
+
+    return stack_metadata_dictionary(**metadata_dictionary)
 
 
 def parse_swc(
