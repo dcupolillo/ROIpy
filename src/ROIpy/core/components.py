@@ -149,6 +149,8 @@ class Node:
         self.radius = float(radius)
         self.parent_id = int(parent_id)
 
+        x, y = float(x), float(y)
+
         # Coordinates in pixel space, degrees, and micrometers FOV space
         self.x_pix, self.y_pix = self._um_to_pixels(
             x, y)
@@ -241,6 +243,9 @@ class Node:
         -------
         tuple
             (x_um, y_um) coordinates in micrometers."""
+        
+        if self.obj_res is None:
+            return x_deg, y_deg
         
         return x_deg * self.obj_res, y_deg * self.obj_res
 

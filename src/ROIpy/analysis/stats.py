@@ -69,6 +69,123 @@ def internode_distance_along_path(neurite: list) -> float:
     return total_distance
 
 
+def path_distance_to_soma(node: object, all_nodes: list) -> float:
+    """
+    Calculate the path distance from a given node to the soma
+    by walking up the morphology tree via parent_id links.
+
+    Parameters
+    ----------
+    node : object
+        The node from which to measure. Must have `id`, `parent_id`,
+        `x`, `y`, and `z` attributes.
+    all_nodes : list
+        List of all Node objects in the morphology, used to look up
+        parent nodes by their `id`.
+
+    Returns
+    -------
+    float
+        Cumulative 3D Euclidean distance from `node` to the soma
+        along the morphology path. Returns 0.0 if the node is the soma.
+
+    Raises
+    ------
+    ValueError
+        If a parent node referenced by `parent_id` is not found in
+        `all_nodes`, indicating a broken tree.
+    """
+    if all_nodes and isinstance(all_nodes[0], dict):
+        node_dict = {n['_id']: n for n in all_nodes}
+        get_id = lambda n: n['_id']
+        get_parent_id = lambda n: n['_parent_id']
+    else:
+        node_dict = {n.id: n for n in all_nodes}
+        get_id = lambda n: n.id
+        get_parent_id = lambda n: n.parent_id
+
+    total_distance = 0.0
+    current = node
+
+    while get_parent_id(current) != -1:
+        parent = node_dict.get(get_parent_id(current))
+        if parent is None:
+            raise ValueError(
+                f"Parent node with id {get_parent_id(current)} not found "
+                f"in all_nodes (broken tree at node {get_id(current)}).")
+        total_distance += internode_distance(current, parent)
+        current = parent
+
+    return total_distance
+
+
+def precompute_distances_to_soma(all_nodes: list) -> dict:
+    """
+    Precompute the path distance from the soma to every node in the
+    morphology in a single O(N) traversal.
+
+    Use this instead of calling `path_distance_to_soma` in a loop —
+    the result dict allows O(1) lookups per node.
+
+    Parameters
+    ----------
+    all_nodes : list
+        List of all Node objects (or dicts) in the morphology.
+
+    Returns
+    -------
+    dict
+        Mapping of node id -> cumulative 3D path distance from soma (float).
+
+    Example
+    -------
+    >>> distances = precompute_distances_to_soma(all_nodes)
+    >>> for spine_node in spine_nodes:
+    ...     d = distances[spine_node.id]
+    """
+    if not all_nodes:
+        return {}
+
+    if isinstance(all_nodes[0], dict):
+        get_id = lambda n: n['_id']
+        get_parent_id = lambda n: n['_parent_id']
+    else:
+        get_id = lambda n: n.id
+        get_parent_id = lambda n: n.parent_id
+
+    node_dict = {get_id(n): n for n in all_nodes}
+
+    # Find the root (parent_id == -1)
+    roots = [n for n in all_nodes if get_parent_id(n) == -1]
+
+    distances = {}
+
+    # BFS from each root
+    from collections import deque
+    queue = deque()
+    for root in roots:
+        distances[get_id(root)] = 0.0
+        queue.append(root)
+
+    # Build children map for efficient traversal
+    children_map: dict = {}
+    for n in all_nodes:
+        pid = get_parent_id(n)
+        if pid != -1:
+            children_map.setdefault(pid, []).append(n)
+
+    while queue:
+        current = queue.popleft()
+        current_id = get_id(current)
+        for child in children_map.get(current_id, []):
+            distances[get_id(child)] = (
+                distances[current_id] + internode_distance(current, child)
+            )
+            queue.append(child)
+
+    return distances
+
+
 def calculate_total_length(input_data: list) -> float:
     """
     Calculate the cumulative length of all neurites in the morphology.
