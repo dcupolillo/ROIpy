@@ -1,4 +1,5 @@
 # ROIpy
+[![DOI](https://sandbox.zenodo.org/badge/780942663.svg)](https://handle.test.datacite.org/10.5072/zenodo.518964)
 
 ## Description
 
