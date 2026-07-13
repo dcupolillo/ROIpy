@@ -1,5 +1,7 @@
 # ROIpy
 
+[![DOI](https://zenodo.org/badge/780942663.svg)](https://doi.org/10.5281/zenodo.21334248)
+
 ## Description
 
 **ROIpy** is a python package for ROI (Region of Interest) semi-automatic generation and placement for functional imaging of neuronal dendrites of individual neurons. It provides a tool for defining, managing and visualizing dendritic ROIs. In addition, provides a benchmark for analyzing morphological data such as dendritic structure.
