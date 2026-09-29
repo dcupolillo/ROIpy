@@ -1,6 +1,3 @@
-""" Created on Mon Nov  6 10:29:44 2023
-    @author: dcupolillo """
-
 from __future__ import annotations
 from pathlib import Path
 import tifffile
@@ -171,7 +168,9 @@ class Morphology:
         
         # Handle h5_file loading path
         if h5_file is not None:
+
             h5_file = Path(h5_file)
+
             if not h5_file.exists():
                 raise ValueError(
                     f"Provided h5_file does not exist: {h5_file}")
@@ -181,7 +180,7 @@ class Morphology:
             
             self.filename = None  # No .swc file in this case
             self.output_filename = h5_file
-            self._load_from_h5 = True if not force_recompute else False
+            self._load_from_h5 = not force_recompute
             self.h5_file = h5_file
         
         # Handle swc_filename loading path
@@ -201,10 +200,9 @@ class Morphology:
             self.output_filename = Path(self.filename.parent / output_filename)
             self._load_from_h5 = False
 
-        if stack:
-            self.metadata = stack_metadata_dictionary(**stack.metadata)
-        else:
-            self.metadata = stack_metadata_dictionary()
+        self.metadata = (
+            stack_metadata_dictionary(**stack.metadata) if stack
+            else stack_metadata_dictionary())
 
         self._has_stack = True if stack else False
 
