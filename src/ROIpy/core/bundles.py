@@ -1,6 +1,3 @@
-""" Created on Mon Nov  6 14:22:55 2023
-    @author: dcupolillo """
-
 from __future__ import annotations
 import flammkuchen as fl
 import numpy as np

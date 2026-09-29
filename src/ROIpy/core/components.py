@@ -1,6 +1,3 @@
-""" Created on Mon Nov  6 14:11:21 2023
-    @author: dcupolillo """
-
 from __future__ import annotations
 import numpy as np
 import random
@@ -152,11 +149,8 @@ class Node:
         x, y = float(x), float(y)
 
         # Coordinates in pixel space, degrees, and micrometers FOV space
-        self.x_pix, self.y_pix = self._um_to_pixels(
-            x, y)
-        
+        self.x_pix, self.y_pix = self._um_to_pixels(x, y)
         self.x_deg, self.y_deg = self._pixels_to_deg(self.x_pix, self.y_pix)
-
         self.x, self.y = self._deg_to_um(self.x_deg, self.y_deg)
 
         if zs is not None:

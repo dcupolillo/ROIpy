@@ -209,6 +209,7 @@ class Morphology:
         for key, value in self.metadata.items():
             setattr(self, key, value)
 
+        # Create the bundles
         self.neuron = self._make_nodebundle()
 
         self.apical = NodeBundle(
