@@ -50,3 +50,6 @@ include = ["ROIpy*"]
 
 [tool.setuptools.package-data]
 ROIpy = ["py.typed"]
+
+[project.scripts]
+roipy-gui = "ROIpy.GUIv2.main:run_app"
