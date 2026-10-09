@@ -3,6 +3,7 @@ import hashlib
 import json
 from pathlib import Path
 from ROIpy.core.scanfields.bundle import ScanfieldBundle
+from ROIpy.core.morphology.bundle import NodeBundle
 from ROIpy.core.morphology.morphology import Morphology
 from ROIpy.core.utils.utils import numpy_json_default
 from ROIpy.core.makeroi import make_roi, roi_file
@@ -287,15 +288,15 @@ class Scanfields:
 
     def create_roi(
             self,
-            input_data: Morphology
+            input_data: NodeBundle
     ) -> list:
         """
         Create rectangular ROIs based on morphology nodes.
 
         Parameters
         ----------
-        input_data : Morphology
-            Morphology data to be subdivided into ROIs.
+        input_data : NodeBundle
+            NodeBundle data to be subdivided into ROIs.
 
         Returns
         -------
@@ -309,7 +310,7 @@ class Scanfields:
             self,
             input_data: ScanfieldBundle,
             folder_path: str,
-            structure_type: str = None
+            structure_type: str | None = None
     ) -> None:
         """
         Save the generated ROIs in a format compatible with ScanImage.
