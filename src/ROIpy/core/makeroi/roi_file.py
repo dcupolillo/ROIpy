@@ -1,6 +1,3 @@
-""" Created on Wed Aug 16 14:49:17 2023
-    @author: dcupolillo """
-
 from __future__ import annotations
 from pathlib import Path
 import json
@@ -54,7 +51,7 @@ def generate_roi_uuid(
 
 class MarkedList:
     """
-    Wrap a list for custom JSON encoding.
+    Helper class for wrapping a list to enable custom JSON encoding.
     """
 
     def __init__(self, _list: list) -> None:
@@ -63,7 +60,7 @@ class MarkedList:
 
         Parameters
         ----------
-        lst : List[Any]
+        _list : list
             The list to wrap.
         """
 
@@ -75,7 +72,7 @@ class MarkedList:
 
 class NullValue:
     """
-    Wrap the string 'null' for custom JSON encoding.
+    Helper class for wrapping the string 'null' to enable custom JSON encoding.
     """
 
     def __init__(self, _string: str) -> None:
@@ -84,13 +81,13 @@ class NullValue:
 
         Parameters
         ----------
-        s : str
+        _string : str
             Must be 'null'.
 
         Raises
         ------
         ValueError
-            If s is not 'null'.
+            If _string is not 'null'.
         """
         if _string != "null":
             raise ValueError(
