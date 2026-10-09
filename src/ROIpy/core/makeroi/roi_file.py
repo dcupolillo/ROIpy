@@ -4,7 +4,7 @@ import json
 import secrets
 import re
 import numpy as np
-from ROIpy.core.components import Roi
+from ROIpy.core.scanfields.roi import Roi
 from json import JSONEncoder
 
 

@@ -1,6 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
-from ROIpy.core.bundles import NodeBundle
+from ROIpy.core.morphology.bundle import NodeBundle
 from ROIpy.core.stack import Stack
 from ROIpy.core.utils.utils import (
     stack_metadata_dictionary, parse_swc,

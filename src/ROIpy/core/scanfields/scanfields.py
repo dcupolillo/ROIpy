@@ -2,8 +2,8 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
-from ROIpy.core.bundles import ScanfieldBundle
-from ROIpy.core.morphology import Morphology
+from ROIpy.core.scanfields.bundle import ScanfieldBundle
+from ROIpy.core.morphology.morphology import Morphology
 from ROIpy.core.utils.utils import numpy_json_default
 from ROIpy.core.makeroi import make_roi, roi_file
 

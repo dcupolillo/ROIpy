@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.path as mpath
 from statistics import mode
 from shapely.geometry import Polygon
-from ROIpy.core.components import Roi
+from ROIpy.core.scanfields.roi import Roi
 
 
 def make_roi(
