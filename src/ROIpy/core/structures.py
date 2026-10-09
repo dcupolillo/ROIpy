@@ -179,6 +179,7 @@ class Morphology:
                     f"Invalid file format for {h5_file}. Expected .h5")
             
             self.filename = None  # No .swc file in this case
+            self.folder = h5_file.parent
             self.output_filename = h5_file
             self._load_from_h5 = not force_recompute
             self.h5_file = h5_file
@@ -197,8 +198,10 @@ class Morphology:
                     "Output filename needs to be in .h5 format")
 
             self.filename = swc_filename
+            self.folder = swc_filename.parent
             self.output_filename = Path(self.filename.parent / output_filename)
             self._load_from_h5 = False
+            self._force_recompute = force_recompute
 
         self.metadata = (
             stack_metadata_dictionary(**stack.metadata) if stack
@@ -253,7 +256,9 @@ class Morphology:
              if file.stem == self.output_filename.stem),
             None)
 
-        if nodebundle_filename is not None and nodebundle_filename.exists():
+        if (not self._force_recompute
+                and nodebundle_filename is not None
+                and nodebundle_filename.exists()):
             return NodeBundle.load_from_h5(nodebundle_filename)
 
         nodes_list = parse_swc(self.filename, self.metadata)
@@ -362,7 +367,7 @@ class Scanfields:
         self._morph = morphology
         self.soma = self._morph.soma
         self.output_filename = Path(
-            self._morph.filename.parent / output_filename)
+            self._morph.folder / output_filename)
 
         self.metadata = self._morph.metadata
 
@@ -457,7 +462,7 @@ class Scanfields:
             list of separated branches.
         """
 
-        files = list(self._morph.filename.parent.iterdir())
+        files = list(self._morph.folder.iterdir())
 
         scanfieldbundle_filename = next(
             (file for file in files
