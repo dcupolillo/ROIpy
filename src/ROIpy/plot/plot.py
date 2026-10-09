@@ -1,6 +1,3 @@
-""" Created on Mon Nov  6 14:41:00 2023
-    @author: dcupolillo """
-
 from __future__ import annotations
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
@@ -11,8 +8,8 @@ from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib.animation import FuncAnimation
 import matplotlib.colors as mcolors
 import numpy as np
-import ROIpy.core.bundles as bndls
-import ROIpy.core.components as cmpnts
+import ROIpy.core.morphology as mrph
+import ROIpy.core.scanfields as sfld
 
 
 # ---------------------------------------------------
@@ -33,8 +30,8 @@ def _is_node_data(data) -> bool:
     """Return True when data can be plotted as morphology data."""
 
     return (
-        isinstance(data, (cmpnts.Node, bndls.NodeBundle, bndls.Neurite))
-        or _is_non_empty_list_of(data, cmpnts.Node)
+        isinstance(data, (mrph.Node, mrph.NodeBundle, mrph.Neurite))
+        or _is_non_empty_list_of(data, mrph.Node)
     )
 
 
@@ -42,8 +39,8 @@ def _is_roi_data(data) -> bool:
     """Return True when data can be plotted as ROI data."""
 
     return (
-        isinstance(data, (cmpnts.Roi, bndls.ScanfieldBundle))
-        or _is_non_empty_list_of(data, cmpnts.Roi)
+        isinstance(data, (sfld.Roi, sfld.ScanfieldBundle))
+        or _is_non_empty_list_of(data, sfld.Roi)
     )
 
 
@@ -59,7 +56,7 @@ def _reject_empty_list(data) -> None:
 # ---------------------------------------------------
 
 def plot(
-        data: np.ndarray | cmpnts.Node | bndls.NodeBundle | bndls.Neurite | cmpnts.Roi | bndls.ScanfieldBundle | list,
+        data: np.ndarray | mrph.Node | mrph.NodeBundle | mrph.Neurite | sfld.Roi | sfld.ScanfieldBundle | list,
         metadata: dict = None,
         projection: str = '2d',
         *args,
@@ -139,7 +136,7 @@ def plot(
 
 
 def animate(
-        data: cmpnts.Node | bndls.NodeBundle | bndls.Neurite | cmpnts.Roi | bndls.ScanfieldBundle | list,
+        data: mrph.Node | mrph.NodeBundle | mrph.Neurite | sfld.Roi | sfld.ScanfieldBundle | list,
         *args,
         **kwargs
 ) -> None:
@@ -149,7 +146,7 @@ def animate(
 
     Parameters
     ----------
-    data : cmpnts.Node | bndls.NodeBundle | bndls.Neurite | cmpnts.Roi | bndls.ScanfieldBundle | list
+    data : mrph.Node | mrph.NodeBundle | mrph.Neurite | sfld.Roi | sfld.ScanfieldBundle | list
         Supported inputs are individual Node or Roi objects, NodeBundle or
         Neurite bundles, ScanfieldBundle bundles, and non-empty lists of only
         Node or only Roi objects.
@@ -570,7 +567,7 @@ def skeleton(
 
 
 def plot_morph(
-        input_data: list | cmpnts.Node | bndls.NodeBundle,
+        input_data: list | mrph.Node | mrph.NodeBundle,
         metadata: dict = None,
         show_segments: bool = True,
         show_nodes: bool = False,
@@ -589,7 +586,7 @@ def plot_morph(
     This function visualizes a neuronal morphology in 2D,
     optionally showing the segmented skeleton, individual nodes
     and a colormap indicating Z-plane depth.
-    The morphology can be visualized either in spatial (µm) or angular
+    The morphology can be visualized either in spatial (Âµm) or angular
     (degrees) coordinates.
 
     Parameters
@@ -637,7 +634,7 @@ def plot_morph(
     """
     check_metadata(metadata)
 
-    if isinstance(input_data, cmpnts.Node):
+    if isinstance(input_data, mrph.Node):
         input_data = [input_data]
 
     if isinstance(cmap, str):
@@ -802,14 +799,14 @@ def plot_morph_3d(
     -------
     None
     """
-    if not isinstance(input_data, (list, cmpnts.Node, bndls.NodeBundle)):
+    if not isinstance(input_data, (list, mrph.Node, mrph.NodeBundle)):
         raise TypeError("input_data must be a list of Nodes, a single Node, "
                         "or a NodeBundle.")
     
-    if isinstance(input_data, cmpnts.Node):
+    if isinstance(input_data, mrph.Node):
         input_data = [input_data]
 
-    if not all(isinstance(node, cmpnts.Node) for node in input_data):
+    if not all(isinstance(node, mrph.Node) for node in input_data):
         raise TypeError("All elements in input_data must be Nodes.")
 
     default_nodes_kwargs = {
@@ -891,7 +888,7 @@ def plot_morph_3d(
 
         if show_cbar:
             cbar = plt.colorbar(scalar_map, ax=ax)
-            cbar.set_label("Z (µm)")
+            cbar.set_label("Z (Âµm)")
 
     if axis_lims:
         ax.set(
@@ -1102,7 +1099,7 @@ def animate_morph_3d(
 
 
 def plot_scanfield(
-        rectangles: list | bndls.ScanfieldBundle | cmpnts.Roi,
+        rectangles: list | sfld.ScanfieldBundle | sfld.Roi,
         metadata: dict = None,
         ax: plt.Axes = None,
         axis_lims: list = None,
@@ -1116,7 +1113,7 @@ def plot_scanfield(
 
     Parameters
     ----------
-    rectangles : list or bndls.ScanfieldBundle or cmpnts.Roi
+    rectangles : list or sfld.ScanfieldBundle or sfld.Roi
         List of Roi objects to be plotted.
     metadata : dict, optional
         The morphology metadata dictionary. Default is None.
@@ -1143,13 +1140,13 @@ def plot_scanfield(
     """
     check_metadata(metadata)
 
-    if not isinstance(rectangles, (list, bndls.ScanfieldBundle, cmpnts.Roi)):
+    if not isinstance(rectangles, (list, sfld.ScanfieldBundle, sfld.Roi)):
         raise TypeError("rectangles must be a list, ScanfieldBundle, or Roi.")
 
-    if isinstance(rectangles, bndls.ScanfieldBundle):
+    if isinstance(rectangles, sfld.ScanfieldBundle):
         rectangles = [rect for roiSet in rectangles for rect in roiSet]
 
-    elif isinstance(rectangles, cmpnts.Roi):
+    elif isinstance(rectangles, sfld.Roi):
         rectangles = [rectangles]
 
     units, corners = get_scan_units(metadata, scan_angle)
@@ -1184,12 +1181,12 @@ def plot_scanfield(
 
     # If it's a 2d lists of ROIs (multiple scanfields)
     # flattens it to get a 1d list of ROIs
-    if isinstance(rectangles, bndls.ScanfieldBundle):
+    if isinstance(rectangles, sfld.ScanfieldBundle):
         rectangles = [rect for roiSet in rectangles for rect in roiSet]
 
     # If it's an individual ROI
     # put the single ROI object in a single-element list
-    elif isinstance(rectangles, cmpnts.Roi):
+    elif isinstance(rectangles, sfld.Roi):
         rectangles = [rectangles]
 
     # this block is just for testing intermediate rectangles
@@ -1262,7 +1259,7 @@ def plot_scanfield(
 
 
 def plot_scanfields_3d(
-        rectangles: list | bndls.ScanfieldBundle | cmpnts.Roi,
+        rectangles: list | sfld.ScanfieldBundle | sfld.Roi,
         metadata: dict = None,
         ax: plt.Axes = None,
         axis_lims: list = None,
@@ -1279,7 +1276,7 @@ def plot_scanfields_3d(
 
     Parameters
     ----------
-    rectangles : list or bndls.ScanfieldBundle or cmpnts.Roi
+    rectangles : list or sfld.ScanfieldBundle or sfld.Roi
         List of Roi objects to be plotted.
     metadata : dict, optional
         The morphology metadata dictionary. Default is None.
@@ -1312,13 +1309,13 @@ def plot_scanfields_3d(
     """
     check_metadata(metadata)
 
-    if not isinstance(rectangles, (list, bndls.ScanfieldBundle, cmpnts.Roi)):
+    if not isinstance(rectangles, (list, sfld.ScanfieldBundle, sfld.Roi)):
         raise TypeError("rectangles must be a list, ScanfieldBundle, or Roi.")
 
-    if isinstance(rectangles, bndls.ScanfieldBundle):
+    if isinstance(rectangles, sfld.ScanfieldBundle):
         rectangles = [rect for roiSet in rectangles for rect in roiSet]
 
-    elif isinstance(rectangles, cmpnts.Roi):
+    elif isinstance(rectangles, sfld.Roi):
         rectangles = [rectangles]
 
     zs = metadata['zs'] if metadata else [rect.z for rect in rectangles]
@@ -1409,7 +1406,7 @@ def plot_scanfields_3d(
 
     if cmap and show_cbar:
         cbar = plt.colorbar(scalar_map, ax=ax)
-        cbar.set_label("Z (µm)")
+        cbar.set_label("Z (Âµm)")
 
     if axis_lims:
         ax.set(
@@ -1490,7 +1487,7 @@ def animate_scanfields_3d(
 
     Parameters
     ----------
-    rectangles : list or bndls.ScanfieldBundle or cmpnts.Roi
+    rectangles : list or sfld.ScanfieldBundle or sfld.Roi
         List of Roi objects to be plotted.
     metadata : dict, optional
         The morphology metadata dictionary. Default is None.
@@ -1530,7 +1527,7 @@ def animate_scanfields_3d(
     """
     check_metadata(metadata)
 
-    if not isinstance(rectangles, (list, bndls.ScanfieldBundle, cmpnts.Roi)):
+    if not isinstance(rectangles, (list, sfld.ScanfieldBundle, sfld.Roi)):
         raise TypeError(
             "rectangles must be a list, ScanfieldBundle, or Roi.")
 
