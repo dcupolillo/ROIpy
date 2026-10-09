@@ -537,7 +537,11 @@ class ScanfieldBundle():
             for roi in z_plane
             if roi.branch_id == branch_id]
 
-    def save_to_h5(self, filename: str) -> None:
+    def save_to_h5(
+            self,
+            filename: str,
+            cache_metadata: str | None = None
+    ) -> None:
         """
         Save the ScanfieldBundle to an HDF5 file.
 
@@ -545,6 +549,9 @@ class ScanfieldBundle():
         ----------
         filename : str
             The path to the HDF5 file where the scanfields will be saved.
+        cache_metadata : str, optional
+            JSON-serialized metadata describing how the scanfields were
+            generated. Stored alongside the scanfields when provided.
 
         Returns
         -------
@@ -555,7 +562,11 @@ class ScanfieldBundle():
             [roi.to_dict() for roi in z_plane]
             for z_plane in self.scanfields]
 
-        fl.save(filename, {'scanfields': data})
+        content = {'scanfields': data}
+        if cache_metadata is not None:
+            content['cache_metadata'] = cache_metadata
+
+        fl.save(filename, content)
 
     @classmethod
     def load_from_h5(cls, filename: str) -> object:
@@ -577,6 +588,18 @@ class ScanfieldBundle():
         scanfields = [[Roi.from_dict(roi) for roi in z_plane]
                       for z_plane in data]
         return cls(scanfields)
+
+    @staticmethod
+    def load_cache_metadata(filename: str) -> str | None:
+        """
+        Load the cache metadata stored with a ScanfieldBundle.
+
+        Returns
+        -------
+        str or None
+            The stored JSON metadata, or None for legacy files without it.
+        """
+        return fl.load(filename, '/cache_metadata')
 
     @property
     def shape(self) -> tuple:
