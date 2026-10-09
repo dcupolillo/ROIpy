@@ -1,10 +1,13 @@
 from __future__ import annotations
+import hashlib
+import json
 from pathlib import Path
 import tifffile
 from ROIpy.core.bundles import NodeBundle, ScanfieldBundle
 from ROIpy.core.utils.utils import (
     stack_metadata_dictionary, parse_swc,
-    parse_stack_metadata, assign_branch_degree_and_id)
+    parse_stack_metadata, assign_branch_degree_and_id,
+    numpy_json_default)
 from ROIpy.core.makeroi import make_roi, roi_file
 
 
@@ -308,6 +311,7 @@ class Scanfields:
             pixel_bin_factor: int = 4,
             filtering_radius: tuple = (50.0, 20.0),
             framerate_delta_threshold: float = 0.3,
+            force_recompute: bool = False,
     ) -> None:
         """
         Initialize a Scanfields instance with given image and tracing paths,
@@ -349,6 +353,9 @@ class Scanfields:
             Spatial filtering radii in micrometers (default: (50.0, 20.0)).
         framerate_delta_threshold : float, optional
             Allowed framerate deviation (default: 0.3).
+        force_recompute : bool, optional
+            If True, ignore any cached scanfields and regenerate them
+            (default: False).
 
         Returns
         -------
@@ -387,6 +394,7 @@ class Scanfields:
         self.dwell_time = self.pixel_bin_factor / self.sampling_rate
         self.filtering_radius = filtering_radius
         self.framerate_delta_threshold = framerate_delta_threshold
+        self._force_recompute = force_recompute
 
         self.objective_resolution = self._morph.objective_resolution
         self.zs = self._morph.zs
@@ -432,6 +440,30 @@ class Scanfields:
             'optimal_pix_um_ratio': self.optimal_pix_um_ratio,
         }
 
+    def _make_cache_metadata(self) -> dict:
+        """
+        Build metadata used to determine whether cached scanfields are valid.
+        
+        Returns
+        -------
+        dict
+            Metadata dictionary used for cache validation.
+        """
+        morphology_data = json.dumps(
+            [node.to_dict() for node in self._morph.neuron],
+            sort_keys=True,
+            separators=(",", ":"),
+            allow_nan=False,
+            default=numpy_json_default,
+        ).encode("utf-8")
+
+        return {
+            "format_version": 1,
+            "algorithm_version": 1,
+            "scan_params": self.scan_params,
+            "morphology_sha256": hashlib.sha256(morphology_data).hexdigest(),
+        }
+
     def _rayleigh_nyquist(self) -> float:
         """
         Calculate the Rayleigh/Nyquist pixel-to-micrometer ratio.
@@ -469,9 +501,21 @@ class Scanfields:
              if file.stem == self.output_filename.stem),
             None)
 
-        if (scanfieldbundle_filename is not None
+        metadata = json.dumps(
+            self._make_cache_metadata(),
+            sort_keys=True,
+            default=numpy_json_default)
+
+        if (not self._force_recompute
+                and scanfieldbundle_filename is not None
                 and scanfieldbundle_filename.exists()):
-            return ScanfieldBundle.load_from_h5(scanfieldbundle_filename)
+            try:
+                stored = ScanfieldBundle.load_cache_metadata(
+                    scanfieldbundle_filename)
+            except (KeyError, ValueError):
+                stored = None
+            if stored == metadata:
+                return ScanfieldBundle.load_from_h5(scanfieldbundle_filename)
 
         neuron = ScanfieldBundle(self.create_roi(self._morph.neuron))
 
@@ -485,7 +529,7 @@ class Scanfields:
             layer.sort(key=lambda roi: roi.z_ind)
 
         neuron = ScanfieldBundle(sorted_neuron)
-        neuron.save_to_h5(self.output_filename)
+        neuron.save_to_h5(self.output_filename, cache_metadata=metadata)
 
         return neuron
 
