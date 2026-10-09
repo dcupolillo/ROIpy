@@ -114,7 +114,7 @@ def generate_roi_files(
         class_var: object,
         rectangles: list,
         folder_path: str,
-        structure_type: str = None
+        structure_type: str | None = None
 ) -> None:
 
     if structure_type:
