@@ -149,7 +149,7 @@ class ScanfieldBundle():
 
         return len(self.scanfields), [len(row) for row in self.scanfields]
 
-    def area(self, z: int = None) -> float:
+    def area(self, z: int | None = None) -> float:
         """
         Calculate the total area covered by all ROIs in the ScanfieldBundle.
 

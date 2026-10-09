@@ -29,10 +29,10 @@ class Roi:
             acquisition_line_period: float,
             line_scan_period: float,
             rectangle_period: float,
-            pixel_to_ref: np.ndarray = None,
-            affine: np.ndarray = None,
-            branch_degree: int = None,
-            branch_id: int = None,
+            pixel_to_ref: np.ndarray | None = None,
+            affine: np.ndarray | None = None,
+            branch_degree: int | None = None,
+            branch_id: int | None = None,
     ) -> None:
         """
         Initialize a rectangular ROI.

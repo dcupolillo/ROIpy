@@ -1,41 +1,61 @@
-""" Created on Mon Nov  6 10:29:44 2023
-    @author: dcupolillo """
-
 from __future__ import annotations
 from pathlib import Path
 import numpy as np
 import tifffile
-from ROIpy.core.components import Node
+
+
+def numpy_json_default(value: np.ndarray | np.generic) -> list | float | int:
+    """
+    Convert NumPy values to JSON-compatible Python values.
+
+    Parameters
+    ----------
+    value : np.ndarray or np.generic
+        The NumPy value to convert.
+
+    Returns
+    -------
+    list or scalar
+        JSON-compatible Python representation of the input value.
+    """
+    if isinstance(value, np.ndarray):
+        return value.tolist()
+    
+    if isinstance(value, np.generic):
+        return value.item()
+    
+    raise TypeError(
+        f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 def stack_metadata_dictionary(
-        stack_name: str = None,
-        data_type: str = None,
-        corners_um: list = None,
-        corners_deg: list = None,
-        width_pix: int = None,
-        height_pix: int = None,
-        width_um: float = None,
-        height_um: float = None,
-        width_deg: float = None,
-        height_deg: float = None,
-        pix_um_ratio: float = None,
-        units_um: str = None,
-        units_deg: str = None,
-        zoom: float = None,
-        zs: list = None,
-        z_distance: float = None,
-        n_slices: int = None,
-        stack_start: float = None,
-        stack_end: float = None,
-        objective_resolution: float = None,
-        pixel_to_ref_transform: np.ndarray = None,
-        affine: np.ndarray = None,
-        n_channel_available: int = None,
-        ch_available_list: list = None,
-        ch_active: list = None,
-        ch_active_list: list = None,
-        n_channels: int = None
+        stack_name: str | None = None,
+        data_type: str | None = None,
+        corners_um: list | None = None,
+        corners_deg: list | None = None,
+        width_pix: int | None = None,
+        height_pix: int | None = None,
+        width_um: float | None = None,
+        height_um: float | None = None,
+        width_deg: float | None = None,
+        height_deg: float | None = None,
+        pix_um_ratio: float | None = None,
+        units_um: str | None = None,
+        units_deg: str | None = None,
+        zoom: float | None = None,
+        zs: list | None = None,
+        z_distance: float | None = None,
+        n_slices: int | None = None,
+        stack_start: float | None = None,
+        stack_end: float | None = None,
+        objective_resolution: float | None = None,
+        pixel_to_ref_transform: np.ndarray | None = None,
+        affine: np.ndarray | None = None,
+        n_channel_available: int | None = None,
+        ch_available_list: list | None = None,
+        ch_active: list | None = None,
+        ch_active_list: list | None = None,
+        n_channels: int | None = None
 ) -> dict:
     """
     Constructs a metadata dictionary for a 3D image stack.
@@ -233,6 +253,9 @@ def parse_swc(
         List of Node instances representing the parsed morphology.
     """
 
+    # Imported here: ROIpy.core.morphology depends on this module
+    from ROIpy.core.morphology.node import Node
+
     objective_resolution = metadata["objective_resolution"]
     zs = metadata["zs"]
     pixel_to_ref_transform = metadata["pixel_to_ref_transform"]
@@ -303,6 +326,133 @@ def is_new_branch(
         node.parent_id is None)
 
 
+def _is_soma(node: object) -> bool:
+    """
+    Check if a node represents the soma.
+
+    Parameters
+    ----------
+    node : object
+        The node to check.
+
+    Returns
+    -------
+    bool
+        True if the node is a soma, False otherwise.
+    """
+    return node._type == 1
+
+
+def _is_last_node(
+        node_n: int,
+        input_data: list
+) -> bool:
+    """
+    Check if the current node is the last node in the input data.
+
+    Parameters
+    ----------
+    node_n : int
+        Index of the current node.
+    input_data : list
+        List of nodes representing the neuronal structure.
+
+    Returns
+    -------
+    bool
+        True if the current node is the last node, False otherwise.
+    """
+    return node_n == len(input_data) - 1
+
+
+def _is_parent_of_next(
+        node_n: int,
+        input_data: list
+) -> bool:
+    """
+    Check if the current node is the parent of the next node in the input data.
+
+    Parameters
+    ----------
+    node_n : int
+        Index of the current node.
+    input_data : list
+        List of nodes representing the neuronal structure.
+
+    Returns
+    -------
+    bool
+        True if the current node is the parent of the next node, False otherwise.
+    """
+    if _is_last_node(node_n, input_data):
+        return False
+
+    return input_data[node_n + 1].parent_id == input_data[node_n]._id
+
+
+def _get_forks(input_data: list) -> list:
+    """
+    Get the IDs of all fork nodes in the input data.
+
+    Parameters
+    ----------
+    input_data : list
+        List of nodes representing the neuronal structure.
+
+    Returns
+    -------
+    list
+        A list of node IDs that are forks (have more than one child).
+    """
+
+    # Exclude soma
+    nodes = [node for node in input_data if not _is_soma(node)]
+
+    # Get all parent ids as list
+    parents = [node.parent_id for node in nodes]
+
+    # If a parents appears just once, it means that only one node was its child,
+    # so that node is not a fork
+    # Forks are parents that have more than one child
+    fork_ids = [
+        parent for parent in set(parents)
+        if parents.count(parent) > 1]
+
+    return fork_ids
+
+
+def _is_fork(node: object, fork_ids: list) -> bool:
+    return node._id in fork_ids
+
+
+def _is_section_end(
+        node_n: int,
+        input_data: list
+) -> bool:
+    """
+    Check if the current node is the end of a section (neurite).
+
+    Parameters
+    ----------
+    node_n : int
+        Index of the current node.
+    input_data : list
+        List of nodes representing the neuronal structure.
+
+    Returns
+    -------
+    bool
+        True if the current node is the end of a section, False otherwise.
+    """
+    return (
+        _is_last_node(node_n, input_data)
+        or not _is_parent_of_next(node_n, input_data)
+        # TODO: re-enable fork splitting
+        # or _is_fork(node, _get_forks(input_data))
+    )
+
+
+
 def split_neurite(
         input_data
 ) -> list:
@@ -335,23 +485,17 @@ def split_neurite(
 
     for node_n, node in enumerate(input_data):
 
-        if node._type == 1:
+        if _is_soma(node):
             if current_section:
                 sections.append(current_section)
             current_section = []
             continue  # skip soma
 
-        elif node_n == len(input_data) - 1:  # last node
-            current_section.append(node)
-            sections.append(current_section)
+        current_section.append(node)
 
-        else:
-            if input_data[node_n + 1].parent_id == node._id:
-                current_section.append(node)
-            else:
-                current_section.append(node)
-                sections.append(current_section)
-                current_section = []
+        if _is_section_end(node_n, input_data):
+            sections.append(current_section)
+            current_section = []
 
     return sections
 
