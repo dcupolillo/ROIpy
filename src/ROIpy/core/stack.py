@@ -1,5 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
+import numpy as np
 import tifffile
 from ROIpy.core.utils.utils import parse_stack_metadata
 
@@ -23,6 +24,7 @@ class Stack:
     def __init__(
         self,
         stack_filename: str | Path,
+        channel: int | None = None,
     ) -> None:
         """
         Initialize a Stack instance.
@@ -31,11 +33,16 @@ class Stack:
         ----------
         stack_filename : str or Path
             File name of the stack image.
+        channel : int, optional
+            ScanImage channel number (1-based, as listed in `ch_saved`)
+            to load from a multi-channel stack. If None, the second
+            plane is used for multi-channel stacks.
 
         Raises
         ------
-        Exception
-            If the provided path is not a .tif or .tiff file.
+        ValueError
+            If the provided path is not a .tif or .tiff file, or if
+            `channel` is not saved in the file.
 
         Returns
         -------
@@ -53,18 +60,52 @@ class Stack:
         self.folder = self.imagename.parent
 
         image_data = tifffile.imread(self.imagename)
-        self.image = (
-            image_data[1] if image_data.ndim == 4 else image_data)
-
         self.metadata = parse_stack_metadata(self.imagename)
+        self.image = self._select_channel(image_data, channel)
 
         for key, value in self.metadata.items():
             setattr(self, key, value)
 
+    def _select_channel(
+            self,
+            image_data: np.ndarray,
+            channel: int | None
+    ) -> np.ndarray:
+        """
+        Return the [z, x, y] image for the requested channel.
+        """
+
+        ch_saved = list(self.metadata["ch_saved"])
+
+        if image_data.ndim != 4:
+            if channel is not None and ch_saved != [channel]:
+                raise ValueError(
+                    f"Channel {channel} requested, but the file contains "
+                    f"only the saved channel(s) {ch_saved}.")
+            return image_data
+
+        if channel is None:
+            return image_data[1]
+
+        if channel not in ch_saved:
+            raise ValueError(
+                f"Channel {channel} not saved in this file "
+                f"(saved channels: {ch_saved}).")
+
+        if image_data.shape[0] != len(ch_saved):
+            raise ValueError(
+                f"Stack has {image_data.shape[0]} channels, but "
+                f"metadata lists {len(ch_saved)} saved channels.")
+
+        return image_data[ch_saved.index(channel)]
+
     def __getattr__(self, name: str) -> any:
+        
         key = f"_{name}"
+        
         if key in self.__dict__:
             return self.__dict__[key]
+        
         raise AttributeError(name)
 
     def __setattr__(
