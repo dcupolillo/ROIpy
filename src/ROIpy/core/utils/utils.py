@@ -55,6 +55,7 @@ def stack_metadata_dictionary(
         ch_available_list: list | None = None,
         ch_active: list | None = None,
         ch_active_list: list | None = None,
+        ch_saved: list | None = None,
         n_channels: int | None = None
 ) -> dict:
     """
@@ -114,6 +115,9 @@ def stack_metadata_dictionary(
         Currently active channel indices.
     ch_active_list : list of int, optional
         Redundant/alternative list of active channel indices.
+    ch_saved : list of int, optional
+        Channel numbers (1-based) written to the TIFF file, in plane order.
+        May differ from the active (displayed) channels.
     n_channels : int, optional
         Number of active channels.
 
@@ -191,6 +195,11 @@ def parse_stack_metadata(
         True if (ch + 1) in ch_active else False
         for ch in ch_available_list]
 
+    ch_saved = (
+        [framedata['SI.hChannels.channelSave']]
+        if isinstance(framedata['SI.hChannels.channelSave'], int)
+        else list(framedata['SI.hChannels.channelSave']))
+
     n_channels = (
         1 if isinstance(ch_active, int)
         else len(ch_active))
@@ -222,6 +231,7 @@ def parse_stack_metadata(
         ch_available_list=ch_available_list,
         ch_active=ch_active,
         ch_active_list=ch_active_list,
+        ch_saved=ch_saved,
         n_channels=n_channels
     )
 
@@ -447,6 +457,7 @@ def _is_section_end(
     return (
         _is_last_node(node_n, input_data)
         or not _is_parent_of_next(node_n, input_data)
+        
         # TODO: re-enable fork splitting
         # or _is_fork(node, _get_forks(input_data))
     )

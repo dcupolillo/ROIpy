@@ -287,9 +287,12 @@ class Node:
         return self.TYPE_MAPPING.get(_type, 'unknown')
     
     def __getattr__(self, name: str) -> any:
+        
         public_key = name.lstrip('_') if name.startswith('_') else name
+        
         if public_key in self.__dict__:
             return self.__dict__[public_key]
+        
         raise AttributeError(name)
 
     def __repr__(self):
