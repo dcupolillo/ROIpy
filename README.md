@@ -126,7 +126,6 @@ If you want to animate 3D visualizations, use the unified `animate()` function:
 morph_anim = rp.animate(
 	morph.neuron,
 	flip_yz=True,
-	axis_label=False,
 	zoom=2,
 	cmap="viridis",
 	show_nodes=True, 
@@ -138,7 +137,6 @@ scanfields_anim = rp.animate(
 	sf.metadata,
 	cmap="viridis",
 	show_cbar=True,
-	axis_label=False,
 	interval=250,
 	zoom=1.5,
 	save_path="scanfields_anim.gif")
