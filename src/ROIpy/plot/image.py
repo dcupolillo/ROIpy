@@ -2,18 +2,18 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 from matplotlib.colors import Normalize
 import numpy as np
-from ROIpy.plot._common import check_metadata, get_scan_units
+from ROIpy.plot._common import check_metadata, get_scan_units, create_2d_axes, merge_kwargs
 
 
 def plot_image(
         image: np.ndarray,
-        metadata: dict = None,
+        metadata: dict | None = None,
         scan_angle: bool = False,
-        ax: plt.Axes = None,
-        norm: tuple | list = None,
+        ax: plt.Axes | None = None,
+        norm: tuple | list | None = None,
         cmap: str = "binary_r",
-        axes_labels: bool = True,
-        **kwargs
+        imshow_kwargs: dict | None = None,
+        ax_kwargs: dict | None = None
 ) -> None:
     """
     Plots a 2D image from a Stack class instance.
@@ -22,16 +22,20 @@ def plot_image(
     ----------
     image : np.ndarray
         The image data to be plotted.
-    metadata : dict
+    metadata : dict | None
         The metadata dictionary containing units and corners information.
     scan_angle : bool, optional
         Specifies whether the scan angle should be used for plotting.
-    ax : plt.Axes, optional
+    ax : plt.Axes | None, optional
         The axes on which to plot. If not provided, a new subplot is created.
-    norm : tuple or list, optional
+    norm : tuple | list | None, optional
         Normalize colorscale.
     cmap : str, optional
         Colormap of pixel intensity (Matplotlib default colormaps).
+    imshow_kwargs : dict | None, optional
+        Additional keyword arguments passed to `imshow`.
+    ax_kwargs : dict | None, optional
+        Additional keyword arguments passed to the axes creation function (`create_2d_axes`).
 
     Raises
     ------
@@ -64,17 +68,16 @@ def plot_image(
         xlim, ylim = None, None
         extent = None
 
-    if ax is None:
-        _, ax = plt.subplots()
-
-        ax.set(
-            xlabel=units if axes_labels else "",
-            ylabel=units if axes_labels else "",
-            xlim=xlim,
-            ylim=ylim,
-            aspect="equal",
-            title=stack_name,
-            )
+    if not ax:
+        default_ax_kwargs = {
+            'xlabel': units,
+            'ylabel': units,
+            'xlim': xlim,
+            'ylim': ylim,
+            'aspect': "equal",
+            'title': stack_name,
+        }
+        ax = create_2d_axes(corners=corners, **merge_kwargs(default_ax_kwargs, ax_kwargs))
 
         if not corners:
             ax.autoscale()
@@ -82,12 +85,12 @@ def plot_image(
     img = np.max(image, axis=0) if image.ndim == 3 else image
 
     if norm is None:
-        ax.imshow(img, extent=extent, cmap=cmap, **kwargs)
+        ax.imshow(img, extent=extent, cmap=cmap, **imshow_kwargs)
 
     elif isinstance(norm, (list, tuple)):
         min_value, max_value = norm
         norm = Normalize(vmin=min_value, vmax=max_value)
-        ax.imshow(img, extent=extent, cmap=cmap, norm=norm, **kwargs)
+        ax.imshow(img, extent=extent, cmap=cmap, norm=norm, **imshow_kwargs)
 
     else:
         raise KeyError("'norm' should be a list or a tuple")

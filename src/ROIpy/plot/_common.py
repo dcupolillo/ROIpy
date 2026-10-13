@@ -112,7 +112,7 @@ def create_2d_axes(
         **props: dict
 ) -> plt.Axes:
     """
-    Create a new 2D Axes with equal aspect and the given properties.
+    Create a new 2D Axes with the given properties.
 
     Autoscaling is enabled when `corners` is falsy (no scan metadata, so
     no fixed limits are available).
@@ -130,7 +130,7 @@ def create_2d_axes(
         The created 2D Axes object.
     """
     _, ax = plt.subplots()
-    ax.set(aspect='equal', **props)
+    ax.set(**props)
 
     if not corners:
         ax.autoscale()
@@ -155,6 +155,7 @@ def create_3d_axes(**props: dict) -> plt.Axes:
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     ax.set(**props)
+    
     return ax
 
 
@@ -174,32 +175,6 @@ def ensure_3d_axes(ax: plt.Axes) -> None:
     """
     if ax is not None and not ax.name == '3d':
         raise ValueError("Provided Axes must be 3D.")
-
-
-def set_3d_axis_labels(
-        ax: plt.Axes,
-        axis_label: bool
-) -> None:
-    """
-    Show X/Y/Z labels on a 3D Axes, or strip ticks and labels entirely.
-
-    Parameters
-    ----------
-    ax : plt.Axes
-        The 3D Axes to modify.
-    axis_label : bool
-        If True, show X/Y/Z labels. If False, remove all ticks and labels.
-    """
-    if not axis_label:
-        ax.tick_params(axis='both', which='both', length=0)
-        ax.set(
-            xticks=([]), yticks=([]), zticks=([]),
-            xlabel="", ylabel="", zlabel="")
-    else:
-        ax.set(
-            xlabel="X",
-            ylabel="Y",
-            zlabel="Z")
 
 
 def equal_cube_limits(

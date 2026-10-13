@@ -12,13 +12,13 @@ from ROIpy.plot._common import (
 
 def plot_scanfield(
         rectangles: list | sfld.ScanfieldBundle | sfld.Roi,
-        metadata: dict = None,
-        ax: plt.Axes = None,
-        axis_lims: list = None,
+        metadata: dict | None = None,
+        ax: plt.Axes | None = None,
         cmap: str = None,
         show_cbar: bool = False,
         scan_angle: bool = False,
-        rect_kwargs: dict = None,
+        rect_kwargs: dict | None = None,
+        ax_kwargs: dict | None = None,
 ) -> None:
     """
     Plot rectangles representing ROIs on a given axis.
@@ -32,8 +32,6 @@ def plot_scanfield(
     ax : plt.Axes, optional
         The axis on which to plot.
         If None, a new figure and axis will be created. Default is None.
-    axis_lims : list, optional
-        If specified, plot will be bounded to limits. Default is None.
     cmap : str, optional
         Colormap to use for coloring the rectangles based on z values.
         Default is None.
@@ -44,6 +42,10 @@ def plot_scanfield(
         Default is False.
     rect_kwargs : dict, optional
         Additional keyword arguments for customizing rectangle appearance.
+        Default is None.
+    ax_kwargs : dict, optional
+        Additional keyword arguments passed to `Axes.set` (e.g. title,
+        facecolor, aspect, xlim, ylim). Only used when `ax` is None.
         Default is None.
 
     Returns
@@ -82,19 +84,19 @@ def plot_scanfield(
 
         cmap, norm, sm = make_z_colormap(cmap, zmin, zmax)
 
+    default_ax_kwargs = {
+        'xlabel': units,
+        'xlim': xlim,
+        'ylim': ylim,
+        'aspect': 'equal',
+        'title': stack_name,
+    }
+
     if not ax:
-        ax = create_2d_axes(corners, title=stack_name)
-
-    if axis_lims:
-        ax.set(
-            xlim=(min(axis_lims[0]), max(axis_lims[1])),
-            ylim=(max(axis_lims[2]), min(axis_lims[3])))
-
+        ax = create_2d_axes(
+            corners, **merge_kwargs(default_ax_kwargs, ax_kwargs))
     else:
-        ax.set(
-            xlim=xlim,
-            ylim=ylim,
-            xlabel=units,)
+        ax.set(xlim=xlim, ylim=ylim, xlabel=units)
 
     for rect in rectangles:
 
@@ -141,7 +143,6 @@ def plot_scanfields_3d(
         rectangles: list | sfld.ScanfieldBundle | sfld.Roi,
         metadata: dict = None,
         ax: plt.Axes = None,
-        axis_lims: list = None,
         cmap: str = None,
         show_cbar: bool = False,
         scan_angle: bool = False,
@@ -149,7 +150,8 @@ def plot_scanfields_3d(
         azim: float = 30,
         zoom: float = 1.0,
         rect_kwargs: dict = None,
-) -> None:
+        ax_kwargs: dict = None,
+) -> plt.Axes:
     """
     Plot rectangles representing ROIs in a 3D space.
 
@@ -162,8 +164,6 @@ def plot_scanfields_3d(
     ax : plt.Axes, optional
         The axis on which to plot.
         If None, a new 3D axis will be created. Default is None.
-    axis_lims : list, optional
-        If specified, plot will be bounded to limits. Default is None.
     cmap : str, optional
         Colormap to use for coloring the rectangles based on z values.
         Default is None.
@@ -181,10 +181,14 @@ def plot_scanfields_3d(
     rect_kwargs : dict, optional
         Additional keyword arguments for customizing rectangle appearance.
         Default is None.
+    ax_kwargs : dict, optional
+        Additional keyword arguments passed to `Axes.set` (e.g. title,
+        zlabel). Only used when `ax` is None. Default is None.
 
     Returns
     -------
-    None
+    plt.Axes
+        The 3D axes the rectangles were drawn on.
     """
     check_metadata(metadata)
 
@@ -200,23 +204,43 @@ def plot_scanfields_3d(
     }
     rect_kwargs = merge_kwargs(default_rect_kwargs, rect_kwargs)
 
-    if not ax:
-        units, corners = get_scan_units(metadata, scan_angle)
+    # Most extreme x, y and z values among all corners of all rectangles
+    x_vals, y_vals, z_vals = [], [], []
+    for rect in rectangles:
+        rect_corners = [
+            rect.bottom_right,
+            rect.top_right,
+            rect.top_left,
+            rect.bottom_left]
 
-        ax = create_3d_axes(
-            xlim=(min(corners[0]), max(corners[1])),
-            ylim=(max(corners[2]), min(corners[3])),
-            zlim=(min(zs), max(zs)),
-            zticks=(min(zs), max(zs)),
-            zticklabels=(min(zs), max(zs)),
-            aspect='equal')
+        x_vals.extend([corner[0] for corner in rect_corners])
+        y_vals.extend([corner[1] for corner in rect_corners])
+        z_vals.extend([rect.z for _ in rect_corners])
+
+    xlim, ylim, zlim = equal_cube_limits(x_vals, y_vals, z_vals)
+    limits_kwargs = {'xlim': xlim, 'ylim': ylim, 'zlim': zlim}
+
+    user_supplied_ax = bool(ax)
+
+    if not user_supplied_ax:
+        units, _ = get_scan_units(metadata, scan_angle)
+
+        default_ax_kwargs = {
+            **limits_kwargs,
+            'zticks': (min(zs), max(zs)),
+            'zticklabels': (min(zs), max(zs)),
+            'aspect': 'equal'
+        }
+        # Default tick labels only make sense with the default ticks
+        if ax_kwargs and 'zticks' in ax_kwargs \
+                and 'zticklabels' not in ax_kwargs:
+            default_ax_kwargs.pop('zticklabels')
+        ax = create_3d_axes(**merge_kwargs(default_ax_kwargs, ax_kwargs))
 
         ax.set_xlabel(units, labelpad=30)
         ax.set_ylabel(units, labelpad=30)
 
     ensure_3d_axes(ax)
-
-    fig = ax.get_figure()
 
     z_values = [rect.z for rect in rectangles]
 
@@ -277,31 +301,12 @@ def plot_scanfields_3d(
         cbar = add_z_colorbar(scalar_map, ax, inset=False)
         cbar.set_label("Z (Âµm)")
 
-    if axis_lims:
-        ax.set(
-            xlim=(axis_lims[0], axis_lims[1]),
-            ylim=(axis_lims[2], axis_lims[3]),
-            zlim=(axis_lims[4], axis_lims[5]))
-    else:
-        # Find most extreme x and y values among all corners of all rectangles
-        x_vals = []
-        y_vals = []
-        z_vals = []
-        for rect in rectangles:
-            rect_corners = [
-                rect.bottom_right,
-                rect.top_right,
-                rect.top_left,
-                rect.bottom_left]
-            
-            x_vals.extend([corner[0] for corner in rect_corners])
-            y_vals.extend([corner[1] for corner in rect_corners])
-            z_vals.extend([rect.z for _ in rect_corners])
+    if user_supplied_ax:
+        ax.set(**limits_kwargs)
 
-        xlim, ylim, zlim = equal_cube_limits(x_vals, y_vals, z_vals)
-        ax.set(xlim=xlim, ylim=ylim, zlim=zlim)
-        
     if azim is not None:
         ax.view_init(elev=elev, azim=azim)
 
     apply_zoom_3d(ax, zoom)
+
+    return ax

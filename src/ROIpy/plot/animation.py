@@ -2,7 +2,7 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import ROIpy.core.scanfields as sfld
-from ROIpy.plot._common import check_metadata, set_3d_axis_labels
+from ROIpy.plot._common import check_metadata
 from ROIpy.plot.morph import plot_morph_3d
 from ROIpy.plot.scanfield import plot_scanfields_3d
 
@@ -62,7 +62,6 @@ def animate_morph_3d(
         input_data: list,
         show_nodes: bool = False,
         scan_angle: bool = False,
-        axis_lims: list = None,
         cmap: str = None,
         show_cbar: bool = False,
         elev_start: float = 30,
@@ -72,11 +71,11 @@ def animate_morph_3d(
         interval: int = 100,
         frames: int = 360,
         save_path: str = None,
-        axis_label: bool = True,
         flip_yz: bool = False,
         zoom: float = 1.0,
         nodes_kwargs: dict = None,
         segments_kwargs: dict = None,
+        ax_kwargs: dict = None,
 ):
     """
     Animate a 3D plot of a morphology structure with customizable
@@ -93,10 +92,6 @@ def animate_morph_3d(
     scan_angle : bool, optional
         If True, uses angle-based coordinates for node positions.
         Default is False.
-    axis_lims : list, optional
-        A list specifying the axis limits as
-        [xmin, xmax, ymin, ymax, zmin, zmax].
-        If None, the limits are determined automatically. Default is None.
     cmap : str, optional
         Colormap to use for coloring nodes based on their z-coordinates
         (if `show_nodes` is True). Default is None.
@@ -121,9 +116,6 @@ def animate_morph_3d(
     save_path : str, optional
         File path to save the animation (e.g., as a .gif or .mp4 file).
         If None, the animation is not saved. Default is None.
-    axis_label : bool, optional
-        If True, axis labels ("X", "Y", "Z") are displayed.
-        If False, axis labels and ticks are hidden. Default is True.
     flip_yz : bool, optional
         If True, swaps the Y and Z axes in the plot. Default is False.
     zoom : float, optional
@@ -134,6 +126,9 @@ def animate_morph_3d(
     segments_kwargs : dict, optional
         Additional keyword arguments for customizing segment appearance.
         Default is None.
+    ax_kwargs : dict, optional
+        Additional keyword arguments passed to `Axes.set` when the 3D axes
+        are created (e.g. title, xlabel, xticks, xlim). Default is None.
 
     Returns
     -------
@@ -158,29 +153,23 @@ def animate_morph_3d(
     nodes_kwargs = {**default_nodes_kwargs, **(nodes_kwargs or {})}
     segments_kwargs = {**default_segments_kwargs, **(segments_kwargs or {})}
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    set_3d_axis_labels(ax, axis_label)
-
-    plot_morph_3d(
+    ax = plot_morph_3d(
         input_data=input_data,
         show_nodes=show_nodes,
         scan_angle=scan_angle,
-        axis_lims=axis_lims,
         cmap=cmap,
         show_cbar=show_cbar,
         azim=azimut_start,
         elev=elev_start,
-        ax=ax,
         flip_yz=flip_yz,
         zoom=zoom,
         nodes_kwargs=nodes_kwargs,
-        segments_kwargs=segments_kwargs
+        segments_kwargs=segments_kwargs,
+        ax_kwargs=ax_kwargs
     )
 
     anim = FuncAnimation(
-        fig,
+        ax.get_figure(),
         update_3d_view(
             ax,
             elev_start,
@@ -202,7 +191,6 @@ def animate_scanfields_3d(
         rectangles: list,
         metadata: dict = None,
         scan_angle: bool = False,
-        axis_lims: list = None,
         cmap: str = None,
         show_cbar: bool = False,
         elev_start: float = 30,
@@ -212,9 +200,9 @@ def animate_scanfields_3d(
         interval: int = 100,
         frames: int = 60,
         save_path: str = None,
-        axis_label: bool = True,
         zoom: float = 1.0,
-        rect_kwargs: dict = None
+        rect_kwargs: dict = None,
+        ax_kwargs: dict = None,
 ):
     """
     Animate a 3D representation of scanfields with customizable
@@ -249,11 +237,12 @@ def animate_scanfields_3d(
         File path to save the animation (e.g., .gif or .mp4). Default is None.
     zoom : float, optional
         Zoom level for the 3D plot. Default is 1.0.
-    axis_label : bool, optional
-        If True, display axis labels ("X", "Y", "Z"). Default is False.
     rect_kwargs : dict, optional
         Additional keyword arguments for customizing rectangle appearance.
         Default is None.
+    ax_kwargs : dict, optional
+        Additional keyword arguments passed to `Axes.set` when the 3D axes
+        are created (e.g. title, xlabel, xticks, xlim). Default is None.
 
     Returns
     -------
@@ -277,29 +266,23 @@ def animate_scanfields_3d(
     if cmap is not None:
         rect_kwargs.pop("facecolor", None)
 
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-
-    set_3d_axis_labels(ax, axis_label)
-
     # Initial plot of scanfields
-    plot_scanfields_3d(
+    ax = plot_scanfields_3d(
         rectangles=rectangles,
         metadata=metadata,
-        ax=ax,
-        axis_lims=axis_lims,
         cmap=cmap,
         show_cbar=show_cbar,
         scan_angle=scan_angle,
         elev=elev_start,
         azim=azimut_start,
         zoom=zoom,
-        rect_kwargs=rect_kwargs
+        rect_kwargs=rect_kwargs,
+        ax_kwargs=ax_kwargs
     )
     
     # Create the animation
     anim = FuncAnimation(
-        fig,
+        ax.get_figure(),
         update_3d_view(
             ax,
             elev_start,

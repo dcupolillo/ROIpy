@@ -13,7 +13,8 @@ def tapered_segment(
         x1: float, y1: float, r1: float,
         x2: float, y2: float, r2: float,
         tridim: bool = False,
-        z1: float = None, z2: float = None,
+        z1: float | None = None,
+        z2: float | None = None,
         **kwargs
 ) -> None:
     """
@@ -31,7 +32,7 @@ def tapered_segment(
         Whether this is a 3D plot. Default is False.
     z1, z2 : float, optional
         Z coordinates for 3D plotting
-    **kwargs
+    **kwargs : dict, optional
         Additional styling arguments
     """
     if tridim:
@@ -174,17 +175,16 @@ def skeleton(
 
 def plot_morph(
         input_data: list | mrph.Node | mrph.NodeBundle,
-        metadata: dict = None,
+        metadata: dict | None = None,
         show_segments: bool = True,
         show_nodes: bool = False,
         scan_angle: bool = False,
-        ax: plt.Axes = None,
-        axis_lims: list = None,
-        cmap: str = None,
+        ax: plt.Axes | None = None,
+        cmap: str | None = None,
         show_cbar: bool = False,
-        axes_labels: bool = False,
-        nodes_kwargs: dict = None,
-        segments_kwargs: dict = None,
+        nodes_kwargs: dict | None = None,
+        segments_kwargs: dict | None = None,
+        ax_kwargs: dict | None = None,
 ) -> None:
     """
     Plot a two-dimensional representation of a neuronal morphology.
@@ -192,7 +192,7 @@ def plot_morph(
     This function visualizes a neuronal morphology in 2D,
     optionally showing the segmented skeleton, individual nodes
     and a colormap indicating Z-plane depth.
-    The morphology can be visualized either in spatial (Âµm) or angular
+    The morphology can be visualized either in spatial (µm) or angular
     (degrees) coordinates.
 
     Parameters
@@ -215,22 +215,20 @@ def plot_morph(
     ax : plt.Axes, optional
         Matplotlib axes object to plot on. If None, a new plot is created.
         Default is None.
-    axis_lims : list, optional
-        List specifying the axis limits as [xmin, xmax, ymin, ymax].
-        If None, default bounds are used. Default is None.
     cmap : str, optional
         Name of the colormap to use for visualizing Z-plane depth.
         Default is None.
     show_cbar : bool, optional
         If True, display a colorbar. Default is False.
-    axes_labels : bool, optional
-        If True, axis labels are displayed. Default is False.
     nodes_kwargs : dict, optional
         Additional keyword arguments for customizing node appearance.
         Default is None.
     segments_kwargs : dict, optional
         Additional keyword arguments for customizing segment appearance.
         Default is None.
+    ax_kwargs : dict, optional
+        Additional keyword arguments passed to `Axes.set` (e.g. title,
+        facecolor, aspect). Only used when `ax` is None. Default is None.
 
     Returns
     -------
@@ -274,19 +272,19 @@ def plot_morph(
 
     cmap, norm, sm = make_z_colormap(cmap, zmin, zmax)
 
-    if ax is None:
-        ax = create_2d_axes(
-            corners,
-            xlim=xlim,
-            ylim=ylim,
-            xlabel=units if axes_labels else "",
-            ylabel=units if axes_labels else "",
-            title=title)
+    default_ax_kwargs = {
+        'facecolor': 'white',
+        'aspect': 'equal',
+        'xlim': xlim,
+        'ylim': ylim,
+        'xlabel': "",
+        'ylabel': "",
+        'title': title
+    }
 
-    if axis_lims is not None:
-        ax.set(
-            xlim=(min(axis_lims[0]), max(axis_lims[1])),
-            ylim=(max(axis_lims[2]), min(axis_lims[3])))
+    if not ax:
+        ax = create_2d_axes(
+            corners, **merge_kwargs(default_ax_kwargs, ax_kwargs))
 
     x_values = (
         [node.x_deg for node in input_data] if scan_angle
@@ -337,19 +335,19 @@ def plot_morph(
 
 def plot_morph_3d(
         input_data: list,
-        ax: plt.Axes = None,
+        ax: plt.Axes | None = None,
         show_nodes: bool = False,
         scan_angle: bool = False,
-        axis_lims: list = None,
         cmap: str = None,
         show_cbar: bool = False,
         azim: float = 30,
         elev: float = 30,
         zoom: float = 1.0,
         flip_yz: bool = False,
-        nodes_kwargs: dict = None,
-        segments_kwargs: dict = None
-):
+        nodes_kwargs: dict | None = None,
+        segments_kwargs: dict | None = None,
+        ax_kwargs: dict | None = None
+) -> plt.Axes:
     """
     Plot a 3D representation of a morphology object.
 
@@ -364,8 +362,6 @@ def plot_morph_3d(
         If True, display individual nodes. Default is False.
     scan_angle : bool, optional
         If True, use angle-based coordinates. Default is False.
-    axis_lims : list, optional
-        Axis limits [xmin, xmax, ymin, ymax, zmin, zmax]. Default is None.
     cmap : str, optional
         Colormap to use for node coloring. Default is None.
     show_cbar : bool, optional
@@ -384,10 +380,14 @@ def plot_morph_3d(
     segments_kwargs : dict, optional
         Additional keyword arguments for customizing segment appearance.
         Default is None.
+    ax_kwargs : dict, optional
+        Additional keyword arguments passed to `Axes.set` (e.g. title,
+        xlabel). Only used when `ax` is None. Default is None.
 
     Returns
     -------
-    None
+    plt.Axes
+        The 3D axes the morphology was drawn on.
     """
     if not isinstance(input_data, (list, mrph.Node, mrph.NodeBundle)):
         raise TypeError("input_data must be a list of Nodes, a single Node, "
@@ -415,11 +415,27 @@ def plot_morph_3d(
     nodes_kwargs = merge_kwargs(default_nodes_kwargs, nodes_kwargs)
     segments_kwargs = merge_kwargs(default_segments_kwargs, segments_kwargs)
 
-    if not ax:
-        ax = create_3d_axes(
-            xlabel="X",
-            ylabel="Y" if not flip_yz else "Z",
-            zlabel="Z" if not flip_yz else "Y")
+    xlim, ylim, zlim = equal_cube_limits(
+        [node.x for node in input_data],
+        [node.y for node in input_data],
+        [node.z for node in input_data])
+
+    limits_kwargs = {
+        'xlim': xlim,
+        'ylim': ylim if not flip_yz else zlim,
+        'zlim': zlim if not flip_yz else ylim
+    }
+
+    user_supplied_ax = bool(ax)
+    
+    if not user_supplied_ax:
+        default_ax_kwargs = {
+            'xlabel': "X",
+            'ylabel': "Y" if not flip_yz else "Z",
+            'zlabel': "Z" if not flip_yz else "Y",
+            **limits_kwargs
+        }
+        ax = create_3d_axes(**merge_kwargs(default_ax_kwargs, ax_kwargs))
 
     ensure_3d_axes(ax)
 
@@ -474,30 +490,13 @@ def plot_morph_3d(
             cbar = add_z_colorbar(scalar_map, ax, inset=False)
             cbar.set_label("Z (Âµm)")
 
-    if axis_lims:
-        ax.set(
-            xlim=(axis_lims[0], axis_lims[1]),
-            ylim=(
-                (axis_lims[2], axis_lims[3])
-                if not flip_yz else (axis_lims[4], axis_lims[5])),
-            zlim=(
-                (axis_lims[4], axis_lims[5])
-                if not flip_yz else (axis_lims[2], axis_lims[3]))
-            )
-
-    else:
-        xlim, ylim, zlim = equal_cube_limits(
-            [node.x for node in input_data],
-            [node.y for node in input_data],
-            [node.z for node in input_data])
-
-        ax.set(
-            xlim=xlim,
-            ylim=ylim if not flip_yz else zlim,
-            zlim=zlim if not flip_yz else ylim
-            )
+    # Preserve default axis limits even if the user supplied their own Axes
+    if user_supplied_ax:
+        ax.set(**limits_kwargs)
 
     if azim is not None:
         ax.view_init(elev=elev, azim=azim)
 
     apply_zoom_3d(ax, zoom)
+
+    return ax

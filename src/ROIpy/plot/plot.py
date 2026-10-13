@@ -126,13 +126,13 @@ def plot(
 
         | Data Type                | Main Keyword Arguments (kwargs)          |
         |-------------------------|-------------------------------------------|
-        | np.ndarray              | cmap, norm, axes_labels, ax               |
+        | np.ndarray              | cmap, norm, ax                            |
         | Node/NodeBundle/Neurite | show_nodes, show_segments, cmap,          |
-        |                         | show_cmap, axes_labels, nodes_kwargs,     |
-        |                         | segments_kwargs, ax, axis_lims            |
+        |                         | show_cmap, nodes_kwargs,                  |
+        |                         | segments_kwargs, ax, ax_kwargs            |
         | Roi/ScanfieldBundle     | cmap, show_cbar, scan_angle, rect_kwargs, |
-        |                         | ax, axis_lims                             |
-        | 3D Plotting             | projection='3d', azim, elev, axis_lims    |
+        |                         | ax, ax_kwargs                             |
+        | 3D Plotting             | projection='3d', azim, elev, ax_kwargs   |
 
     metadata : dict, optional
         Metadata dictionary containing relevant information for plotting
@@ -205,17 +205,17 @@ def animate(
 
         | Data Type                | Main Keyword Arguments (kwargs)      |
         |-------------------------|--------------------------------------|
-        | Node/NodeBundle/Neurite | show_nodes, scan_angle, axis_lims,   |
+        | Node/NodeBundle/Neurite | show_nodes, scan_angle,              |
         |                         | cmap, show_cbar, elev_start,         |
         |                         | elev_end, azimut_start, azimut_end,  |
         |                         | interval, frames, save_path,         |
-        |                         | axis_label, nodes_kwargs,            |
-        |                         | segments_kwargs                      |
+        |                         | nodes_kwargs, segments_kwargs,       |
+        |                         | ax_kwargs                            |
         | Roi/ScanfieldBundle     | cmap, show_cbar, scan_angle,         |
         |                         | elev_start, elev_end, azimut_start,  |
         |                         | azimut_end, interval, frames,        |
-        |                         | save_path, zoom, axis_label,         |
-        |                         | rect_kwargs                          |
+        |                         | save_path, zoom, rect_kwargs,       |
+        |                         | ax_kwargs                            |
 
     *args : tuple
         Additional positional arguments to pass to the specific animator.
