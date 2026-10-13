@@ -1,10 +1,11 @@
 from __future__ import annotations
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 import numpy as np
 import ROIpy.core.morphology as mrph
-from ROIpy.plot._common import check_metadata, get_scan_units
+from ROIpy.plot._common import (
+    check_metadata, get_scan_units, equal_cube_limits, apply_zoom_3d,
+    merge_kwargs, make_z_colormap, add_z_colorbar, create_2d_axes,
+    create_3d_axes, ensure_3d_axes)
 
 
 def tapered_segment(
@@ -111,7 +112,7 @@ def skeleton(
         "ls": '-'
     }
 
-    skeleton_kwargs = {**default_kwargs, **(kwargs or {})}
+    skeleton_kwargs = merge_kwargs(default_kwargs, kwargs)
 
     axes = ax if isinstance(ax, list) else [ax]
 
@@ -242,9 +243,6 @@ def plot_morph(
     if isinstance(input_data, mrph.Node):
         input_data = [input_data]
 
-    if isinstance(cmap, str):
-        cmap = plt.get_cmap(cmap)
-
     default_nodes_kwargs = {
         'edgecolor': 'black',
         'alpha': 0.7,
@@ -258,9 +256,8 @@ def plot_morph(
         'linewidth': 1
     }
 
-    # Merge user-supplied kwargs (user overrides default)
-    nodes_kwargs = {**default_nodes_kwargs, **(nodes_kwargs or {})}
-    segments_kwargs = {**default_segments_kwargs, **(segments_kwargs or {})}
+    nodes_kwargs = merge_kwargs(default_nodes_kwargs, nodes_kwargs)
+    segments_kwargs = merge_kwargs(default_segments_kwargs, segments_kwargs)
 
     units, corners = get_scan_units(metadata, scan_angle)
 
@@ -275,26 +272,16 @@ def plot_morph(
     zs = [node.z for node in input_data] if metadata is None else metadata['zs']
     zmin, zmax = min(zs), max(zs)
 
-    norm = colors.Normalize(
-        vmin=zmin,
-        vmax=zmax)
-
-    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    cmap, norm, sm = make_z_colormap(cmap, zmin, zmax)
 
     if ax is None:
-        _, ax = plt.subplots()
-
-        ax.set(
+        ax = create_2d_axes(
+            corners,
             xlim=xlim,
             ylim=ylim,
             xlabel=units if axes_labels else "",
             ylabel=units if axes_labels else "",
-            title=title,
-            aspect='equal'
-            )
-
-        if not corners:
-            ax.autoscale()
+            title=title)
 
     if axis_lims is not None:
         ax.set(
@@ -336,9 +323,7 @@ def plot_morph(
             )
 
         if show_cbar and cmap is not None:
-            divider = make_axes_locatable(ax)
-            cax = divider.append_axes("right", size="2%", pad=0.1)
-            cbar = plt.colorbar(sm, ax=ax, orientation='vertical', cax=cax)
+            cbar = add_z_colorbar(sm, ax)
             cbar.set_label('Z')
 
     if show_segments:
@@ -427,21 +412,16 @@ def plot_morph_3d(
         'linewidth': 1
     }
 
-    nodes_kwargs = {**default_nodes_kwargs, **(nodes_kwargs or {})}
-    segments_kwargs = {**default_segments_kwargs, **(segments_kwargs or {})}
+    nodes_kwargs = merge_kwargs(default_nodes_kwargs, nodes_kwargs)
+    segments_kwargs = merge_kwargs(default_segments_kwargs, segments_kwargs)
 
     if not ax:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-
-        ax.set(
+        ax = create_3d_axes(
             xlabel="X",
             ylabel="Y" if not flip_yz else "Z",
-            zlabel="Z" if not flip_yz else "Y",
-            )
+            zlabel="Z" if not flip_yz else "Y")
 
-    if ax is not None and not ax.name == '3d':
-        raise ValueError("Provided Axes must be 3D.")
+    ensure_3d_axes(ax)
 
     node_dict = {node.id: node for node in input_data}
 
@@ -473,9 +453,8 @@ def plot_morph_3d(
             # Remove 'color' from nodes_kwargs to avoid conflict with cmap
             nodes_kwargs = {
                 k: v for k, v in nodes_kwargs.items() if k != 'color'}
-            cmap = plt.get_cmap(cmap)
-            norm = plt.Normalize(min(z_nodes), max(z_nodes))
-            scalar_map= plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+            cmap, norm, scalar_map = make_z_colormap(
+                cmap, min(z_nodes), max(z_nodes))
 
             ax.scatter(
                 x_nodes,
@@ -492,7 +471,7 @@ def plot_morph_3d(
                 **nodes_kwargs)
 
         if show_cbar:
-            cbar = plt.colorbar(scalar_map, ax=ax)
+            cbar = add_z_colorbar(scalar_map, ax, inset=False)
             cbar.set_label("Z (Âµm)")
 
     if axis_lims:
@@ -507,43 +486,18 @@ def plot_morph_3d(
             )
 
     else:
-        x_vals = [node.x for node in input_data]
-        y_vals = [node.y for node in input_data] 
-        z_vals = [node.z for node in input_data]
-
-        max_range = np.array(
-            [max(x_vals) - min(x_vals),
-             max(y_vals) - min(y_vals),
-             max(z_vals) - min(z_vals)]).max() / 2.0
-
-        mid_x = (max(x_vals) + min(x_vals)) * 0.5
-        mid_y = (max(y_vals) + min(y_vals)) * 0.5
-        mid_z = (max(z_vals) + min(z_vals)) * 0.5
+        xlim, ylim, zlim = equal_cube_limits(
+            [node.x for node in input_data],
+            [node.y for node in input_data],
+            [node.z for node in input_data])
 
         ax.set(
-            xlim=(mid_x - max_range, mid_x + max_range),
-            ylim=(
-                (mid_y - max_range, mid_y + max_range)
-                if not flip_yz else (mid_z - max_range, mid_z + max_range)),
-            zlim=(
-                (mid_z - max_range, mid_z + max_range)
-                if not flip_yz else (mid_y - max_range, mid_y + max_range))
+            xlim=xlim,
+            ylim=ylim if not flip_yz else zlim,
+            zlim=zlim if not flip_yz else ylim
             )
 
     if azim is not None:
         ax.view_init(elev=elev, azim=azim)
 
-    # --- Zoom effect by scaling axis limits ---
-    if zoom != 1.0:
-        xlim = ax.get_xlim3d()
-        ylim = ax.get_ylim3d()
-        zlim = ax.get_zlim3d()
-        xmid = (xlim[0] + xlim[1]) / 2.0
-        ymid = (ylim[0] + ylim[1]) / 2.0
-        zmid = (zlim[0] + zlim[1]) / 2.0
-        xsize = (xlim[1] - xlim[0]) / zoom
-        ysize = (ylim[1] - ylim[0]) / zoom
-        zsize = (zlim[1] - zlim[0]) / zoom
-        ax.set_xlim3d(xmid - xsize/2, xmid + xsize/2)
-        ax.set_ylim3d(ymid - ysize/2, ymid + ysize/2)
-        ax.set_zlim3d(zmid - zsize/2, zmid + zsize/2)
+    apply_zoom_3d(ax, zoom)

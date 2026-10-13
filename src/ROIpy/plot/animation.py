@@ -2,7 +2,7 @@ from __future__ import annotations
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 import ROIpy.core.scanfields as sfld
-from ROIpy.plot._common import check_metadata
+from ROIpy.plot._common import check_metadata, set_3d_axis_labels
 from ROIpy.plot.morph import plot_morph_3d
 from ROIpy.plot.scanfield import plot_scanfields_3d
 
@@ -161,20 +161,7 @@ def animate_morph_3d(
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    if not axis_label:
-        ax.tick_params(axis='both', which='both', length=0)
-        ax.set(
-            xticks=([]),
-            yticks=([]),
-            zticks=([]),
-            xlabel="",
-            ylabel="",
-            zlabel="")
-    else:
-        ax.set(
-            xlabel="X",
-            ylabel="Y",
-            zlabel="Z")
+    set_3d_axis_labels(ax, axis_label)
 
     plot_morph_3d(
         input_data=input_data,
@@ -293,20 +280,7 @@ def animate_scanfields_3d(
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
-    if not axis_label:
-        ax.tick_params(axis='both', which='both', length=0)
-        ax.set(
-            xticks=([]),
-            yticks=([]),
-            zticks=([]),
-            xlabel="",
-            ylabel="",
-            zlabel="")
-    else:
-        ax.set(
-            xlabel="X",
-            ylabel="Y",
-            zlabel="Z")
+    set_3d_axis_labels(ax, axis_label)
 
     # Initial plot of scanfields
     plot_scanfields_3d(

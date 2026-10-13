@@ -1,13 +1,13 @@
 from __future__ import annotations
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
 import matplotlib.patches as patches
-import matplotlib.colors as mcolors
-from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 import ROIpy.core.scanfields as sfld
-from ROIpy.plot._common import check_metadata, get_scan_units
+from ROIpy.plot._common import (
+    check_metadata, get_scan_units, equal_cube_limits, apply_zoom_3d,
+    merge_kwargs, normalize_rois, make_z_colormap, add_z_colorbar,
+    create_2d_axes, create_3d_axes, ensure_3d_axes)
 
 
 def plot_scanfield(
@@ -52,14 +52,7 @@ def plot_scanfield(
     """
     check_metadata(metadata)
 
-    if not isinstance(rectangles, (list, sfld.ScanfieldBundle, sfld.Roi)):
-        raise TypeError("rectangles must be a list, ScanfieldBundle, or Roi.")
-
-    if isinstance(rectangles, sfld.ScanfieldBundle):
-        rectangles = [rect for roiSet in rectangles for rect in roiSet]
-
-    elif isinstance(rectangles, sfld.Roi):
-        rectangles = [rectangles]
+    rectangles = normalize_rois(rectangles)
 
     units, corners = get_scan_units(metadata, scan_angle)
 
@@ -69,13 +62,14 @@ def plot_scanfield(
         'linewidth': 1.0,
         'alpha': 0.5
     }
-    rect_kwargs = {**default_rect_kwargs, **(rect_kwargs or {})}
+    rect_kwargs = merge_kwargs(default_rect_kwargs, rect_kwargs)
 
     if metadata:
         zs = metadata['zs']
         stack_name = metadata['stack_name']
         xlim = (min(corners[0]), max(corners[1]))
         ylim = (max(corners[2]), min(corners[3]))
+    
     else:
         zs = [rect.z for rect in rectangles]
         stack_name = None
@@ -86,35 +80,10 @@ def plot_scanfield(
     if cmap is not None:
         rect_kwargs.pop("facecolor", None)
 
-        cmap = plt.cm.get_cmap(cmap)
-        norm = colors.Normalize(
-            vmin=zmin, vmax=zmax)
-        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
-
-    # If it's a 2d lists of ROIs (multiple scanfields)
-    # flattens it to get a 1d list of ROIs
-    if isinstance(rectangles, sfld.ScanfieldBundle):
-        rectangles = [rect for roiSet in rectangles for rect in roiSet]
-
-    # If it's an individual ROI
-    # put the single ROI object in a single-element list
-    elif isinstance(rectangles, sfld.Roi):
-        rectangles = [rectangles]
-
-    # this block is just for testing intermediate rectangles
-    # in the method _create_roi of the class Scanfields
-    elif isinstance(rectangles, list):
-        rectangles = rectangles
+        cmap, norm, sm = make_z_colormap(cmap, zmin, zmax)
 
     if not ax:
-        _, ax = plt.subplots()
-        ax.set(
-            aspect='equal',
-            title=stack_name,
-        )
-
-        if not corners:
-            ax.autoscale()
+        ax = create_2d_axes(corners, title=stack_name)
 
     if axis_lims:
         ax.set(
@@ -164,9 +133,7 @@ def plot_scanfield(
         sm.set_array([rect.z for rect in rectangles])
         sm.set_clim(vmin=zmin, vmax=zmax)
 
-        divider = make_axes_locatable(ax)
-        cax = divider.append_axes("right", size="2%", pad=0.1)
-        cbar = plt.colorbar(sm, ax=ax, orientation='vertical', cax=cax)
+        cbar = add_z_colorbar(sm, ax)
         cbar.set_label('Z')
 
 
@@ -221,14 +188,7 @@ def plot_scanfields_3d(
     """
     check_metadata(metadata)
 
-    if not isinstance(rectangles, (list, sfld.ScanfieldBundle, sfld.Roi)):
-        raise TypeError("rectangles must be a list, ScanfieldBundle, or Roi.")
-
-    if isinstance(rectangles, sfld.ScanfieldBundle):
-        rectangles = [rect for roiSet in rectangles for rect in roiSet]
-
-    elif isinstance(rectangles, sfld.Roi):
-        rectangles = [rectangles]
+    rectangles = normalize_rois(rectangles)
 
     zs = metadata['zs'] if metadata else [rect.z for rect in rectangles]
 
@@ -238,15 +198,12 @@ def plot_scanfields_3d(
         'linewidth': 1.0,
         'alpha': 0.5
     }
-    rect_kwargs = {**default_rect_kwargs, **(rect_kwargs or {})}
+    rect_kwargs = merge_kwargs(default_rect_kwargs, rect_kwargs)
 
     if not ax:
-        fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-
         units, corners = get_scan_units(metadata, scan_angle)
 
-        ax.set(
+        ax = create_3d_axes(
             xlim=(min(corners[0]), max(corners[1])),
             ylim=(max(corners[2]), min(corners[3])),
             zlim=(min(zs), max(zs)),
@@ -257,12 +214,16 @@ def plot_scanfields_3d(
         ax.set_xlabel(units, labelpad=30)
         ax.set_ylabel(units, labelpad=30)
 
-    if ax is not None and not ax.name == '3d':
-        raise ValueError("Provided Axes must be 3D.")
+    ensure_3d_axes(ax)
 
     fig = ax.get_figure()
 
     z_values = [rect.z for rect in rectangles]
+
+    if cmap is not None:
+        rect_kwargs.pop("facecolor", None)
+        cmap, norm, scalar_map = make_z_colormap(
+            cmap, min(z_values), max(z_values))
     
     for rect in rectangles:
 
@@ -295,10 +256,6 @@ def plot_scanfields_3d(
         faces = [vertices]
 
         if cmap is not None:
-            rect_kwargs.pop("facecolor", None)
-            cmap = plt.get_cmap(cmap)
-            norm = mcolors.Normalize(vmin=min(z_values), vmax=max(z_values))
-            scalar_map = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
             color = scalar_map.to_rgba(z)
 
             poly3d = Poly3DCollection(
@@ -317,7 +274,7 @@ def plot_scanfields_3d(
         ax.add_collection3d(poly3d)
 
     if cmap and show_cbar:
-        cbar = plt.colorbar(scalar_map, ax=ax)
+        cbar = add_z_colorbar(scalar_map, ax, inset=False)
         cbar.set_label("Z (Âµm)")
 
     if axis_lims:
@@ -341,35 +298,10 @@ def plot_scanfields_3d(
             y_vals.extend([corner[1] for corner in rect_corners])
             z_vals.extend([rect.z for _ in rect_corners])
 
-        max_range = np.array(
-            [max(x_vals) - min(x_vals),
-             max(y_vals) - min(y_vals),
-             max(z_vals) - min(z_vals)]).max() / 2.0
-        
-        mid_x = (max(x_vals) + min(x_vals)) * 0.5
-        mid_y = (max(y_vals) + min(y_vals)) * 0.5
-        mid_z = (max(z_vals) + min(z_vals)) * 0.5
-
-        ax.set(
-            xlim=(mid_x - max_range, mid_x + max_range),
-            ylim=(mid_y - max_range, mid_y + max_range),
-            zlim=(mid_z - max_range, mid_z + max_range)
-            )
+        xlim, ylim, zlim = equal_cube_limits(x_vals, y_vals, z_vals)
+        ax.set(xlim=xlim, ylim=ylim, zlim=zlim)
         
     if azim is not None:
         ax.view_init(elev=elev, azim=azim)
 
-    # --- Zoom effect by scaling axis limits ---
-    if zoom != 1.0:
-        xlim = ax.get_xlim3d()
-        ylim = ax.get_ylim3d()
-        zlim = ax.get_zlim3d()
-        xmid = (xlim[0] + xlim[1]) / 2.0
-        ymid = (ylim[0] + ylim[1]) / 2.0
-        zmid = (zlim[0] + zlim[1]) / 2.0
-        xsize = (xlim[1] - xlim[0]) / zoom
-        ysize = (ylim[1] - ylim[0]) / zoom
-        zsize = (zlim[1] - zlim[0]) / zoom
-        ax.set_xlim3d(xmid - xsize/2, xmid + xsize/2)
-        ax.set_ylim3d(ymid - ysize/2, ymid + ysize/2)
-        ax.set_zlim3d(zmid - zsize/2, zmid + zsize/2)
+    apply_zoom_3d(ax, zoom)
