@@ -73,6 +73,18 @@ class Stack:
     ) -> np.ndarray:
         """
         Return the [z, x, y] image for the requested channel.
+
+        Parameters
+        ----------
+        image_data : np.ndarray
+            The raw image data read from the TIFF file.
+        channel : int or None
+            The channel to select. If None, the second channel is used for multi-channel stacks.
+
+        Returns
+        -------
+        np.ndarray
+            The selected channel's image data with shape [z, x, y].
         """
 
         ch_saved = list(self.metadata["ch_saved"])
